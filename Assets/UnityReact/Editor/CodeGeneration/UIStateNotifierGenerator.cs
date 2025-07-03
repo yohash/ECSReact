@@ -70,7 +70,7 @@ namespace ECSReact.CodeGen
       if (totalStates > 0) {
         EditorGUILayout.LabelField($"Discovered {totalStates} IGameState types in {namespaceGroups.Count} namespaces:", EditorStyles.boldLabel);
 
-        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Height(300));
+        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
         foreach (var kvp in namespaceGroups.OrderBy(n => n.Key)) {
           drawNamespaceGroup(kvp.Key, kvp.Value);

@@ -14,12 +14,16 @@ namespace ECSReact.Core
     private T lastState;
     private bool hasLastState = false;
 
+    protected override void OnCreate()
+    {
+      base.OnCreate();
+
+      // Only run this system when the state singleton exists
+      RequireForUpdate<T>();
+    }
+
     protected override void OnUpdate()
     {
-      if (!SystemAPI.HasSingleton<T>()) {
-        return;
-      }
-
       var currentState = SystemAPI.GetSingleton<T>();
 
       // Compare with last frame's state

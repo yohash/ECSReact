@@ -8,6 +8,7 @@ namespace ECSReact.CodeGen
   public class NamespaceGroup
   {
     public string namespaceName;
+    public string assemblyName;
     public bool includeInGeneration;
     public bool isExpanded;
     public List<ActionTypeInfo> actions;
@@ -38,6 +39,7 @@ namespace ECSReact.CodeGen
   public class StateTypeInfo
   {
     public string typeName;
+    public Type stateType;
     public string fullTypeName;
     public string namespaceName;
     public string assemblyName;

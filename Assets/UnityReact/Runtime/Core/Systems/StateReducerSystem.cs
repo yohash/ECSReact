@@ -23,6 +23,9 @@ namespace ECSReact.Core
           ComponentType.ReadOnly<TAction>(),
           ComponentType.ReadOnly<ActionTag>()
       );
+
+      // Only run this system when the state singleton exists
+      RequireForUpdate<TState>();
     }
 
     protected override void OnUpdate()

@@ -92,6 +92,8 @@ namespace ECSReact.CodeGen
 
         // Namespace name
         EditorGUILayout.LabelField(namespaceName, EditorStyles.boldLabel, GUILayout.ExpandWidth(true));
+
+        EditorGUILayout.LabelField(namespaceInfo.assemblyName, EditorStyles.miniLabel, GUILayout.Width(100));
         EditorGUILayout.EndHorizontal();
 
         // Summary of what's in this namespace
@@ -175,6 +177,7 @@ namespace ECSReact.CodeGen
                     namespaceName,
                     // Default to selected UNLESS it's the core namespace
                     namespaceName == "ECSReact.Core" ? false : true),
+                  assemblyName = assembly.GetName().Name,
                   states = new List<StateTypeInfo>(),
                   actions = new List<ActionTypeInfo>(),
                 };

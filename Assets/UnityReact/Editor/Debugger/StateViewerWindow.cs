@@ -607,25 +607,50 @@ namespace ECSReact.Tools
       if (world == null)
         return;
 
+      var entityManager = world.EntityManager;
+
       foreach (var stateInfo in discoveredStates) {
         try {
-          // Use reflection to call SystemAPI.GetSingleton<T>()
-          var getSingletonMethod = typeof(SystemAPI).GetMethod("GetSingleton")
-              ?.MakeGenericMethod(stateInfo.stateType);
+          // Use EntityManager to query for singleton directly (no SystemAPI needed!)
+          var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly(stateInfo.stateType));
 
-          if (getSingletonMethod != null) {
-            var newValue = getSingletonMethod.Invoke(null, null);
+          if (query.CalculateEntityCount() > 0) {
+            // Get the singleton entity
+            var singletonEntity = query.GetSingletonEntity();
 
-            // Check if state changed
-            if (!Equals(newValue, stateInfo.currentValue)) {
-              stateInfo.previousValue = stateInfo.currentValue;
-              stateInfo.currentValue = newValue;
-              stateInfo.lastChanged = Time.realtimeSinceStartup;
+            // Get the specific GetComponentData<T>(Entity) method - avoid ambiguity
+            var getComponentMethods = typeof(EntityManager)
+                .GetMethods()
+                .Where(m => m.Name == "GetComponentData" &&
+                           m.IsGenericMethodDefinition &&
+                           m.GetParameters().Length == 1 &&
+                           m.GetParameters()[0].ParameterType == typeof(Entity))
+                .FirstOrDefault();
+
+            if (getComponentMethods != null) {
+              var specificMethod = getComponentMethods.MakeGenericMethod(stateInfo.stateType);
+              var newValue = specificMethod.Invoke(entityManager, new object[] { singletonEntity });
+
+              // Check if state changed
+              if (!Equals(newValue, stateInfo.currentValue)) {
+                stateInfo.previousValue = stateInfo.currentValue;
+                stateInfo.currentValue = newValue;
+                stateInfo.lastChanged = Time.realtimeSinceStartup;
+              }
+            } else {
+              Debug.LogError($"State Viewer: Could not find GetComponentData<T>(Entity) method");
+              stateInfo.currentValue = null;
             }
+          } else {
+            // No singleton found
+            stateInfo.currentValue = null;
           }
-        } catch (Exception) {
-          // State not available (no singleton)
+
+          query.Dispose();
+        } catch (Exception ex) {
+          // State not available (error accessing singleton)
           stateInfo.currentValue = null;
+          Debug.LogWarning($"State Viewer: Error accessing {stateInfo.typeName}: {ex.Message}");
         }
       }
     }
@@ -737,6 +762,116 @@ namespace ECSReact.Tools
     public DateTime timestamp;
     public string eventType;
     public string priority;
+  }
+
+  [Serializable]
+  public class StateSnapshot
+  {
+    public DateTime timestamp;
+    public float gameTime;
+    public Dictionary<string, object> states;
+  }
+
+  [Serializable]
+  public class SerializableSnapshot
+  {
+    public string timestamp;
+    public float gameTime;
+    public List<SerializableState> states;
+
+    public SerializableSnapshot(StateSnapshot snapshot)
+    {
+      timestamp = snapshot.timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff");
+      gameTime = snapshot.gameTime;
+      states = new List<SerializableState>();
+
+      foreach (var kvp in snapshot.states) {
+        states.Add(new SerializableState
+        {
+          typeName = kvp.Key,
+          data = JsonUtility.ToJson(kvp.Value)
+        });
+      }
+    }
+  }
+
+  [Serializable]
+  public class SerializableState
+  {
+    public string typeName;
+    public string data;
+  }
+
+  // === FIELD EDITOR WINDOW ===
+
+  public class FieldEditorWindow : EditorWindow
+  {
+    private StateTypeInfo stateInfo;
+    private FieldInfo field;
+    private object currentValue;
+    private object newValue;
+    private System.Action<StateTypeInfo, FieldInfo, object> onValueChanged;
+
+    public void Initialize(StateTypeInfo stateInfo, FieldInfo field, object currentValue,
+                          System.Action<StateTypeInfo, FieldInfo, object> onValueChanged)
+    {
+      this.stateInfo = stateInfo;
+      this.field = field;
+      this.currentValue = currentValue;
+      this.newValue = currentValue;
+      this.onValueChanged = onValueChanged;
+
+      titleContent = new GUIContent($"Edit {field.Name}");
+      minSize = new Vector2(300, 150);
+    }
+
+    private void OnGUI()
+    {
+      EditorGUILayout.LabelField("Edit Field Value", EditorStyles.boldLabel);
+      EditorGUILayout.Space();
+
+      EditorGUILayout.LabelField("State Type:", stateInfo.typeName);
+      EditorGUILayout.LabelField("Field Name:", field.Name);
+      EditorGUILayout.LabelField("Field Type:", field.FieldType.Name);
+      EditorGUILayout.Space();
+
+      EditorGUILayout.LabelField("Current Value:", currentValue?.ToString() ?? "null");
+      EditorGUILayout.Space();
+
+      EditorGUILayout.LabelField("New Value:");
+      newValue = DrawValueEditor(newValue, field.FieldType);
+
+      EditorGUILayout.Space();
+
+      EditorGUILayout.BeginHorizontal();
+
+      if (GUILayout.Button("Apply")) {
+        onValueChanged?.Invoke(stateInfo, field, newValue);
+        Close();
+      }
+
+      if (GUILayout.Button("Cancel")) {
+        Close();
+      }
+
+      EditorGUILayout.EndHorizontal();
+    }
+
+    private object DrawValueEditor(object value, Type type)
+    {
+      if (type == typeof(int)) {
+        return EditorGUILayout.IntField((int)value);
+      } else if (type == typeof(float)) {
+        return EditorGUILayout.FloatField((float)value);
+      } else if (type == typeof(bool)) {
+        return EditorGUILayout.Toggle((bool)value);
+      } else if (type == typeof(string)) {
+        return EditorGUILayout.TextField((string)value ?? "");
+      } else {
+        EditorGUILayout.LabelField($"Editing {type.Name} not supported yet");
+        return value;
+      }
+    }
   }
 
   // === SUBSCRIPTION HEALTH WINDOW ===
