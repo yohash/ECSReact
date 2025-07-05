@@ -10,8 +10,8 @@ namespace ECSReact.Core
   /// </summary>
   public static partial class StateSubscriptionHelper
   {
-    private static readonly Dictionary<Type, Action<object>> subscriptionHandlers = new();
-    private static readonly Dictionary<Type, Action<object>> unsubscriptionHandlers = new();
+    private static readonly Dictionary<Type, Action<object>> subscribers = new();
+    private static readonly Dictionary<Type, Action<object>> unsubscribers = new();
 
     /// <summary>
     /// Register subscription and unsubscription handlers for a specific state type.
@@ -22,8 +22,8 @@ namespace ECSReact.Core
       Action<IStateSubscriber<T>> unsubscribeHandler)
         where T : unmanaged, IGameState
     {
-      subscriptionHandlers[typeof(T)] = subscriber => subscribeHandler((IStateSubscriber<T>)subscriber);
-      unsubscriptionHandlers[typeof(T)] = subscriber => unsubscribeHandler((IStateSubscriber<T>)subscriber);
+      subscribers[typeof(T)] = subscriber => subscribeHandler((IStateSubscriber<T>)subscriber);
+      unsubscribers[typeof(T)] = subscriber => unsubscribeHandler((IStateSubscriber<T>)subscriber);
     }
 
     /// <summary>
@@ -31,13 +31,13 @@ namespace ECSReact.Core
     /// Uses registered handlers to connect to the appropriate UI event.
     /// </summary>
     public static void Subscribe<T>(IStateSubscriber<T> subscriber)
-        where T : unmanaged, IGameState
+      where T : unmanaged, IGameState
     {
-      if (subscriptionHandlers.TryGetValue(typeof(T), out var handler)) {
+      if (subscribers.TryGetValue(typeof(T), out var handler)) {
         handler(subscriber);
       } else {
         Debug.LogWarning($"No subscription handler registered for state type {typeof(T).Name}. " +
-                       "Make sure code generation has run or manually register handlers.");
+          "Make sure code generation has run or manually register handlers.");
       }
     }
 
@@ -46,13 +46,13 @@ namespace ECSReact.Core
     /// Uses registered handlers to disconnect from the appropriate UI event.
     /// </summary>
     public static void Unsubscribe<T>(IStateSubscriber<T> subscriber)
-        where T : unmanaged, IGameState
+      where T : unmanaged, IGameState
     {
-      if (unsubscriptionHandlers.TryGetValue(typeof(T), out var handler)) {
+      if (unsubscribers.TryGetValue(typeof(T), out var handler)) {
         handler(subscriber);
       } else {
         Debug.LogWarning($"No unsubscription handler registered for state type {typeof(T).Name}. " +
-                       "Make sure code generation has run or manually register handlers.");
+          "Make sure code generation has run or manually register handlers.");
       }
     }
   }

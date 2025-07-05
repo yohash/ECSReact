@@ -71,7 +71,7 @@ namespace ECSReact.Core
       // Process critical events first (no time limit)
       while (criticalPriorityQueue.Count > 0) {
         var uiEvent = criticalPriorityQueue.Dequeue();
-        ProcessEvent(uiEvent);
+        processEvent(uiEvent);
         eventsProcessedThisFrame++;
       }
 
@@ -79,7 +79,7 @@ namespace ECSReact.Core
       while (highPriorityQueue.Count > 0 &&
              (Time.realtimeSinceStartup - startTime) < maxProcessingTimePerFrame) {
         var uiEvent = highPriorityQueue.Dequeue();
-        ProcessEvent(uiEvent);
+        processEvent(uiEvent);
         eventsProcessedThisFrame++;
       }
 
@@ -87,7 +87,7 @@ namespace ECSReact.Core
       while (eventQueue.Count > 0 &&
              (Time.realtimeSinceStartup - startTime) < maxProcessingTimePerFrame) {
         var uiEvent = eventQueue.Dequeue();
-        ProcessEvent(uiEvent);
+        processEvent(uiEvent);
         eventsProcessedThisFrame++;
       }
 
@@ -96,7 +96,7 @@ namespace ECSReact.Core
       }
     }
 
-    private void ProcessEvent(UIEvent uiEvent)
+    private void processEvent(UIEvent uiEvent)
     {
       try {
         // Notify tracking systems (optional callback for debugging tools)
@@ -117,5 +117,4 @@ namespace ECSReact.Core
       return (eventQueue.Count, highPriorityQueue.Count, criticalPriorityQueue.Count, totalEventsQueued);
     }
   }
-
 }
