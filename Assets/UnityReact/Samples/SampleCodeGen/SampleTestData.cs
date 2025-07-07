@@ -252,7 +252,7 @@ namespace ECSReact.Samples.SampleCodeGen
   /// Shows how the generated code integrates with actual game systems.
   /// </summary>
   [Unity.Burst.BurstCompile]
-  public partial class GameStateReducer : StateReducerSystem<GameState, SpendMatterAction>
+  public partial class GameStateReducer : ReducerSystem<GameState, SpendMatterAction>
   {
     protected override void ReduceState(ref GameState state, SpendMatterAction action)
     {
@@ -269,7 +269,7 @@ namespace ECSReact.Samples.SampleCodeGen
   /// Example reducer for player movement.
   /// </summary>
   [Unity.Burst.BurstCompile]
-  public partial class PlayerMovementReducer : StateReducerSystem<PlayerState, MovePlayerAction>
+  public partial class PlayerMovementReducer : ReducerSystem<PlayerState, MovePlayerAction>
   {
     protected override void ReduceState(ref PlayerState state, MovePlayerAction action)
     {

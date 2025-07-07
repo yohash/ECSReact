@@ -27,6 +27,24 @@ namespace ECSReact.Core
   }
 
   /// <summary>
+  /// Group for reducer systems that process actions and update game state.
+  /// Reducers run after middleware to ensure actions are validated and ready for state changes.
+  /// Reducers should ONLY mutate state and not perform side effects.
+  /// </summary>
+  [UpdateInGroup(typeof(SimulationSystemGroup))]
+  [UpdateBefore(typeof(ActionCleanupSystemGroup))]
+  public partial class ReducerSystemGroup : ComponentSystemGroup
+  {
+    protected override void OnCreate()
+    {
+      base.OnCreate();
+
+      // Reducers should run after middleware but before cleanup
+      EnableSystemSorting = true;
+    }
+  }
+
+  /// <summary>
   /// Group for systems that clean up processed actions.
   /// Runs after simulation systems to ensure actions can be processed by multiple reducers.
   /// This is where ActionCleanupSystem runs to destroy all ActionTag entities.
@@ -89,7 +107,7 @@ namespace ECSReact.Core
   /// </summary>
   public class ReducerSystemAttribute : UpdateInGroupAttribute
   {
-    public ReducerSystemAttribute() : base(typeof(SimulationSystemGroup)) { }
+    public ReducerSystemAttribute() : base(typeof(ReducerSystemGroup)) { }
   }
 
   /// <summary>

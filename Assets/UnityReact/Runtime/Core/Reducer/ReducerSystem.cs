@@ -8,7 +8,8 @@ namespace ECSReact.Core
   /// Uses dynamic queries to work around Unity ECS generic type constraints.
   /// </summary>
   [BurstCompile]
-  public abstract partial class StateReducerSystem<TState, TAction> : SystemBase
+  [ReducerSystem]
+  public abstract partial class ReducerSystem<TState, TAction> : SystemBase
       where TState : unmanaged, IGameState
       where TAction : unmanaged, IGameAction
   {
