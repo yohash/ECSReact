@@ -291,23 +291,21 @@
   /*
   public class GameHUDExample : MultiStateUIComponent<GameState, PlayerState>
   {
-      [SerializeField] private UnityEngine.UI.Text healthText;
-      [SerializeField] private UnityEngine.UI.Text scoreText;
-      [SerializeField] private UnityEngine.UI.Text playerLevelText;
+    [SerializeField] private UnityEngine.UI.Text healthText;
+    [SerializeField] private UnityEngine.UI.Text scoreText;
+    [SerializeField] private UnityEngine.UI.Text playerLevelText;
 
-      // Automatically subscribed - just implement the required methods!
-      public override void OnStateChanged(GameState newGameState)
-      {
-          healthText.text = $"Health: {newGameState.health}";
-          scoreText.text = $"Score: {newGameState.score}";
-      }
+    // Automatically subscribed - just implement the required methods!
+    public override void OnStateChanged(GameState newGameState)
+    {
+      healthText.text = $"Health: {newGameState.health}";
+      scoreText.text = $"Score: {newGameState.score}";
+    }
 
-      public override void OnStateChanged(PlayerState newPlayerState)
-      {
-          playerLevelText.text = $"Level: {newPlayerState.level}";
-      }
-
-      // That's it! Zero boilerplate, zero reflection, maximum performance! 🚀
+    public override void OnStateChanged(PlayerState newPlayerState)
+    {
+      playerLevelText.text = $"Level: {newPlayerState.level}";
+    }
   }
   */
 
@@ -318,30 +316,28 @@
   /*
   public class ComplexDashboardExample : MultiStateUIComponent<GameState, PlayerState, InventoryState, UIState>
   {
-      public override void OnStateChanged(GameState newGameState) 
-      { 
-          UpdateHealthBar(newGameState.health);
-          UpdateScoreDisplay(newGameState.score);
-      }
+    public override void OnStateChanged(GameState newGameState)
+    {
+      UpdateHealthBar(newGameState.health);
+      UpdateScoreDisplay(newGameState.score);
+    }
 
-      public override void OnStateChanged(PlayerState newPlayerState) 
-      { 
-          UpdateLevelDisplay(newPlayerState.level);
-          UpdateExperienceBar(newPlayerState.experience);
-      }
+    public override void OnStateChanged(PlayerState newPlayerState)
+    {
+      UpdateLevelDisplay(newPlayerState.level);
+      UpdateExperienceBar(newPlayerState.experience);
+    }
 
-      public override void OnStateChanged(InventoryState newInventoryState) 
-      { 
-          UpdateInventoryCount(newInventoryState.itemCount);
-      }
+    public override void OnStateChanged(InventoryState newInventoryState)
+    {
+      UpdateInventoryCount(newInventoryState.itemCount);
+    }
 
-      public override void OnStateChanged(UIState newUIState) 
-      { 
-          if (newUIState.showNotifications)
-              ShowNotificationPanel();
-      }
-
-      // Clean, fast, type-safe! Perfect for game performance! ✨
+    public override void OnStateChanged(UIState newUIState)
+    {
+      if (newUIState.showNotifications)
+        ShowNotificationPanel();
+    }
   }
   */
 }
