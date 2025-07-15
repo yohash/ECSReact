@@ -1,0 +1,33 @@
+{
+  "name": "com.escreact.core",
+  "version": "0.0.1",
+  "displayName": "ECSReact",
+  "description": "A React-inspired unidirectional data flow architecture built on Unity's Entity Component System (ECS)",
+  "unity": "2019.1",
+  "unityRelease": "0b5",
+  "documentationUrl": "https://example.com/",
+  "changelogUrl": "https://github.com/yohash/UnityReact/blob/main/Assets/UnityReact/CHANGELOG.md",
+  "licensesUrl": "https://example.com/licensing.html",
+  "dependencies": { },
+  "keywords": [
+    "react",
+    "state",
+    "reducer",
+    "backend",
+    "ecs",
+    "dots"
+  ],
+  "samples": [
+    {
+      "displayName": "Basic UI Sample",
+      "description": "A simple UI setup, demonstrating state, reduction, and how to build a store to manage UI.",
+      "path": "Samples~/SetupBasicUI"
+    }
+  ],
+  "author": {
+    "name": "Jason Heebl",
+    "email": "jdheebl@gmail.com",
+    "url": "https://www.heebl.com"
+  },
+  "type": "tool"
+}
