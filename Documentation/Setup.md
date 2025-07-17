@@ -11,7 +11,13 @@
   * Enable "Auto Discover On Awake"
   * Enable "Create Singletons On Start"
 
-### 2. **Initialization Code (2 method calls)**
+### 2. **Code Generation (one-time setup)**
+
+* Run **ECSReact → Auto Generate All** from Unity menu
+* Select your namespaces (avoid `ECSReact.Core`)
+* Generates all required glue code automatically
+
+### 3. **Initialization Code (2 method calls)**
 
 After running code generation, call these in your startup script:
 
@@ -26,15 +32,7 @@ void Start()
 }
 ```
 
-### 3. **Code Generation (one-time setup)**
-
-* Run **ECSReact → Auto Generate All** from Unity menu
-* Select your namespaces (avoid `ECSReact.Core`)
-* Generates all required glue code automatically
-
----
-
-## **Finish**
+### **Finish**
 
 With these 3 MonoBehaviours in scene + 2 initialization calls + code generation, you have:
 
@@ -46,6 +44,7 @@ With these 3 MonoBehaviours in scene + 2 initialization calls + code generation,
 
 The ECS systems (middleware, reducers, cleanup) are automatically discovered by Unity ECS - no manual registration needed.
 
+---
 
 # Full Setup Guide
 
