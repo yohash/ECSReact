@@ -5,7 +5,7 @@
   /// Uses unique method names to avoid interface conflicts.
   /// Zero reflection - completely compile-time safe and fast.
   /// </summary>
-  public abstract class MultiStateUIComponent<T1, T2> : ReactiveUIComponent
+  public abstract class ReactiveUIComponent<T1, T2> : ReactiveUIComponent
       where T1 : unmanaged, IGameState
       where T2 : unmanaged, IGameState
   {
@@ -39,15 +39,15 @@
     // Internal wrapper classes to handle the subscriptions
     private class StateSubscriber1 : IStateSubscriber<T1>
     {
-      private readonly MultiStateUIComponent<T1, T2> parent;
-      public StateSubscriber1(MultiStateUIComponent<T1, T2> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2> parent;
+      public StateSubscriber1(ReactiveUIComponent<T1, T2> parent) => this.parent = parent;
       public void OnStateChanged(T1 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber2 : IStateSubscriber<T2>
     {
-      private readonly MultiStateUIComponent<T1, T2> parent;
-      public StateSubscriber2(MultiStateUIComponent<T1, T2> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2> parent;
+      public StateSubscriber2(ReactiveUIComponent<T1, T2> parent) => this.parent = parent;
       public void OnStateChanged(T2 newState) => parent.OnStateChanged(newState);
     }
   }
@@ -55,7 +55,7 @@
   /// <summary>
   /// Base class for UI components that need exactly 3 state subscriptions.
   /// </summary>
-  public abstract class MultiStateUIComponent<T1, T2, T3> : ReactiveUIComponent
+  public abstract class ReactiveUIComponent<T1, T2, T3> : ReactiveUIComponent
       where T1 : unmanaged, IGameState
       where T2 : unmanaged, IGameState
       where T3 : unmanaged, IGameState
@@ -94,22 +94,22 @@
 
     private class StateSubscriber1 : IStateSubscriber<T1>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3> parent;
-      public StateSubscriber1(MultiStateUIComponent<T1, T2, T3> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3> parent;
+      public StateSubscriber1(ReactiveUIComponent<T1, T2, T3> parent) => this.parent = parent;
       public void OnStateChanged(T1 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber2 : IStateSubscriber<T2>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3> parent;
-      public StateSubscriber2(MultiStateUIComponent<T1, T2, T3> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3> parent;
+      public StateSubscriber2(ReactiveUIComponent<T1, T2, T3> parent) => this.parent = parent;
       public void OnStateChanged(T2 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber3 : IStateSubscriber<T3>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3> parent;
-      public StateSubscriber3(MultiStateUIComponent<T1, T2, T3> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3> parent;
+      public StateSubscriber3(ReactiveUIComponent<T1, T2, T3> parent) => this.parent = parent;
       public void OnStateChanged(T3 newState) => parent.OnStateChanged(newState);
     }
   }
@@ -117,7 +117,7 @@
   /// <summary>
   /// Base class for UI components that need exactly 4 state subscriptions.
   /// </summary>
-  public abstract class MultiStateUIComponent<T1, T2, T3, T4> : ReactiveUIComponent
+  public abstract class ReactiveUIComponent<T1, T2, T3, T4> : ReactiveUIComponent
       where T1 : unmanaged, IGameState
       where T2 : unmanaged, IGameState
       where T3 : unmanaged, IGameState
@@ -164,29 +164,29 @@
 
     private class StateSubscriber1 : IStateSubscriber<T1>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4> parent;
-      public StateSubscriber1(MultiStateUIComponent<T1, T2, T3, T4> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4> parent;
+      public StateSubscriber1(ReactiveUIComponent<T1, T2, T3, T4> parent) => this.parent = parent;
       public void OnStateChanged(T1 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber2 : IStateSubscriber<T2>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4> parent;
-      public StateSubscriber2(MultiStateUIComponent<T1, T2, T3, T4> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4> parent;
+      public StateSubscriber2(ReactiveUIComponent<T1, T2, T3, T4> parent) => this.parent = parent;
       public void OnStateChanged(T2 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber3 : IStateSubscriber<T3>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4> parent;
-      public StateSubscriber3(MultiStateUIComponent<T1, T2, T3, T4> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4> parent;
+      public StateSubscriber3(ReactiveUIComponent<T1, T2, T3, T4> parent) => this.parent = parent;
       public void OnStateChanged(T3 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber4 : IStateSubscriber<T4>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4> parent;
-      public StateSubscriber4(MultiStateUIComponent<T1, T2, T3, T4> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4> parent;
+      public StateSubscriber4(ReactiveUIComponent<T1, T2, T3, T4> parent) => this.parent = parent;
       public void OnStateChanged(T4 newState) => parent.OnStateChanged(newState);
     }
   }
@@ -195,7 +195,7 @@
   /// Base class for UI components that need exactly 5 state subscriptions.
   /// For components that need more than 5 states, consider if they're doing too much!
   /// </summary>
-  public abstract class MultiStateUIComponent<T1, T2, T3, T4, T5> : ReactiveUIComponent
+  public abstract class ReactiveUIComponent<T1, T2, T3, T4, T5> : ReactiveUIComponent
       where T1 : unmanaged, IGameState
       where T2 : unmanaged, IGameState
       where T3 : unmanaged, IGameState
@@ -250,36 +250,36 @@
 
     private class StateSubscriber1 : IStateSubscriber<T1>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4, T5> parent;
-      public StateSubscriber1(MultiStateUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4, T5> parent;
+      public StateSubscriber1(ReactiveUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
       public void OnStateChanged(T1 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber2 : IStateSubscriber<T2>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4, T5> parent;
-      public StateSubscriber2(MultiStateUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4, T5> parent;
+      public StateSubscriber2(ReactiveUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
       public void OnStateChanged(T2 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber3 : IStateSubscriber<T3>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4, T5> parent;
-      public StateSubscriber3(MultiStateUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4, T5> parent;
+      public StateSubscriber3(ReactiveUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
       public void OnStateChanged(T3 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber4 : IStateSubscriber<T4>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4, T5> parent;
-      public StateSubscriber4(MultiStateUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4, T5> parent;
+      public StateSubscriber4(ReactiveUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
       public void OnStateChanged(T4 newState) => parent.OnStateChanged(newState);
     }
 
     private class StateSubscriber5 : IStateSubscriber<T5>
     {
-      private readonly MultiStateUIComponent<T1, T2, T3, T4, T5> parent;
-      public StateSubscriber5(MultiStateUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
+      private readonly ReactiveUIComponent<T1, T2, T3, T4, T5> parent;
+      public StateSubscriber5(ReactiveUIComponent<T1, T2, T3, T4, T5> parent) => this.parent = parent;
       public void OnStateChanged(T5 newState) => parent.OnStateChanged(newState);
     }
   }
@@ -289,7 +289,7 @@
   /// Extend the 2-state base class
   /// </summary>
   /*
-  public class GameHUDExample : MultiStateUIComponent<GameState, PlayerState>
+  public class GameHUDExample : ReactiveUIComponent<GameState, PlayerState>
   {
     [SerializeField] private UnityEngine.UI.Text healthText;
     [SerializeField] private UnityEngine.UI.Text scoreText;
@@ -314,7 +314,7 @@
   /// Extends the 4-state base class
   /// </summary>
   /*
-  public class ComplexDashboardExample : MultiStateUIComponent<GameState, PlayerState, InventoryState, UIState>
+  public class ComplexDashboardExample : ReactiveUIComponent<GameState, PlayerState, InventoryState, UIState>
   {
     public override void OnStateChanged(GameState newGameState)
     {
