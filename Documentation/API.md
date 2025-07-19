@@ -189,7 +189,7 @@ public class ItemDisplay : ReactiveUIComponent<InventoryState>, IElement
     public void InitializeWithProps(UIProps props) { /* setup with initial data */ }
     public void UpdateProps(UIProps props) { /* handle props changes */ }
 }
-```# API Reference
+```
 
 ## Next
 
