@@ -189,9 +189,9 @@ Each component has clear responsibilities and clean interfaces, making the syste
 
 ## Next
 
-1. [Overview](Documentation/Overview.md)
+1. [Overview](Overview.md)
 2. Architecture
-3. [Setup](Documentation/Setup.md)
-4. [API](Documentation/API.md)
-5. [Debugging Tools](Documentation/Debugging.md)
-6. [Examples & Patterns](Documentation/Examples.md)
+3. [Setup](Setup.md)
+4. [API](API.md)
+5. [Debugging Tools](Debugging.md)
+6. [Examples & Patterns](Examples.md)

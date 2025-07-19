@@ -193,9 +193,9 @@ public class ItemDisplay : ReactiveUIComponent<InventoryState>, IElement
 
 ## Next
 
-1. [Overview](Documentation/Overview.md)
-2. [Architecture](Documentation/Architecture.md)
-3. [Setup](Documentation/Setup.md)
+1. [Overview](Overview.md)
+2. [Architecture](Architecture.md)
+3. [Setup](Setup.md)
 4. API
-5. [Debugging Tools](Documentation/Debugging.md)
-6. [Examples & Patterns](Documentation/Examples.md)
+5. [Debugging Tools](Debugging.md)
+6. [Examples & Patterns](Examples.md)

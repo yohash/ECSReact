@@ -89,8 +89,8 @@ Actions flow from UI through middleware to reducers, while state changes propaga
 ## Next
 
 1. Overview
-2. [Architecture](Documentation/Architecture.md)
-3. [Setup](Documentation/Setup.md)
-4. [API](Documentation/API.md)
-5. [Debugging Tools](Documentation/Debugging.md)
-6. [Examples & Patterns](Documentation/Examples.md)
+2. [Architecture](Architecture.md)
+3. [Setup](Setup.md)
+4. [API](API.md)
+5. [Debugging Tools](Debugging.md)
+6. [Examples & Patterns](Examples.md)

@@ -112,9 +112,9 @@ public class ElementPerformanceTracker : MonoBehaviour
 
 ## Next
 
-1. [Overview](Documentation/Overview.md)
-2. [Architecture](Documentation/Architecture.md)
-3. [Setup](Documentation/Setup.md)
-4. [API](Documentation/API.md)
+1. [Overview](Overview.md)
+2. [Architecture](Architecture.md)
+3. [Setup](Setup.md)
+4. [API](API.md)
 5. Debugging Tools
-6. [Examples & Patterns](Documentation/Examples.md)
+6. [Examples & Patterns](Examples.md)
