@@ -12,11 +12,12 @@ ECSReact translates familiar React concepts into ECS equivalents:
 | **Middleware** | Pre-Reducer ECS Systems | Cross-cutting concerns, validation, async operations |
 | **Reducer** | ECS Systems | Pure functions that process actions and update state |
 | **Action** | Command Components | Immutable data structures describing state changes |
-| **Component** | MonoBehaviour UI | View layer that renders state and dispatches actions |
+| **Element** | UIElement + Props | Dynamic child component composition with data passing |
+| **Component** | ReactiveUIComponent<T> | Unified state subscription with integrated element management |
 
 ## Unidirectional Data Flow
 
-Actions flow from UI through middleware to reducers, while state changes propagate back to UI through frame-budgeted event queues. The system provides deterministic game simulation through ECS while maintaining responsive UI through a decoupled presentation layer:
+Actions flow from UI through middleware to reducers, while state changes propagate back to UI through frame-budgeted event queues. UIElements enable declarative child composition that updates automatically when state changes. The system provides deterministic game simulation through ECS while maintaining responsive UI through a decoupled presentation layer:
 
 ```
 ┌─────────────────┐    Actions      ┌──────────────────────────────────┐
@@ -75,9 +76,12 @@ Actions flow from UI through middleware to reducers, while state changes propaga
 
 * UI can animate and provide feedback without blocking simulation
 * Device performance variations don't impact game fairness
+* UIElements enable efficient composition and updates
+* Dynamic child management based on state changes
 
 **Development Workflow**
 
 * UI developers can work on presentation without understanding ECS
 * Game logic developers can focus on deterministic systems
 * Clear separation of concerns reduces coupling and bugs
+* Declarative element composition simplifies complex UI hierarchies

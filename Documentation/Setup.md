@@ -1,4 +1,3 @@
-
 # Quick Start Guide
 
 ## Required Scene Setup
@@ -40,6 +39,7 @@ With these 3 MonoBehaviours in scene + 2 initialization calls + code generation,
 * **State change detection** and UI updates  
 * **Frame-budgeted rendering** to maintain 60fps  
 * **Type-safe subscriptions** between states and UI  
+* **Dynamic element composition** with automatic lifecycle management
 * **Automatic cleanup** of processed actions
 
 The ECS systems (middleware, reducers, cleanup) are automatically discovered by Unity ECS - no manual registration needed.
@@ -57,6 +57,8 @@ public struct GameState : IGameState, IEquatable<GameState>
 {
     public int health;
     public int score;
+    
+    public bool Equals(GameState other) => health == other.health && score == other.score;
 }
 ```
 
@@ -87,8 +89,10 @@ public partial class GameReducer : StateReducerSystem<GameState, TakeDamageActio
 **Single State:**
 
 ```csharp
-public class HealthBar : SingleStateUIComponent<GameState>
+public class HealthBar : ReactiveUIComponent<GameState>
 {
+    [SerializeField] private Slider healthSlider;
+    
     public override void OnStateChanged(GameState newState)
     {
         healthSlider.value = (float)newState.health / 100f;
@@ -99,10 +103,108 @@ public class HealthBar : SingleStateUIComponent<GameState>
 **Multi-State:**
 
 ```csharp
-public class HUD : MultiStateUIComponent<GameState, PlayerState>
+public class HUD : ReactiveUIComponent<GameState, PlayerState>
 {      
-    public void OnStateChanged(GameState state) { /* handle game state */ }
-    public void OnStateChanged(PlayerState state) { /* handle player state */ }
+    public override void OnStateChanged(GameState state) 
+    { 
+        // Update health, score displays
+        UpdateHealthDisplay(state.health);
+        UpdateScoreDisplay(state.score);
+    }
+    
+    public override void OnStateChanged(PlayerState state) 
+    { 
+        // Update level, XP displays
+        UpdateLevelDisplay(state.level);
+        UpdateXPBar(state.experience);
+    }
+}
+```
+
+**With Dynamic Elements:**
+
+```csharp
+public class InventoryPanel : ReactiveUIComponent<InventoryState>
+{
+    private InventoryState currentState;
+    
+    public override void OnStateChanged(InventoryState newState)
+    {
+        currentState = newState;
+        UpdateElements(); // Trigger element reconciliation
+    }
+    
+    protected override IEnumerable<UIElement> DeclareElements()
+    {
+        if (currentState.items == null) yield break;
+        
+        // Create element for each inventory item
+        int index = 0;
+        foreach (var item in currentState.items)
+        {
+            yield return UIElement.FromPrefab(
+                key: $"item_{item.id}",
+                prefabPath: "UI/InventoryItemPrefab",
+                props: new ItemProps { 
+                    ItemName = item.name, 
+                    ItemCount = item.count 
+                },
+                index: index++
+            );
+        }
+        
+        // Show empty message when no items
+        if (currentState.items.Count == 0)
+        {
+            yield return UIElement.FromComponent<EmptyInventoryMessage>(
+                key: "empty_message"
+            );
+        }
+    }
+}
+```
+
+**Props for Data Passing:**
+
+```csharp
+public class ItemProps : UIProps
+{
+    public string ItemName { get; set; }
+    public int ItemCount { get; set; }
+    public Sprite ItemIcon { get; set; }
+}
+
+public class InventoryItemDisplay : ReactiveUIComponent<InventoryState>, IElement
+{
+    [SerializeField] private Text nameText;
+    [SerializeField] private Text countText;
+    
+    private ItemProps itemProps;
+    
+    public void InitializeWithProps(UIProps props)
+    {
+        itemProps = props as ItemProps;
+        UpdateDisplay();
+    }
+    
+    public void UpdateProps(UIProps props)
+    {
+        itemProps = props as ItemProps;
+        UpdateDisplay();
+    }
+    
+    public override void OnStateChanged(InventoryState newState)
+    {
+        // Can also respond to global state if needed
+    }
+    
+    private void UpdateDisplay()
+    {
+        if (itemProps == null) return;
+        
+        nameText.text = itemProps.ItemName;
+        countText.text = itemProps.ItemCount.ToString();
+    }
 }
 ```
 
@@ -113,7 +215,11 @@ public partial class DamageValidation : MiddlewareSystem<TakeDamageAction>
 {
     protected override void ProcessAction(TakeDamageAction action, Entity entity)
     {
-        if (action.damage < 0) EntityManager.AddComponent<InvalidActionTag>(entity);
+        if (action.damage < 0) 
+        {
+            EntityManager.AddComponent<InvalidActionTag>(entity);
+            DispatchAction(new ShowErrorAction { message = "Invalid damage value" });
+        }
     }
 }
 ```

@@ -1,4 +1,3 @@
-
 # Architecture Overview
 
 ## 1. **State** → Singleton Components
@@ -109,9 +108,9 @@ UI Event   →   Store.Dispatch()   →   ECS Action Entity   →   Systems Proc
 
 **Components:**
 
-* `ReactiveUIComponent.cs` - Abstract base with subscription lifecycle
-* `SingleStateUIComponent<T>.cs` - Convenience base for single-state components
-* `MultiStateUIComponent<T1,T2,T3,T4,T5>.cs` - Convenience base for multi-state components
+* `ReactiveUIComponent.cs` - Base class with integrated element management
+* `ReactiveUIComponent<T>.cs` - Single-state specialization
+* `ReactiveUIComponent<T1,T2>.cs` - Multi-state variants (up to T1,T2,T3,T4,T5)
 * `UIEventQueue.cs` - Frame-budgeted event processing
 * `UIStateNotifier.cs` - ECS-to-C# event bridge
 
@@ -124,9 +123,45 @@ ECS Detection        Type-Safe          Frame Budget        OnStateChanged    St
                      C# Events          (0.5ms/frame)         Callbacks             ↓
                          ↓                    ↓                  ↓              Back to ECS
                     Event Bridge       Priority Queue       Visual Update      (New Action)
+                                                                ↓
+                                                           DeclareElements()
+                                                                ↓
+                                                           UpdateElements()
 ```
 
-**Components** close the loop by rendering state to users and translating user interactions back into actions.
+**Components** now feature unified state subscription with integrated element management, closing the loop between state and presentation.
+
+---
+
+## 6. **Element** → Dynamic UI Composition
+
+**Components:**
+
+* `UIElement.cs` - Declarative child element definitions with async mounting
+* `UIProps.cs` - Data passing mechanism between parent and child components
+* `IElement.cs` - Interface for components that receive props from parents
+
+**Internal Flow:**
+
+```
+State Changes   →   DeclareElements()   →   Element Reconciliation   →   Child Updates
+     ↓                     ↓                        ↓                        ↓
+ Parent Component   Desired Elements         Mount/Unmount/Update         Props Passed
+                           ↓                        ↓                        ↓
+                    Key-Based Diffing         Async Operations           Child Renders
+                           ↓                        ↓                        ↓
+                   Current vs Desired        Transform Hierarchy      IElement.UpdateProps()
+```
+
+**Elements** enable React-like declarative child composition where parents describe what children should exist, and the system handles mounting/unmounting/updating automatically based on keys and props.
+
+**Element Lifecycle:**
+
+1. **Declaration** - Parent's `DeclareElements()` returns desired child elements
+2. **Reconciliation** - System diffs current vs desired children by key
+3. **Mounting** - New elements are instantiated asynchronously via `UIElement.FromPrefab()` or `UIElement.FromComponent<T>()`
+4. **Props Update** - Existing elements receive new props via `IElement.UpdateProps()`
+5. **Unmounting** - Removed elements are destroyed and cleaned up
 
 ---
 
