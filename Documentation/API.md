@@ -190,3 +190,12 @@ public class ItemDisplay : ReactiveUIComponent<InventoryState>, IElement
     public void UpdateProps(UIProps props) { /* handle props changes */ }
 }
 ```# API Reference
+
+## Next
+
+1. [Overview](Documentation/Overview.md)
+2. [Architecture](Documentation/Architecture.md)
+3. [Setup](Documentation/Setup.md)
+4. API
+5. [Debugging Tools](Documentation/Debugging.md)
+6. [Examples & Patterns](Documentation/Examples.md)
