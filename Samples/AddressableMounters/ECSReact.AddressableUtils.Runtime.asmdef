@@ -1,17 +1,12 @@
 {
-    "name": "ECSReact.Samples.BasicSetup.Runtime",
+    "name": "ECSReact.AddressableUtils.Runtime",
     "rootNamespace": "",
     "references": [
-        "Unity.Entities",
-        "Unity.Burst",
-        "Unity.Mathematics",
-        "Unity.Physics",
-        "Unity.Collections",
-        "ECSReact.Core.Runtime"
+        "ECSReact.Core.Runtime",
+        "Unity.Addressables",
+        "Unity.ResourceManager"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
