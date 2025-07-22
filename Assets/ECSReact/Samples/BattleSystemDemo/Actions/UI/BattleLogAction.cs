@@ -28,4 +28,7 @@ namespace ECSReact.Samples.BattleSystem
     Defeat,
     System
   }
+
+  // Action to clear the log
+  public struct ClearBattleLogAction : IGameAction { }
 }

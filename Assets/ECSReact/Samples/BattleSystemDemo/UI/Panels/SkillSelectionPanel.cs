@@ -74,7 +74,7 @@ namespace ECSReact.Samples.BattleSystem
     {
       // Category tabs (if enabled)
       if (showCategories) {
-        yield return UIElement.FromPrefab(
+        yield return Mount.Element.FromResources(
             key: "category_tabs",
             prefabPath: "UI/SkillCategoryTabs",
             props: new CategoryTabProps
@@ -93,7 +93,7 @@ namespace ECSReact.Samples.BattleSystem
       foreach (var skill in filteredSkills) {
         bool canUse = activeCharacter.currentMana >= skill.manaCost;
 
-        yield return UIElement.FromPrefab(
+        yield return Mount.Element.FromResources(
             key: $"skill_{skill.id}",
             prefabPath: "UI/SkillButton",
             props: new SkillButtonProps

@@ -5,6 +5,13 @@ using TMPro;
 
 namespace ECSReact.Samples.BattleSystem
 {
+  public class ActionPanelProps : UIProps
+  {
+    public Unity.Entities.Entity ActiveCharacterEntity { get; set; }
+    public bool CanUseSkills { get; set; }
+    public bool CanUseItems { get; set; }
+  }
+
   /// <summary>
   /// Main action selection panel with Attack, Skills, Items, Defend buttons.
   /// Demonstrates multi-state subscription and conditional button states.

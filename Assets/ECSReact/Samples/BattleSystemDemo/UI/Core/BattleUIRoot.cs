@@ -14,6 +14,8 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private bool showDebugPanels = false;
     [SerializeField] private bool enableTutorialMode = false;
 
+    [SerializeField] private RectTransform leftColumn;
+
     private BattleState battleState;
     private UIBattleState uiState;
 
@@ -32,16 +34,19 @@ namespace ECSReact.Samples.BattleSystem
     protected override IEnumerable<UIElement> DeclareElements()
     {
       // Always show turn order at the top
-      //yield return UIElement.FromComponent<TurnOrderDisplay>(
-      //    key: "turn_order",
-      //    index: 0
-      //);
+      yield return Mount.Element.FromResources(
+          key: "turn_order",
+          prefabPath: "UI/TurnOrderDisplay",
+          index: 0,
+          parentTransform: leftColumn
+      );
 
       // Always show party status
-      yield return UIElement.FromPrefab(
+      yield return Mount.Element.FromResources(
           key: "party_status",
           prefabPath: "UI/PartyStatusBar",
-          index: 1
+          index: 1,
+          parentTransform: leftColumn
       );
 
       // Conditional rendering based on battle phase
@@ -55,27 +60,30 @@ namespace ECSReact.Samples.BattleSystem
 
         case BattlePhase.PlayerSelectAction:
           // Main action panel
-          yield return UIElement.FromComponent<ActionPanel>(
-              key: "action_panel",
-              props: new ActionPanelProps
-              {
-                ActiveCharacterEntity = GetActiveCharacterEntity(),
-                CanUseSkills = HasManaForSkills(),
-                CanUseItems = HasItemsAvailable()
-              },
-              index: 2
+          yield return Mount.Element.FromResources(
+            key: "action_panel",
+            prefabPath: "UI/ActionPanel",
+            props: new ActionPanelProps
+            {
+              ActiveCharacterEntity = GetActiveCharacterEntity(),
+              CanUseSkills = HasManaForSkills(),
+              CanUseItems = HasItemsAvailable()
+            },
+            index: 2,
+            parentTransform: leftColumn
           );
 
           // Conditional sub-panels based on UI state
           if (uiState.activePanel == MenuPanel.SkillList) {
-            yield return UIElement.FromPrefab(
-                key: "skill_panel",
-                prefabPath: "UI/SkillSelectionPanel",
-                props: new SkillPanelProps
-                {
-                  CharacterEntity = GetActiveCharacterEntity()
-                },
-                index: 3
+            yield return Mount.Element.FromResources(
+              key: "skill_panel",
+              prefabPath: "UI/SkillSelectionPanel",
+              props: new SkillPanelProps
+              {
+                CharacterEntity = GetActiveCharacterEntity()
+              },
+              index: 3,
+              parentTransform: leftColumn
             );
           } else if (uiState.activePanel == MenuPanel.ItemList) {
             //yield return UIElement.FromComponent<ItemSelectionPanel>(
@@ -152,10 +160,12 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Battle log (always visible but can be collapsed)
-      //yield return UIElement.FromComponent<BattleLogDisplay>(
-      //    key: "battle_log",
-      //    index: 10
-      //);
+      yield return Mount.Element.FromResources(
+        key: "battle_log",
+        prefabPath: "UI/BattleLogDisplay",
+        index: 10,
+        parentTransform: leftColumn
+      );
 
       //// Optional debug panels
       //if (showDebugPanels) {
@@ -228,14 +238,6 @@ namespace ECSReact.Samples.BattleSystem
 
       return "";
     }
-  }
-
-  // Props classes for type-safe data passing
-  public class ActionPanelProps : UIProps
-  {
-    public Unity.Entities.Entity ActiveCharacterEntity { get; set; }
-    public bool CanUseSkills { get; set; }
-    public bool CanUseItems { get; set; }
   }
 
   public class SkillPanelProps : UIProps

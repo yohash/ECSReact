@@ -6,6 +6,17 @@ using TMPro;
 
 namespace ECSReact.Samples.BattleSystem
 {
+  // Props for passing data to character cards
+  public class CharacterStatusProps : UIProps
+  {
+    public CharacterData Character { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsTargeted { get; set; }
+    public int CardIndex { get; set; }
+    public bool ShowMana { get; set; }
+    public bool AnimateChanges { get; set; }
+  }
+
   /// <summary>
   /// Individual character status display that receives props from PartyStatusBar.
   /// Demonstrates IElement pattern for prop-based updates.
@@ -103,7 +114,7 @@ namespace ECSReact.Samples.BattleSystem
           continue;
 
         if (currentProps.Character.status.HasFlag(status)) {
-          yield return UIElement.FromPrefab(
+          yield return Mount.Element.FromResources(
               key: $"status_{status}",
               prefabPath: "UI/StatusEffectIcon",
               props: new StatusEffectProps

@@ -2,17 +2,26 @@ using UnityEngine;
 using UnityEngine.UI;
 using ECSReact.Core;
 using System.Collections;
+using TMPro;
 
 namespace ECSReact.Samples.BattleSystem
 {
+  // Props for log entries
+  public class LogEntryProps : UIProps
+  {
+    public BattleLogEntry Entry { get; set; }
+    public bool IsNewEntry { get; set; }
+    public Color EntryColor { get; set; }
+  }
+
   /// <summary>
   /// Individual log entry component with fade-in animation
   /// </summary>
-  public class BattleLogEntry : ReactiveUIComponent<BattleLogState>, IElement
+  public class BattleLogEntryComponent : ReactiveUIComponent<BattleLogState>, IElementChild
   {
     [Header("UI References")]
-    [SerializeField] private Text messageText;
-    [SerializeField] private Text timestampText;
+    [SerializeField] private TextMeshProUGUI messageText;
+    [SerializeField] private TextMeshProUGUI timestampText;
     [SerializeField] private Image typeIcon;
     [SerializeField] private CanvasGroup canvasGroup;
 

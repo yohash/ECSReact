@@ -164,33 +164,31 @@ namespace ECSReact.Samples.BattleSystem
       if (!debugLoggingEnabled)
         return;
 
-      // Query for all entities with ActionTag
-      Entities
-          .WithAll<ActionTag>()
-          .ForEach((Entity entity) =>
+      // Get the command buffer
+      var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+          .CreateCommandBuffer(World.Unmanaged);
+
+      // Query for all entities with ActionTag using modern SystemAPI
+      foreach (var (actionTag, entity) in SystemAPI.Query<RefRO<ActionTag>>()
+          .WithEntityAccess()) {
+        // Use reflection to get action type name
+        var actionTypeName = GetActionTypeName(entity);
+        if (!string.IsNullOrEmpty(actionTypeName)) {
+          var logAction = new BattleLogAction
           {
-            // Use reflection to get action type name
-            var actionTypeName = GetActionTypeName(entity);
-            if (!string.IsNullOrEmpty(actionTypeName)) {
-              var logAction = new BattleLogAction
-              {
-                logType = LogType.System,
-                message = $"[DEBUG] Action: {actionTypeName}",
-                sourceEntity = Entity.Null,
-                targetEntity = Entity.Null,
-                numericValue = 0,
-                timestamp = (float)SystemAPI.Time.ElapsedTime
-              };
+            logType = LogType.System,
+            message = $"[DEBUG] Action: {actionTypeName}",
+            sourceEntity = Entity.Null,
+            targetEntity = Entity.Null,
+            numericValue = 0,
+            timestamp = (float)SystemAPI.Time.ElapsedTime
+          };
 
-              var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
-                        .CreateCommandBuffer(World.Unmanaged);
-
-              var logEntity = ecb.CreateEntity();
-              ecb.AddComponent(logEntity, logAction);
-              ecb.AddComponent(logEntity, new ActionTag());
-            }
-          })
-          .Schedule();
+          var logEntity = ecb.CreateEntity();
+          ecb.AddComponent(logEntity, logAction);
+          ecb.AddComponent(logEntity, new ActionTag());
+        }
+      }
     }
 
     private string GetActionTypeName(Entity entity)

@@ -22,7 +22,14 @@ namespace ECSReact.Core
     public ReactiveUIComponent Component { get; internal set; }
     public GameObject GameObject { get; internal set; }
 
-    public UIElement(string key, Func<UIProps, Task<GameObject>> mount, Type componentType = null, UIProps props = null, int index = 0, Transform parentTransform = null)
+    public UIElement(
+      string key,
+      Func<UIProps, Task<GameObject>> mount,
+      Type componentType = null,
+      UIProps props = null,
+      int index = 0,
+      Transform parentTransform = null
+    )
     {
       Key = key ?? throw new ArgumentNullException(nameof(key));
       _mount = mount ?? throw new ArgumentNullException(nameof(mount));
@@ -71,42 +78,6 @@ namespace ECSReact.Core
       }
       Component = null;
       GameObject = null;
-    }
-
-    /// <summary>
-    /// Create an element from a prefab path
-    /// </summary>
-    public static UIElement FromPrefab(string key, string prefabPath, UIProps props = null, int index = 0, Transform parentTransform = null)
-    {
-      return new UIElement(key, async (p) =>
-      {
-        var prefab = await loadPrefabAsync(prefabPath);
-        return UnityEngine.Object.Instantiate(prefab);
-      }, null, props, index, parentTransform);
-    }
-
-    /// <summary>
-    /// Create an element that instantiates a specific component type
-    /// </summary>
-    public static UIElement FromComponent<T>(string key, UIProps props = null, int index = 0, Transform parentTransform = null)
-      where T : ReactiveUIComponent
-    {
-      return new UIElement(key, async (p) =>
-      {
-        var go = new GameObject($"UIElement_{typeof(T).Name}");
-        go.AddComponent<T>();
-        return go;
-      }, typeof(T), props, index, parentTransform);
-    }
-
-    private static async Task<GameObject> loadPrefabAsync(string path)
-    {
-      // TODO - use Addressables or Resources.LoadAsync
-      await Task.Yield();
-      var prefab = Resources.Load<GameObject>(path);
-      if (prefab == null)
-        throw new InvalidOperationException($"Failed to load prefab at path: {path}");
-      return prefab;
     }
   }
 }
