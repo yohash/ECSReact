@@ -19,37 +19,64 @@ namespace ECSReact.Core
   /// </summary>
   public static class Mount
   {
-    /// <summary>
-    /// Create a UIElement with a custom mounting strategy.
-    /// </summary>
-    public static UIElement Custom(string key, IUIElementMounter mounter, Type componentType = null, UIProps props = null, int index = 0)
+    public static class Element
     {
-      return new UIElement(key, async (p) => await mounter.MountAsync(p), componentType, props, index);
+      /// <summary>
+      /// Create a UIElement with a custom mounting strategy.
+      /// </summary>
+      public static UIElement Custom(
+        string key,
+        IUIElementMounter mounter,
+        Type componentType = null,
+        UIProps props = null,
+        int index = 0,
+        Transform parentTransform = null
+      )
+      {
+        return new UIElement(
+          key,
+          async (p) => await mounter.MountAsync(p),
+          componentType,
+          props,
+          index,
+          parentTransform
+        );
+      }
+
+      /// <summary>
+      /// Load a prefab from Resources folder.
+      /// </summary>
+      public static UIElement FromResources(
+        string key,
+        string prefabPath,
+        UIProps props = null,
+        int index = 0,
+        Transform parentTransform = null
+      )
+        => Custom(key, new ResourceMounter(prefabPath), null, props, index, parentTransform);
+
+      /// <summary>
+      /// Create a new GameObject with the specified component type.
+      /// </summary>
+      public static UIElement FromComponent<T>(
+        string key,
+        UIProps props = null,
+        int index = 0,
+        Transform parentTransform = null
+      ) where T : ReactiveUIComponent
+        => Custom(key, new ComponentMounter<T>(), typeof(T), props, index, parentTransform);
     }
-
-    /// <summary>
-    /// Load a prefab from Resources folder.
-    /// </summary>
-    public static UIElement FromPrefab(string key, string prefabPath, UIProps props = null, int index = 0)
-      => Custom(key, new PrefabMounter(prefabPath), null, props, index);
-
-    /// <summary>
-    /// Create a new GameObject with the specified component type.
-    /// </summary>
-    public static UIElement FromComponent<T>(string key, UIProps props = null, int index = 0)
-      where T : ReactiveUIComponent
-      => Custom(key, new ComponentMounter<T>(), typeof(T), props, index);
   }
 
   /// <summary>
   /// Mounts prefabs from the Resources folder.
   /// </summary>
-  public class PrefabMounter : IUIElementMounter
+  public class ResourceMounter : IUIElementMounter
   {
     private readonly string prefabPath;
     private readonly float timeoutSeconds;
 
-    public PrefabMounter(string prefabPath, float timeoutSeconds = 10f)
+    public ResourceMounter(string prefabPath, float timeoutSeconds = 10f)
     {
       this.prefabPath = prefabPath ?? throw new ArgumentNullException(nameof(prefabPath));
       this.timeoutSeconds = timeoutSeconds;

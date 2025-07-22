@@ -33,7 +33,7 @@ namespace ECSReact.Samples.BattleSystem
     protected override IEnumerable<UIElement> DeclareElements()
     {
       // Create section headers
-      yield return UIElement.FromPrefab(
+      yield return Mount.Element.FromResources(
           key: "party_header",
           props: new SectionHeaderProps { Title = "Your Party", IsEnemy = false },
           prefabPath: "UI/StatusSectionHeader",
@@ -54,7 +54,7 @@ namespace ECSReact.Samples.BattleSystem
           continue;
 
         // Create character card with props
-        yield return UIElement.FromPrefab(
+        yield return Mount.Element.FromResources(
             key: $"character_{character.entity.Index}_{character.entity.Version}",
             prefabPath: "UI/CharacterStatusCard",
             props: new CharacterStatusProps
@@ -72,8 +72,9 @@ namespace ECSReact.Samples.BattleSystem
 
       // Enemy section header (if showing enemies)
       if (showEnemies && HasEnemies()) {
-        yield return UIElement.FromComponent<StatusSectionHeader>(
+        yield return Mount.Element.FromResources(
             key: "enemy_header",
+            prefabPath: "UI/StatusSectionHeader",
             props: new SectionHeaderProps { Title = "Enemies", IsEnemy = true },
             index: cardIndex++
         );
@@ -87,7 +88,7 @@ namespace ECSReact.Samples.BattleSystem
           if (!character.isAlive && !ShouldShowDeadCharacters())
             continue;
 
-          yield return UIElement.FromPrefab(
+          yield return Mount.Element.FromResources(
               key: $"enemy_{character.entity.Index}_{character.entity.Version}",
               prefabPath: "UI/CharacterStatusCard",
               props: new CharacterStatusProps
@@ -134,17 +135,6 @@ namespace ECSReact.Samples.BattleSystem
       // In full implementation, might check a settings state
       return true; // Show them grayed out
     }
-  }
-
-  // Props for passing data to character cards
-  public class CharacterStatusProps : UIProps
-  {
-    public CharacterData Character { get; set; }
-    public bool IsActive { get; set; }
-    public bool IsTargeted { get; set; }
-    public int CardIndex { get; set; }
-    public bool ShowMana { get; set; }
-    public bool AnimateChanges { get; set; }
   }
 
   public class SectionHeaderProps : UIProps
