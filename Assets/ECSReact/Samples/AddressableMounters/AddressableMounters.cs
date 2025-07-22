@@ -25,6 +25,11 @@ namespace ECSReact.AddressableUtils
       )
         => Core.Mount.Element.Custom(key, new AddressableMounter(address), null, props, index, parentTransform);
     }
+
+    public static async Task PreloadAddressable(string address)
+    {
+      await AddressablesCache.LoadAsync<GameObject>(address);
+    }
   }
 
   /// <summary>
