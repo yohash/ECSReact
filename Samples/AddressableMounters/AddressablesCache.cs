@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.AddressableAssets;
@@ -9,82 +10,200 @@ namespace ECSReact.AddressableUtils
 {
   public static class AddressablesCache
   {
-    private static Dictionary<string, TaskCompletionSource<object>> loadingAssets
-      = new Dictionary<string, TaskCompletionSource<object>>();
+    private class LoadOperation
+    {
+      public TaskCompletionSource<object> TaskSource;
+      public AsyncOperationHandle Handle;
+      public CancellationTokenSource CancellationSource;
+      public bool IsCompleted;
+    }
 
-    private static Dictionary<string, object> loadedAssets
-      = new Dictionary<string, object>();
+    private static readonly Dictionary<string, LoadOperation> _loadingOperations = new();
+    private static readonly Dictionary<string, object> _loadedAssets = new();
+    private static readonly Dictionary<string, AsyncOperationHandle> _loadedHandles = new();
+
+    private static readonly object _lock = new object();
 
     public static async Task<T> LoadAsync<T>(string key)
     {
-      // first test if the asset is already loaded, and return
-      if (loadedAssets.ContainsKey(key)) {
-        return (T)loadedAssets[key];
+      if (string.IsNullOrEmpty(key)) {
+        throw new ArgumentException("Key cannot be null or empty", nameof(key));
       }
-      // if assets are loading already, we should provide a link to the
-      // awaitable task handle to return
-      if (loadingAssets.ContainsKey(key)) {
-        try {
-          return (T)await loadingAssets[key].Task;
-        } catch (Exception ex) {
-          loadingAssets.Remove(key);
-          Debug.LogError($"Failed to load asset '{key}': {ex.Message}");
-          return default;
+
+      LoadOperation operation = null;
+
+      lock (_lock) {
+        // Return already loaded asset immediately
+        if (_loadedAssets.TryGetValue(key, out var cachedAsset)) {
+          return (T)cachedAsset;
+        }
+
+        // Join existing load operation
+        if (_loadingOperations.TryGetValue(key, out var existingOp)) {
+          // Don't join if it's been canceled
+          if (existingOp.CancellationSource.Token.IsCancellationRequested) {
+            // Remove the canceled operation and start a new one
+            _loadingOperations.Remove(key);
+          } else {
+            operation = existingOp;
+          }
+        }
+
+        // Start new load operation if needed
+        if (operation == null) {
+          operation = startLoadOperation<T>(key);
+          _loadingOperations[key] = operation;
         }
       }
 
-      // finally, perform the asset loading from the addressables API
-      var tcs = new TaskCompletionSource<object>();
-      var handle = Addressables.LoadAssetAsync<T>(key);
-      loadingAssets.Add(key, tcs);
+      // await the operation outside the lock
+      return await waitForOperation<T>(operation);
+    }
 
-      handle.Completed += (op) =>
-      {
-        if (op.Status == AsyncOperationStatus.Succeeded) {
-          tcs.SetResult(op.Result);
-          loadedAssets.Add(key, op.Result);
-        } else {
-          tcs.SetException(op.OperationException);
-        }
-        loadingAssets.Remove(key);
-      };
-
+    private static async Task<T> waitForOperation<T>(LoadOperation operation)
+    {
       try {
-        return (T)await tcs.Task;
+        var result = await operation.TaskSource.Task;
+        return (T)result;
+      } catch (OperationCanceledException) {
+        Debug.Log($"Asset load canceled for key: {operation.Handle.DebugName}");
+        return default(T);
       } catch (Exception ex) {
-        loadingAssets.Remove(key);
-        Debug.LogError($"Failed to load asset '{key}': {ex.Message}");
-        return default;
+        Debug.LogError($"Failed to load asset: {ex.Message}");
+        return default(T);
       }
     }
 
-    public static async Task Release(string key)
+    private static LoadOperation startLoadOperation<T>(string key)
     {
-      if (loadingAssets.ContainsKey(key)) {
-        await loadingAssets[key].Task;
+      var operation = new LoadOperation
+      {
+        TaskSource = new TaskCompletionSource<object>(),
+        CancellationSource = new CancellationTokenSource(),
+        IsCompleted = false
+      };
+
+      // Start the Unity Addressable load
+      var handle = Addressables.LoadAssetAsync<T>(key);
+      operation.Handle = handle;
+
+      // Set up completion callback with proper cancellation handling
+      handle.Completed += (op) => handleLoadCompleted(key, operation, op);
+
+      return operation;
+    }
+
+    private static void handleLoadCompleted(string key, LoadOperation operation, AsyncOperationHandle completedHandle)
+    {
+      lock (_lock) {
+        // Check if operation was canceled before completion
+        if (operation.CancellationSource.Token.IsCancellationRequested) {
+          // Operation was canceled - release the handle and don't cache
+          Addressables.Release(completedHandle);
+          operation.IsCompleted = true;
+          return;
+        }
+
+        operation.IsCompleted = true;
+
+        if (completedHandle.Status == AsyncOperationStatus.Succeeded) {
+          // Cache the loaded asset and handle
+          _loadedAssets[key] = completedHandle.Result;
+          _loadedHandles[key] = completedHandle;
+
+          // Complete the task
+          operation.TaskSource.SetResult(completedHandle.Result);
+        } else {
+          // Release failed handle
+          Addressables.Release(completedHandle);
+          operation.TaskSource.SetException(
+            completedHandle.OperationException ??
+              new InvalidOperationException($"Failed to load addressable asset: {key}")
+          );
+        }
+
+        // Remove from loading operations
+        _loadingOperations.Remove(key);
+      }
+    }
+
+    public static void Release(string key)
+    {
+      if (string.IsNullOrEmpty(key)) {
+        return;
       }
 
-      // first test if the asset is already loaded, and return
-      if (!loadedAssets.ContainsKey(key)) { return; }
+      lock (_lock) {
+        // Cancel any ongoing load operation
+        if (_loadingOperations.TryGetValue(key, out var loadOp)) {
+          cancelOperation(key, loadOp);
+        }
 
-      Addressables.Release(loadedAssets[key]);
-      loadedAssets.Remove(key);
+        // Release loaded asset
+        if (_loadedHandles.TryGetValue(key, out var handle)) {
+          Addressables.Release(handle);
+          _loadedAssets.Remove(key);
+          _loadedHandles.Remove(key);
+        }
+      }
     }
 
     public static void ReleaseAll()
     {
-      foreach (var handle in loadedAssets.Values) {
-        Addressables.Release(handle);
-      }
-      loadedAssets.Clear();
+      lock (_lock) {
+        // Cancel all loading operations
+        foreach (var kvp in _loadingOperations) {
+          cancelOperation(kvp.Key, kvp.Value);
+        }
+        _loadingOperations.Clear();
 
-      foreach (var tcs in loadingAssets.Values) {
-        tcs.SetCanceled(); // Cancel any pending loads
-      }
-      loadingAssets.Clear();
+        // Release all loaded assets
+        foreach (var handle in _loadedHandles.Values) {
+          Addressables.Release(handle);
+        }
+        _loadedAssets.Clear();
+        _loadedHandles.Clear();
 
-      // TBD - do we need to call this?
-      Resources.UnloadUnusedAssets();
+        // Optional: Force Unity to unload unused assets
+        Resources.UnloadUnusedAssets();
+      }
+    }
+
+    private static void cancelOperation(string key, LoadOperation operation)
+    {
+      if (operation.IsCompleted) {
+        return;
+      }
+
+      // Cancel the task source
+      operation.CancellationSource.Cancel();
+      operation.TaskSource.SetCanceled();
+
+      // Note: We don't release the handle here because the Unity operation 
+      // might still be running. The completion callback will handle cleanup.
+    }
+
+    // Utility methods for debugging
+    public static int LoadedAssetCount {
+      get { lock (_lock) { return _loadedAssets.Count; } }
+    }
+
+    public static int PendingLoadCount {
+      get { lock (_lock) { return _loadingOperations.Count; } }
+    }
+
+    public static IEnumerable<string> GetLoadedKeys()
+    {
+      lock (_lock) {
+        return new List<string>(_loadedAssets.Keys);
+      }
+    }
+
+    public static IEnumerable<string> GetPendingKeys()
+    {
+      lock (_lock) {
+        return new List<string>(_loadingOperations.Keys);
+      }
     }
   }
 }
