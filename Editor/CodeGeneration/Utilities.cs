@@ -4,6 +4,11 @@ using ECSReact.Core;
 
 namespace ECSReact.CodeGen
 {
+  public static class Constants
+  {
+    public const string DEFAULT_OUTPUT_PATH = "Assets/_Generated/";
+  }
+
   [Serializable]
   public class NamespaceGroup
   {

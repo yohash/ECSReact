@@ -285,7 +285,6 @@ namespace ECSReact.Core
 
           // Look up the pre-registered creation function
           if (stateCreators.TryGetValue(stateType, out var createFunction)) {
-            // No reflection - direct delegate call!
             var entity = createFunction(config.serializedDefaultValues);
 
             if (entity != Entity.Null) {

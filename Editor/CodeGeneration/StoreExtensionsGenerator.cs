@@ -15,7 +15,7 @@ namespace ECSReact.CodeGen
   {
     private Vector2 scrollPosition;
     private Dictionary<string, NamespaceGroup> namespaceGroups = new();
-    private string outputPath = "Assets/Generated/";
+    private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
     private bool autoRefreshDiscovery = false;
     private bool generateXmlDocs = true;
     private bool useFluentNaming = true; // SpendMatter vs SpendMatterAction
@@ -385,6 +385,7 @@ namespace ECSReact.CodeGen
       sb.AppendLine("// Do not modify this file directly - it will be overwritten");
       sb.AppendLine("// </auto-generated>");
       sb.AppendLine();
+      sb.AppendLine("using System;");
       sb.AppendLine("using Unity.Entities;");
       sb.AppendLine("using Unity.Mathematics;");
       sb.AppendLine("using Unity.Collections;");

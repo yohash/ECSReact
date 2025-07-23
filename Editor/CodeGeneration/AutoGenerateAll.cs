@@ -16,10 +16,9 @@ namespace ECSReact.CodeGen
   /// </summary>
   public class AutoGenerateAllWindow : EditorWindow
   {
-    private const string DEFAULT_OUTPUT_PATH = "Assets/Generated/";
-
     private Vector2 scrollPosition;
     private Dictionary<string, NamespaceGroup> discoveredNamespaces = new Dictionary<string, NamespaceGroup>();
+    private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
     private bool hasDiscovered = false;
 
     [MenuItem("ECS React/Auto Generate All")]
@@ -34,6 +33,18 @@ namespace ECSReact.CodeGen
     {
       GUILayout.Label("Auto Generate All - Namespace Selection", EditorStyles.boldLabel);
       EditorGUILayout.Space();
+
+      // Output path selection
+      EditorGUILayout.BeginHorizontal();
+      EditorGUILayout.LabelField("Output Path:", GUILayout.Width(80));
+      outputPath = EditorGUILayout.TextField(outputPath);
+      if (GUILayout.Button("Browse", GUILayout.Width(60))) {
+        string selectedPath = EditorUtility.OpenFolderPanel("Select Output Folder", outputPath, "");
+        if (!string.IsNullOrEmpty(selectedPath)) {
+          outputPath = "Assets" + selectedPath.Substring(Application.dataPath.Length) + "/";
+        }
+      }
+      EditorGUILayout.EndHorizontal();
 
       if (!hasDiscovered) {
         EditorGUILayout.HelpBox("Discovering namespaces...", MessageType.Info);
@@ -51,7 +62,7 @@ namespace ECSReact.CodeGen
       }
 
       // Step 1: Namespace Selection
-      EditorGUILayout.LabelField("Step 1: Select Namespaces to Generate", EditorStyles.boldLabel);
+      EditorGUILayout.LabelField("Select Namespaces to Generate", EditorStyles.boldLabel);
       EditorGUILayout.HelpBox("Choose which namespaces you want to generate code for. This will run all three generators (UIStateNotifier, StateSubscriptionHelper, and Store Extensions) for the selected namespaces.", MessageType.Info);
 
       EditorGUILayout.Space();
@@ -109,7 +120,7 @@ namespace ECSReact.CodeGen
       EditorGUILayout.Space();
 
       // Step 2: Generation
-      EditorGUILayout.LabelField("Step 2: Generate Code", EditorStyles.boldLabel);
+      EditorGUILayout.LabelField("Generate Code", EditorStyles.boldLabel);
 
       var selectedNamespaces = discoveredNamespaces.Values.Where(ns => ns.includeInGeneration).ToList();
 
@@ -125,7 +136,7 @@ namespace ECSReact.CodeGen
 
       // Generate All button
       GUI.enabled = selectedNamespaces.Count > 0;
-      if (GUILayout.Button("🚀 Generate All Selected Namespaces", GUILayout.Height(40))) {
+      if (GUILayout.Button("Generate All Selected Namespaces", GUILayout.Height(40))) {
         generateAllForSelectedNamespaces(selectedNamespaces);
       }
       GUI.enabled = true;
@@ -257,9 +268,9 @@ namespace ECSReact.CodeGen
         EditorUtility.DisplayProgressBar("Auto Generate All", "Preparing output directory...", 0.1f);
 
         // Ensure output directory exists
-        if (!Directory.Exists(DEFAULT_OUTPUT_PATH)) {
-          Directory.CreateDirectory(DEFAULT_OUTPUT_PATH);
-          Debug.Log($"Created output directory: {DEFAULT_OUTPUT_PATH}");
+        if (!Directory.Exists(outputPath)) {
+          Directory.CreateDirectory(outputPath);
+          Debug.Log($"Created output directory: {outputPath}");
         }
 
         // Step 1: Generate UIStateNotifier extensions
@@ -295,7 +306,7 @@ namespace ECSReact.CodeGen
         EditorUtility.DisplayDialog(title, message, "OK");
 
         if (success) {
-          Debug.Log($"🎉 Auto Generate All: Successfully generated all ECS-React code for {selectedNamespaces.Count} namespaces!");
+          Debug.Log($"Auto Generate All: Successfully generated all ECS-React code for {selectedNamespaces.Count} namespaces!");
         }
       } catch (Exception ex) {
         EditorUtility.ClearProgressBar();
@@ -416,13 +427,13 @@ namespace ECSReact.CodeGen
     /// <summary>
     /// Quick menu item to open the generated code folder.
     /// </summary>
-    private static void openGeneratedFolder()
+    private void openGeneratedFolder()
     {
-      if (Directory.Exists(DEFAULT_OUTPUT_PATH)) {
-        EditorUtility.RevealInFinder(DEFAULT_OUTPUT_PATH);
+      if (Directory.Exists(outputPath)) {
+        EditorUtility.RevealInFinder(outputPath);
       } else {
         EditorUtility.DisplayDialog("Folder Not Found",
-            $"Generated code folder not found at:\n{DEFAULT_OUTPUT_PATH}\n\nRun 'Auto Generate All' first to create generated code.",
+            $"Generated code folder not found at:\n{outputPath}\n\nRun 'Auto Generate All' first to create generated code.",
             "OK");
       }
     }
@@ -430,7 +441,7 @@ namespace ECSReact.CodeGen
     /// <summary>
     /// Clean up all generated files.
     /// </summary>
-    private static void cleanGeneratedCode()
+    private void cleanGeneratedCode()
     {
       if (!EditorUtility.DisplayDialog(
           "Clean Generated Code",
@@ -442,8 +453,8 @@ namespace ECSReact.CodeGen
       }
 
       try {
-        if (Directory.Exists(DEFAULT_OUTPUT_PATH)) {
-          Directory.Delete(DEFAULT_OUTPUT_PATH, true);
+        if (Directory.Exists(outputPath)) {
+          Directory.Delete(outputPath, true);
           AssetDatabase.Refresh();
 
           EditorUtility.DisplayDialog("Clean Complete",

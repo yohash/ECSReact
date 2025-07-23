@@ -338,22 +338,27 @@ MonoBehaviour:
   stateConfigurations:
   - typeName: BattleLogState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 1
+    isEnabled: 0
     hasDefaultValues: 0
     serializedDefaultValues: 
   - typeName: BattleState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 1
-    hasDefaultValues: 0
-    serializedDefaultValues: 
+    isEnabled: 0
+    hasDefaultValues: 1
+    serializedDefaultValues: '{"currentPhase":0,"activeCharacterIndex":1,"turnOrder":{"data":{"offset0000":{"byte0000":0,"byte0008":0},"offset0016":{"byte0000":0,"byte0008":0},"offset0032":{"byte0000":0,"byte0008":0},"offset0048":{"byte0000":0,"byte0008":0},"offset0064":{"byte0000":0,"byte0008":0},"offset0080":{"byte0000":0,"byte0008":0},"offset0096":{"byte0000":0,"byte0008":0},"offset0112":{"byte0000":0,"byte0008":0}}},"turnTimer":0.0,"turnCount":0,"battleActive":false}'
   - typeName: PartyState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 1
+    isEnabled: 0
+    hasDefaultValues: 1
+    serializedDefaultValues: '{"characters":{"data":{"offset0000":{"byte0000":0,"byte0008":0},"offset0016":{"byte0000":0,"byte0008":0},"offset0032":{"byte0000":0,"byte0008":0},"offset0048":{"byte0000":0,"byte0008":0},"offset0064":{"byte0000":0,"byte0008":0},"offset0080":{"byte0000":0,"byte0008":0},"offset0096":{"byte0000":0,"byte0008":0},"offset0112":{"byte0000":0,"byte0008":0},"offset0128":{"byte0000":0,"byte0008":0},"offset0144":{"byte0000":0,"byte0008":0},"offset0160":{"byte0000":0,"byte0008":0},"offset0176":{"byte0000":0,"byte0008":0},"offset0192":{"byte0000":0,"byte0008":0},"offset0208":{"byte0000":0,"byte0008":0},"offset0224":{"byte0000":0,"byte0008":0},"offset0240":{"byte0000":0,"byte0008":0},"offset0256":{"byte0000":0,"byte0008":0},"offset0272":{"byte0000":0,"byte0008":0},"offset0288":{"byte0000":0,"byte0008":0},"offset0304":{"byte0000":0,"byte0008":0},"offset0320":{"byte0000":0,"byte0008":0},"offset0336":{"byte0000":0,"byte0008":0},"offset0352":{"byte0000":0,"byte0008":0},"offset0368":{"byte0000":0,"byte0008":0},"offset0384":{"byte0000":0,"byte0008":0},"offset0400":{"byte0000":0,"byte0008":0},"offset0416":{"byte0000":0,"byte0008":0},"offset0432":{"byte0000":0,"byte0008":0},"offset0448":{"byte0000":0,"byte0008":0},"offset0464":{"byte0000":0,"byte0008":0},"offset0480":{"byte0000":0,"byte0008":0},"offset0496":{"byte0000":0,"byte0008":0}}},"activePartySize":4,"aliveCount":4,"enemyCount":3,"aliveEnemyCount":3}'
+  - typeName: SaveState
+    namespaceName: ECSReact.Samples.BattleSystem
+    isEnabled: 0
     hasDefaultValues: 0
     serializedDefaultValues: 
   - typeName: UIBattleState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 1
+    isEnabled: 0
     hasDefaultValues: 0
     serializedDefaultValues: 
   autoDiscoverOnAwake: 1
@@ -1903,6 +1908,59 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1361121177}
   m_CullTransparentMesh: 1
+--- !u!1 &1366394694
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1366394696}
+  - component: {fileID: 1366394695}
+  m_Layer: 0
+  m_Name: BattleSystemInitializer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1366394695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1366394694}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bee2ad0b5f947274ea94021f84d8c30a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerNames:
+  - Hero
+  - Mage
+  - Warrior
+  enemyNames:
+  - Goblin
+  - Orc
+  initializeOnStart: 1
+  startingPhase: 1
+--- !u!4 &1366394696
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1366394694}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1164.7833, y: 767.07355, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1391547122
 GameObject:
   m_ObjectHideFlags: 0
@@ -2873,5 +2931,6 @@ SceneRoots:
   - {fileID: 649639998}
   - {fileID: 613430918}
   - {fileID: 288302863}
+  - {fileID: 1366394696}
   - {fileID: 352063689}
   - {fileID: 521884670}
