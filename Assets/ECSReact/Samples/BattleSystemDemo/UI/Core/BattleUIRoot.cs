@@ -49,6 +49,14 @@ namespace ECSReact.Samples.BattleSystem
           parentTransform: leftColumn
       );
 
+      // Always show save system panel (compact, top-right corner)
+      yield return Mount.Element.FromResources(
+          key: "save_system",
+          prefabPath: "UI/SaveSystemPanel",
+          index: 5,
+          parentTransform: leftColumn
+      );
+
       // Conditional rendering based on battle phase
       switch (battleState.currentPhase) {
         case BattlePhase.Initializing:

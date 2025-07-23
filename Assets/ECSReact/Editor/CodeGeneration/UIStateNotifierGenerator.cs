@@ -15,7 +15,7 @@ namespace ECSReact.CodeGen
   {
     private Vector2 scrollPosition;
     private Dictionary<string, NamespaceGroup> namespaceGroups = new Dictionary<string, NamespaceGroup>();
-    private string outputPath = "Assets/Generated/";
+    private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
     private bool autoRefreshDiscovery = false;
 
     [MenuItem("ECS React/Generate UIStateNotifier", priority = 201)]
@@ -151,7 +151,7 @@ namespace ECSReact.CodeGen
 
           state.includeInGeneration = EditorGUILayout.Toggle(state.includeInGeneration, GUILayout.Width(40));
           EditorGUILayout.LabelField(state.typeName, GUILayout.Width(200));
-          EditorGUILayout.LabelField(state.assemblyName, EditorStyles.miniLabel, GUILayout.Width(120));
+          EditorGUILayout.LabelField(state.assemblyName, EditorStyles.miniLabel, GUILayout.Width(120), GUILayout.ExpandWidth(true));
 
           // Priority selection
           state.eventPriority = (UIEventPriority)EditorGUILayout.EnumPopup(state.eventPriority, GUILayout.Width(80));
