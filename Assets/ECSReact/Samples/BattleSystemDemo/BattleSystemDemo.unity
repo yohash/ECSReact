@@ -336,33 +336,31 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   stateConfigurations:
-  - typeName: BattleLogState
+  - typeName: ECSReact.Samples.BattleSystem.BattleLogState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 0
-    hasDefaultValues: 0
-    serializedDefaultValues: 
-  - typeName: BattleState
+    displayName: BattleLogState
+    enabled: 1
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.BattleState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 0
-    hasDefaultValues: 1
-    serializedDefaultValues: '{"currentPhase":0,"activeCharacterIndex":1,"turnOrder":{"data":{"offset0000":{"byte0000":0,"byte0008":0},"offset0016":{"byte0000":0,"byte0008":0},"offset0032":{"byte0000":0,"byte0008":0},"offset0048":{"byte0000":0,"byte0008":0},"offset0064":{"byte0000":0,"byte0008":0},"offset0080":{"byte0000":0,"byte0008":0},"offset0096":{"byte0000":0,"byte0008":0},"offset0112":{"byte0000":0,"byte0008":0}}},"turnTimer":0.0,"turnCount":0,"battleActive":false}'
-  - typeName: PartyState
+    displayName: BattleState
+    enabled: 1
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.PartyState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 0
-    hasDefaultValues: 1
-    serializedDefaultValues: '{"characters":{"data":{"offset0000":{"byte0000":0,"byte0008":0},"offset0016":{"byte0000":0,"byte0008":0},"offset0032":{"byte0000":0,"byte0008":0},"offset0048":{"byte0000":0,"byte0008":0},"offset0064":{"byte0000":0,"byte0008":0},"offset0080":{"byte0000":0,"byte0008":0},"offset0096":{"byte0000":0,"byte0008":0},"offset0112":{"byte0000":0,"byte0008":0},"offset0128":{"byte0000":0,"byte0008":0},"offset0144":{"byte0000":0,"byte0008":0},"offset0160":{"byte0000":0,"byte0008":0},"offset0176":{"byte0000":0,"byte0008":0},"offset0192":{"byte0000":0,"byte0008":0},"offset0208":{"byte0000":0,"byte0008":0},"offset0224":{"byte0000":0,"byte0008":0},"offset0240":{"byte0000":0,"byte0008":0},"offset0256":{"byte0000":0,"byte0008":0},"offset0272":{"byte0000":0,"byte0008":0},"offset0288":{"byte0000":0,"byte0008":0},"offset0304":{"byte0000":0,"byte0008":0},"offset0320":{"byte0000":0,"byte0008":0},"offset0336":{"byte0000":0,"byte0008":0},"offset0352":{"byte0000":0,"byte0008":0},"offset0368":{"byte0000":0,"byte0008":0},"offset0384":{"byte0000":0,"byte0008":0},"offset0400":{"byte0000":0,"byte0008":0},"offset0416":{"byte0000":0,"byte0008":0},"offset0432":{"byte0000":0,"byte0008":0},"offset0448":{"byte0000":0,"byte0008":0},"offset0464":{"byte0000":0,"byte0008":0},"offset0480":{"byte0000":0,"byte0008":0},"offset0496":{"byte0000":0,"byte0008":0}}},"activePartySize":4,"aliveCount":4,"enemyCount":3,"aliveEnemyCount":3}'
-  - typeName: SaveState
+    displayName: PartyState
+    enabled: 1
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.SaveState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 0
-    hasDefaultValues: 0
-    serializedDefaultValues: 
-  - typeName: UIBattleState
+    displayName: SaveState
+    enabled: 1
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.UIBattleState
     namespaceName: ECSReact.Samples.BattleSystem
-    isEnabled: 0
-    hasDefaultValues: 0
-    serializedDefaultValues: 
-  autoDiscoverOnAwake: 1
-  createSingletonsOnStart: 1
+    displayName: UIBattleState
+    enabled: 1
+    serializedDefaults: 
 --- !u!4 &288302863
 Transform:
   m_ObjectHideFlags: 0
@@ -1924,7 +1922,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1366394695
 MonoBehaviour:
   m_ObjectHideFlags: 0

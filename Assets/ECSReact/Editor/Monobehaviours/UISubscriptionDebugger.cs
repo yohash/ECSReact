@@ -1,8 +1,7 @@
-using System;
-using System.Collections.Generic;
 using UnityEngine;
+using ECSReact.Core;
 
-namespace ECSReact.Core
+namespace ECSReact.Editor
 {
   /// <summary>
   /// Utility component that can be added to GameObjects to debug UI state subscriptions.

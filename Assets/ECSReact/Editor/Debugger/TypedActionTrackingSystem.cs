@@ -5,7 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
-namespace ECSReact.Tools
+namespace ECSReact.Editor
 {
   /// <summary>
   /// Generic ECS system that can track specific action types.
@@ -59,16 +59,4 @@ namespace ECSReact.Tools
 
     protected abstract void OnActionTracked(T action, Entity actionEntity);
   }
-
-  /// <summary>
-  /// Example of a typed tracking system for specific actions.
-  /// You can create these for actions you want to track in detail.
-  /// </summary>
-  //public partial class SpendMatterActionTracker : TypedActionTrackingSystem<SpendMatterAction>
-  //{
-  //  protected override void OnActionTracked(SpendMatterAction action, Entity actionEntity)
-  //  {
-  //    Debug.Log($"Tracked SpendMatterAction: amount={action.amount}, itemId={action.itemId}");
-  //  }
-  //}
 }

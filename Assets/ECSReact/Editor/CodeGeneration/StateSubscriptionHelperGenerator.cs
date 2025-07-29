@@ -8,7 +8,7 @@ using UnityEditor;
 using UnityEngine;
 using Unity.Entities;
 
-namespace ECSReact.CodeGen
+namespace ECSReact.Editor.CodeGeneration
 {
   public class StateSubscriptionHelperGenerator : EditorWindow
   {
@@ -183,7 +183,7 @@ namespace ECSReact.CodeGen
           EditorGUILayout.Toggle("IEquatable", hasEquatable, GUILayout.Width(180));
           GUI.enabled = true;
 
-          if (hasEquatable) {
+          if (!hasEquatable) {
             EditorGUILayout.LabelField("⚠️", EditorStyles.boldLabel, GUILayout.Width(36));
           }
 
@@ -207,10 +207,10 @@ namespace ECSReact.CodeGen
       foreach (var assembly in assemblies) {
         try {
           var types = assembly.GetTypes()
-              .Where(t => t.IsValueType && !t.IsEnum && !t.IsGenericType)
-              .Where(t => typeof(IComponentData).IsAssignableFrom(t))
-              .Where(t => t.GetInterfaces().Any(i => i.Name == "IGameState"))
-              .ToList();
+            .Where(t => t.IsValueType && !t.IsEnum && !t.IsGenericType)
+            .Where(t => typeof(IComponentData).IsAssignableFrom(t))
+            .Where(t => t.GetInterfaces().Any(i => i.Name == "IGameState"))
+            .ToList();
 
           foreach (var type in types) {
             string namespaceName = type.Namespace ?? "Global";

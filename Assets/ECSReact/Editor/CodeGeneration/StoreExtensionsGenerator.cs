@@ -1,5 +1,4 @@
-﻿using ECSReact.Tools;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,7 +8,7 @@ using Unity.Entities;
 using UnityEditor;
 using UnityEngine;
 
-namespace ECSReact.CodeGen
+namespace ECSReact.Editor.CodeGeneration
 {
   public class StoreExtensionsGenerator : EditorWindow
   {

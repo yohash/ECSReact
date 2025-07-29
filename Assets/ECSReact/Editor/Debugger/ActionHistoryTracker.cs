@@ -5,7 +5,7 @@ using System.Text;
 using Unity.Entities;
 using UnityEngine;
 
-namespace ECSReact.Tools
+namespace ECSReact.Editor
 {
   /// <summary>
   /// Tracks action dispatching and processing for the State Viewer using pure ECS systems.

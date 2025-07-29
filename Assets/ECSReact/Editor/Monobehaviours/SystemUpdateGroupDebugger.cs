@@ -1,7 +1,8 @@
 ﻿using Unity.Entities;
 using UnityEngine;
+using ECSReact.Core;
 
-namespace ECSReact.Core
+namespace ECSReact.Editor
 {
   /// <summary>
   /// Debug utility that logs system execution order and timing.

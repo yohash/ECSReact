@@ -6,7 +6,7 @@ using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
-namespace ECSReact.Tools
+namespace ECSReact.Editor
 {
   /// <summary>
   /// ECS system that tracks all action entities by querying for ActionTag components.

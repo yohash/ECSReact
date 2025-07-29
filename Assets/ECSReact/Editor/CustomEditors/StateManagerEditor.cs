@@ -1,252 +1,329 @@
-﻿using ECSReact.Core;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using ECSReact.Core;
 
-namespace ECSReact.Tools
+namespace ECSReact.Editor
 {
-  /// <summary>
-  /// Custom editor for SceneStateManager with namespace-organized checkboxes.
-  /// </summary>
   [CustomEditor(typeof(SceneStateManager))]
-  public class SceneStateManagerEditor : Editor
+  public class StateManagerEditor : UnityEditor.Editor
   {
-    private Dictionary<string, bool> namespaceFoldouts = new Dictionary<string, bool>();
-    private Dictionary<string, bool> namespaceCheckAll = new Dictionary<string, bool>();
-
-    private Vector2 scrollPosition;
-
-    private SerializedProperty stateConfigurationsProperty;
-    private SerializedProperty autoDiscoverProperty;
-    private SerializedProperty createSingletonsProperty;
-
-    private SerializedProperty namespaceFoldoutsProperty;
-    private SerializedProperty namespaceCheckAllProperty;
+    private Dictionary<string, bool> namespaceFoldouts = new();
+    private Dictionary<string, bool> namespaceIncludeAll = new();
+    private string searchFilter = "";
+    private bool showOnlyEnabled = false;
+    private List<IStateRegistry> cachedRegistries;
+    private Dictionary<Type, IStateInfo> allDiscoveredStates = new();
 
     private void OnEnable()
     {
-      stateConfigurationsProperty = serializedObject.FindProperty("stateConfigurations");
-      autoDiscoverProperty = serializedObject.FindProperty("autoDiscoverOnAwake");
-      createSingletonsProperty = serializedObject.FindProperty("createSingletonsOnStart");
+      refreshRegistries();
 
-      namespaceFoldoutsProperty = serializedObject.FindProperty("namespaceFoldouts");
-      namespaceCheckAllProperty = serializedObject.FindProperty("namespaceCheckAll");
+      // Update configurations if we have discovered states
+      if (allDiscoveredStates != null && allDiscoveredStates.Count > 0) {
+        var manager = (SceneStateManager)target;
+        updateStateConfigurations(manager);
+      }
     }
 
-    public override void OnInspectorGUI()
+    private void updateStateConfigurations(SceneStateManager manager)
     {
-      var manager = (SceneStateManager)target;
-      serializedObject.Update();
+      var configurationsProperty = serializedObject.FindProperty("stateConfigurations");
 
-      EditorGUILayout.LabelField("Scene State Manager", EditorStyles.boldLabel);
-      EditorGUILayout.Space();
-
-      // Options
-      EditorGUILayout.LabelField("Options", EditorStyles.boldLabel);
-      EditorGUILayout.PropertyField(autoDiscoverProperty, new GUIContent("Auto Discover On Awake"));
-      EditorGUILayout.PropertyField(createSingletonsProperty, new GUIContent("Create Singletons On Start"));
-
-      EditorGUILayout.Space();
-
-      // Discovery controls
-      EditorGUILayout.BeginHorizontal();
-      if (GUILayout.Button("🔍 Discover States")) {
-        manager.DiscoverStates();
-        serializedObject.Update(); // Refresh serialized properties
-      }
-      if (GUILayout.Button("✅ Create Enabled")) {
-        manager.CreateEnabledSingletons();
-      }
-      if (GUILayout.Button("❌ Remove Disabled")) {
-        manager.RemoveDisabledSingletons();
-      }
-      if (GUILayout.Button("🔍 Verify Singletons")) {
-        manager.VerifySingletonStates();
-      }
-      EditorGUILayout.EndHorizontal();
-
-      EditorGUILayout.Space();
-
-      // State configurations by namespace
-      var currentNamespaceGroups = manager.GetStatesByNamespace().ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-      if (currentNamespaceGroups.Count == 0) {
-        EditorGUILayout.HelpBox("No states discovered. Click 'Discover States' to scan for IGameState types.", MessageType.Info);
-        serializedObject.ApplyModifiedProperties();
-        return;
+      // Build a map of existing configurations to preserve user settings
+      var existingConfigs = new Dictionary<string, (bool enabled, string defaults)>();
+      for (int i = 0; i < configurationsProperty.arraySize; i++) {
+        var config = configurationsProperty.GetArrayElementAtIndex(i);
+        var typeName = config.FindPropertyRelative("typeName").stringValue;
+        var enabled = config.FindPropertyRelative("enabled").boolValue;
+        var defaults = config.FindPropertyRelative("serializedDefaults").stringValue;
+        existingConfigs[typeName] = (enabled, defaults);
       }
 
-      EditorGUILayout.LabelField($"Discovered States ({currentNamespaceGroups.Values.Sum(list => list.Count)} total)", EditorStyles.boldLabel);
+      // Clear and rebuild the configurations list
+      configurationsProperty.ClearArray();
 
-      scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+      // Sort states by namespace and name
+      var sortedStates = allDiscoveredStates.Values
+        .OrderBy(info => info.Namespace)
+        .ThenBy(info => info.Name)
+        .ToList();
 
-      foreach (var group in currentNamespaceGroups.OrderBy(ng => ng.Key)) {
+      // Add configurations for each discovered state
+      int index = 0;
+      foreach (var stateInfo in sortedStates) {
+        configurationsProperty.InsertArrayElementAtIndex(index);
+        var element = configurationsProperty.GetArrayElementAtIndex(index);
 
-        string namespaceName = group.Key;
-        var states = group.Value;
+        element.FindPropertyRelative("typeName").stringValue = stateInfo.Type.FullName;
+        element.FindPropertyRelative("namespaceName").stringValue = stateInfo.Namespace;
+        element.FindPropertyRelative("displayName").stringValue = stateInfo.Name;
 
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-
-        EditorGUILayout.BeginHorizontal();
-
-        // Namespace-level checkbox
-        bool checkAll = namespaceCheckAll.GetValueOrDefault(namespaceName, false);
-        bool newCheckAll = EditorGUILayout.Toggle(checkAll, GUILayout.Width(30));
-
-        if (newCheckAll != checkAll) {
-          setNamespaceStates(namespaceName, newCheckAll);
-          namespaceCheckAll[namespaceName] = newCheckAll;
+        // Preserve existing settings if available
+        if (existingConfigs.TryGetValue(stateInfo.Type.FullName, out var existing)) {
+          element.FindPropertyRelative("enabled").boolValue = existing.enabled;
+          element.FindPropertyRelative("serializedDefaults").stringValue = existing.defaults;
+        } else {
+          element.FindPropertyRelative("enabled").boolValue = true;
+          element.FindPropertyRelative("serializedDefaults").stringValue = "";
         }
 
-        // Namespace foldout
-        bool foldout = namespaceFoldouts.GetValueOrDefault(namespaceName, true);
-        foldout = EditorGUILayout.Foldout(foldout, $"  {namespaceName} ({states.Count} states)", true);
-        namespaceFoldouts[namespaceName] = foldout;
-
-        EditorGUILayout.EndHorizontal();
-
-        if (foldout) {
-          EditorGUI.indentLevel++;
-          EditorGUILayout.Space(3);
-
-          // Individual state checkboxes
-          foreach (var state in states.OrderBy(s => s.typeName)) {
-            drawStateConfigurationRow(manager, state, currentNamespaceGroups);
-          }
-
-          EditorGUI.indentLevel--;
-          EditorGUILayout.Space();
-        }
-
-        EditorGUILayout.EndVertical();
-      }
-
-      EditorGUILayout.EndScrollView();
-
-      // Summary
-      int enabledCount = getEnabledStateCount();
-      int totalCount = stateConfigurationsProperty.arraySize;
-
-      EditorGUILayout.LabelField($"Summary: {enabledCount}/{totalCount} states enabled", EditorStyles.miniLabel);
-
-      bool duplicatesFound = currentNamespaceGroups.Values
-        .SelectMany(g => g)
-        .GroupBy(info => info.typeName)
-        .Any(g => g.Count() > 1 && g.All(info => getStateConfigurationEnabledState(info.typeName, info.namespaceName)));
-
-      if (duplicatesFound) {
-        EditorGUILayout.HelpBox("❗ Duplicate state types found across different namespaces. Ensure unique type names or disable duplicates.", MessageType.Error);
+        index++;
       }
 
       serializedObject.ApplyModifiedProperties();
     }
 
-    private void drawStateConfigurationRow(
-      SceneStateManager manager,
-      SceneStateManager.StateTypeInfo state,
-      Dictionary<string, List<SceneStateManager.StateTypeInfo>> currentGroups
-    )
+    private void clearRegistries()
     {
-      var configIndex = findStateConfigurationIndex(state.typeName, state.namespaceName);
-      if (configIndex == -1) {
+      cachedRegistries?.Clear();
+      allDiscoveredStates?.Clear();
+      cachedRegistries = new List<IStateRegistry>();
+      allDiscoveredStates = new Dictionary<Type, IStateInfo>();
+    }
+
+    private void refreshRegistries()
+    {
+      cachedRegistries = discoverAllRegistries();
+      allDiscoveredStates = new Dictionary<Type, IStateInfo>();
+
+      // Collect all states from all registries
+      foreach (var registry in cachedRegistries) {
+        foreach (var kvp in registry.AllStates) {
+          // Later registries override earlier ones for the same type
+          allDiscoveredStates[kvp.Key] = kvp.Value;
+        }
+      }
+
+      Debug.Log($"[StateManagerEditor] Discovered {cachedRegistries.Count} registries with {allDiscoveredStates.Count} total states");
+    }
+
+    private List<IStateRegistry> discoverAllRegistries()
+    {
+      var registries = new List<IStateRegistry>();
+      var registryInterface = typeof(IStateRegistry);
+
+      // Find all types that implement IStateRegistry
+      var registryTypes = AppDomain.CurrentDomain.GetAssemblies()
+          .SelectMany(a =>
+          {
+            try { return a.GetTypes(); } catch { return new Type[0]; }
+          })
+          .Where(t => t.IsClass &&
+                     !t.IsAbstract &&
+                     registryInterface.IsAssignableFrom(t))
+          .ToList();
+
+      foreach (var registryType in registryTypes) {
+        try {
+          // Try to get singleton instance
+          var instanceProperty = registryType.GetProperty("Instance",
+              BindingFlags.Public | BindingFlags.Static);
+
+          if (instanceProperty != null) {
+            var instance = instanceProperty.GetValue(null) as IStateRegistry;
+            if (instance != null) {
+              registries.Add(instance);
+              Debug.Log($"[StateManagerEditor] Found registry: {registryType.Name}");
+            }
+          } else {
+            // Try to create instance directly
+            var instance = Activator.CreateInstance(registryType) as IStateRegistry;
+            if (instance != null) {
+              registries.Add(instance);
+              Debug.Log($"[StateManagerEditor] Created registry instance: {registryType.Name}");
+            }
+          }
+        } catch (Exception e) {
+          Debug.LogWarning($"[StateManagerEditor] Failed to instantiate registry {registryType.Name}: {e.Message}");
+        }
+      }
+
+      return registries;
+    }
+
+    public override void OnInspectorGUI()
+    {
+      var manager = (SceneStateManager)target;
+
+      // Header
+      EditorGUILayout.BeginVertical("box");
+      EditorGUILayout.LabelField("ECS State Manager", EditorStyles.boldLabel);
+
+      // Control buttons
+      EditorGUILayout.BeginHorizontal();
+
+      if (GUILayout.Button("Refresh States")) {
+        refreshRegistries();
+        updateStateConfigurations(manager);
+        EditorUtility.SetDirty(manager);
+      }
+
+      if (GUILayout.Button("Clear States")) {
+        clearRegistries();
+        updateStateConfigurations(manager);
+        EditorUtility.SetDirty(manager);
+      }
+
+      EditorGUILayout.EndHorizontal();
+
+      EditorGUILayout.EndVertical();
+
+      EditorGUILayout.Space(10);
+
+      // Check if we have any discovered states
+      if (allDiscoveredStates == null || allDiscoveredStates.Count == 0) {
+        EditorGUILayout.HelpBox(
+            "No state registries found.\n\n" +
+            "To use SceneStateManager:\n" +
+            "1. Create state types implementing IGameState\n" +
+            "2. Generate a state registry using 'ECS React > Generate State Registry'\n" +
+            "3. Click 'Refresh States' to discover available states",
+            MessageType.Warning);
         return;
       }
 
-      var configProperty = stateConfigurationsProperty.GetArrayElementAtIndex(configIndex);
-      var isEnabledProperty = configProperty.FindPropertyRelative("isEnabled");
-      var hasDefaultValuesProperty = configProperty.FindPropertyRelative("hasDefaultValues");
+      // State count info
+      var enabledCount = 0;
+      var configurationsProperty = serializedObject.FindProperty("stateConfigurations");
+
+      for (int i = 0; i < configurationsProperty.arraySize; i++) {
+        if (configurationsProperty.GetArrayElementAtIndex(i).FindPropertyRelative("enabled").boolValue)
+          enabledCount++;
+      }
+
+      EditorGUILayout.HelpBox($"Total States: {configurationsProperty.arraySize} | Enabled: {enabledCount}", MessageType.Info);
+
+      EditorGUILayout.Space(5);
+
+      // Group states by namespace using the configurations
+      var statesByNamespace = new Dictionary<string, List<SerializedProperty>>();
+
+      for (int i = 0; i < configurationsProperty.arraySize; i++) {
+        var config = configurationsProperty.GetArrayElementAtIndex(i);
+        var namespaceName = config.FindPropertyRelative("namespaceName").stringValue;
+
+        if (string.IsNullOrEmpty(namespaceName)) {
+          namespaceName = "Global";
+        }
+
+        var displayName = config.FindPropertyRelative("displayName").stringValue;
+
+        // Apply search filter
+        if (!string.IsNullOrEmpty(searchFilter) &&
+            !displayName.ToLower().Contains(searchFilter.ToLower())) {
+          continue;
+        }
+
+        if (!statesByNamespace.ContainsKey(namespaceName)) {
+          statesByNamespace[namespaceName] = new List<SerializedProperty>();
+        }
+
+        statesByNamespace[namespaceName].Add(config);
+      }
+
+      // Filters
+      EditorGUILayout.Space(5);
+      EditorGUILayout.BeginVertical();
+      var oldLabel = EditorGUIUtility.labelWidth;
+      EditorGUIUtility.labelWidth = 120;
+      searchFilter = EditorGUILayout.TextField("Search:", searchFilter);
+      showOnlyEnabled = EditorGUILayout.Toggle("Only Enabled", showOnlyEnabled);
+      EditorGUIUtility.labelWidth = oldLabel;
+      EditorGUILayout.Space(5);
+      EditorGUILayout.EndVertical();
+
+      // Display grouped states
+      foreach (var kvp in statesByNamespace.OrderBy(k => k.Key)) {
+        var ns = kvp.Key;
+        var configs = kvp.Value;
+
+        if (!namespaceFoldouts.ContainsKey(ns)) {
+          namespaceFoldouts[ns] = true;
+        }
+        if (!namespaceIncludeAll.ContainsKey(ns)) {
+          namespaceIncludeAll[ns] = true;
+        }
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+        // Namespace header with batch operations
+        EditorGUILayout.BeginHorizontal();
+
+        bool newIncludeNamespace = EditorGUILayout.Toggle(namespaceIncludeAll[ns], GUILayout.Width(35));
+        if (newIncludeNamespace != namespaceIncludeAll[ns]) {
+          namespaceIncludeAll[ns] = newIncludeNamespace;
+          foreach (var config in configs) {
+            config.FindPropertyRelative("enabled").boolValue = newIncludeNamespace;
+          }
+        }
+
+        namespaceFoldouts[ns] = EditorGUILayout.Foldout(namespaceFoldouts[ns], $"  {ns} ({configs.Count} states)", true);
+
+        EditorGUILayout.EndHorizontal();
+
+        if (namespaceFoldouts[ns]) {
+          EditorGUI.indentLevel++;
+
+          foreach (var config in configs) {
+            var enabled = config.FindPropertyRelative("enabled").boolValue;
+
+            // Apply show only enabled filter
+            if (showOnlyEnabled && !enabled) {
+              continue;
+            }
+            drawStateConfiguration(config);
+          }
+
+          EditorGUI.indentLevel--;
+        }
+
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space(5);
+      }
+
+      serializedObject.ApplyModifiedProperties();
+    }
+
+    private void drawStateConfiguration(SerializedProperty config)
+    {
+      var typeName = config.FindPropertyRelative("typeName").stringValue;
+      var displayName = config.FindPropertyRelative("displayName").stringValue;
+      var enabled = config.FindPropertyRelative("enabled");
 
       EditorGUILayout.BeginHorizontal();
 
       // Checkbox
-      EditorGUILayout.PropertyField(isEnabledProperty, GUIContent.none, GUILayout.Width(30));
+      enabled.boolValue = EditorGUILayout.Toggle(enabled.boolValue, GUILayout.Width(40));
 
-      // State name
-      EditorGUILayout.LabelField(state.typeName, GUILayout.Width(150));
+      // Type name with tooltip showing full type name
+      var content = new GUIContent(displayName, typeName);
+      EditorGUILayout.LabelField(content, GUILayout.MinWidth(150));
 
-      // IEquatable indicator
-      if (!state.hasEquatable) {
-        EditorGUILayout.LabelField("⚠️", EditorStyles.boldLabel, GUILayout.Width(40));
-      } else if (currentGroups.Values
-          .SelectMany(g => g)
-          .Any(info =>
-            state.typeName == info.typeName
-            && state.namespaceName != info.namespaceName
-            && getStateConfigurationEnabledState(state.typeName, state.namespaceName)
-            && getStateConfigurationEnabledState(info.typeName, info.namespaceName))
-      ) {
-        EditorGUILayout.LabelField("❗", EditorStyles.boldLabel, GUILayout.Width(40));
-      } else {
-        EditorGUILayout.LabelField("✓", EditorStyles.boldLabel, GUILayout.Width(40));
+      // Show if defaults are set
+      var hasDefaults = !string.IsNullOrEmpty(config.FindPropertyRelative("serializedDefaults").stringValue);
+      if (hasDefaults) {
+        EditorGUILayout.LabelField("✓", GUILayout.Width(40));
       }
 
-      // Assembly info
-      EditorGUILayout.LabelField(state.assemblyName, EditorStyles.miniLabel, GUILayout.MinWidth(120));
+      // Edit defaults button
+      if (GUILayout.Button("Edit Defaults", GUILayout.Width(100))) {
+        // Get the type from our discovered states for the defaults editor
+        var type = allDiscoveredStates.Values
+            .FirstOrDefault(info => info.Type.FullName == typeName)?.Type;
 
-      // Default values button
-      if (GUILayout.Button("Defaults", EditorStyles.miniButton)) {
-        showDefaultValuesEditor(manager, configIndex, state);
+        if (type != null) {
+          StateDefaultsEditorWindow.Open(type, config, allDiscoveredStates);
+        } else {
+          EditorUtility.DisplayDialog("Error",
+              "Could not find type information. Try refreshing states.", "OK");
+        }
       }
 
       EditorGUILayout.EndHorizontal();
-    }
-
-    private void setNamespaceStates(string namespaceName, bool enabled)
-    {
-      for (int i = 0; i < stateConfigurationsProperty.arraySize; i++) {
-        var configProperty = stateConfigurationsProperty.GetArrayElementAtIndex(i);
-        var namespaceProperty = configProperty.FindPropertyRelative("namespaceName");
-
-        if (namespaceProperty.stringValue == namespaceName) {
-          var isEnabledProperty = configProperty.FindPropertyRelative("isEnabled");
-          isEnabledProperty.boolValue = enabled;
-        }
-      }
-    }
-
-    private bool getStateConfigurationEnabledState(string typeName, string namespaceName)
-    {
-      int index = findStateConfigurationIndex(typeName, namespaceName);
-      if (index == -1) {
-        return false;
-      }
-      var configProperty = stateConfigurationsProperty.GetArrayElementAtIndex(index);
-      var isEnabledProperty = configProperty.FindPropertyRelative("isEnabled");
-      return isEnabledProperty.boolValue;
-    }
-
-    private int findStateConfigurationIndex(string typeName, string namespaceName)
-    {
-      for (int i = 0; i < stateConfigurationsProperty.arraySize; i++) {
-        var configProperty = stateConfigurationsProperty.GetArrayElementAtIndex(i);
-        var typeNameProperty = configProperty.FindPropertyRelative("typeName");
-        var namespaceProperty = configProperty.FindPropertyRelative("namespaceName");
-
-        if (typeNameProperty.stringValue == typeName && namespaceProperty.stringValue == namespaceName) {
-          return i;
-        }
-      }
-      return -1;
-    }
-
-    private int getEnabledStateCount()
-    {
-      int count = 0;
-      for (int i = 0; i < stateConfigurationsProperty.arraySize; i++) {
-        var configProperty = stateConfigurationsProperty.GetArrayElementAtIndex(i);
-        var isEnabledProperty = configProperty.FindPropertyRelative("isEnabled");
-
-        if (isEnabledProperty.boolValue) {
-          count++;
-        }
-      }
-      return count;
-    }
-
-    private void showDefaultValuesEditor(SceneStateManager manager, int configIndex, ECSReact.Core.SceneStateManager.StateTypeInfo state)
-    {
-      var window = EditorWindow.GetWindow<StateDefaultsEditorWindow>("State Defaults");
-      window.Initialize(manager, configIndex, state);
     }
   }
 }
