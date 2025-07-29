@@ -27,7 +27,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool Attack(this Store store, Entity attackerEntity, Entity targetEntity, int baseDamage, bool isCritical)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching AttackAction");
         return false;
       }
@@ -54,7 +55,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool Attack(Entity attackerEntity, Entity targetEntity, int baseDamage, bool isCritical)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching AttackAction");
         return false;
       }
@@ -69,7 +71,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool NextTurn(this Store store, bool skipAnimation)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching NextTurnAction");
         return false;
       }
@@ -90,7 +93,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool NextTurn(bool skipAnimation)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching NextTurnAction");
         return false;
       }
@@ -106,7 +110,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SelectActionType(this Store store, ActionType actionType, Entity actingCharacter)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching SelectActionTypeAction");
         return false;
       }
@@ -129,7 +134,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SelectActionType(ActionType actionType, Entity actingCharacter)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching SelectActionTypeAction");
         return false;
       }
@@ -145,7 +151,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SelectTarget(this Store store, Entity targetEntity, bool confirmSelection)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching SelectTargetAction");
         return false;
       }
@@ -168,7 +175,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SelectTarget(Entity targetEntity, bool confirmSelection)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching SelectTargetAction");
         return false;
       }
@@ -184,7 +192,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SaveBattle(this Store store, FixedString128Bytes fileName, SaveFormat format)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching SaveBattleAction");
         return false;
       }
@@ -207,7 +216,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SaveBattle(FixedString128Bytes fileName, SaveFormat format)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching SaveBattleAction");
         return false;
       }
@@ -223,7 +233,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SaveBattleStarted(this Store store, FixedString128Bytes fileName, float timestamp)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching SaveBattleStartedAction");
         return false;
       }
@@ -246,7 +257,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SaveBattleStarted(FixedString128Bytes fileName, float timestamp)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching SaveBattleStartedAction");
         return false;
       }
@@ -264,7 +276,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SaveBattleCompleted(this Store store, FixedString128Bytes fileName, FixedString512Bytes filePath, Int64 fileSizeBytes, float duration)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching SaveBattleCompletedAction");
         return false;
       }
@@ -291,7 +304,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SaveBattleCompleted(FixedString128Bytes fileName, FixedString512Bytes filePath, Int64 fileSizeBytes, float duration)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching SaveBattleCompletedAction");
         return false;
       }
@@ -308,7 +322,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SaveBattleFailed(this Store store, FixedString128Bytes fileName, FixedString512Bytes errorMessage, SaveErrorType errorType)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching SaveBattleFailedAction");
         return false;
       }
@@ -333,7 +348,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SaveBattleFailed(FixedString128Bytes fileName, FixedString512Bytes errorMessage, SaveErrorType errorType)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching SaveBattleFailedAction");
         return false;
       }
@@ -353,7 +369,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool BattleLog(this Store store, LogType logType, FixedString128Bytes message, Entity sourceEntity, Entity targetEntity, int numericValue, float timestamp)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching BattleLogAction");
         return false;
       }
@@ -384,7 +401,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool BattleLog(LogType logType, FixedString128Bytes message, Entity sourceEntity, Entity targetEntity, int numericValue, float timestamp)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching BattleLogAction");
         return false;
       }
@@ -398,7 +416,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool ClearBattleLog(this Store store)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching ClearBattleLogAction");
         return false;
       }
@@ -417,7 +436,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool ClearBattleLog()
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching ClearBattleLogAction");
         return false;
       }
@@ -431,7 +451,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool ClearSaveError(this Store store)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching ClearSaveErrorAction");
         return false;
       }
@@ -450,7 +471,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool ClearSaveError()
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching ClearSaveErrorAction");
         return false;
       }
@@ -467,7 +489,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SelectSkill(this Store store, int skillId, Entity actingCharacter, bool targetRequired)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching SelectSkillAction");
         return false;
       }
@@ -492,7 +515,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool SelectSkill(int skillId, Entity actingCharacter, bool targetRequired)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching SelectSkillAction");
         return false;
       }
@@ -508,7 +532,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool ShowTargeting(this Store store, ActionType actionType, bool allowMultiTarget)
     {
-      if (store == null) {
+      if (store == null)
+      {
         UnityEngine.Debug.LogError("Store instance is null when dispatching ShowTargetingAction");
         return false;
       }
@@ -531,7 +556,8 @@ namespace ECSReact.Samples.BattleSystem
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
     public static bool ShowTargeting(ActionType actionType, bool allowMultiTarget)
     {
-      if (Store.Instance == null) {
+      if (Store.Instance == null)
+      {
         UnityEngine.Debug.LogError("Store.Instance is null when dispatching ShowTargetingAction");
         return false;
       }

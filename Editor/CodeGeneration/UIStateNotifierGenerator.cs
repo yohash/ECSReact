@@ -9,7 +9,7 @@ using UnityEngine;
 using Unity.Entities;
 using ECSReact.Core;
 
-namespace ECSReact.CodeGen
+namespace ECSReact.Editor.CodeGeneration
 {
   public class UIStateNotifierGenerator : EditorWindow
   {
@@ -246,7 +246,7 @@ namespace ECSReact.CodeGen
         return;
       }
 
-      List<string> generatedFiles = new List<string>();
+      var generatedFiles = new List<string>();
       int totalStatesGenerated = 0;
 
       foreach (var namespaceGroup in selectedNamespaces) {
@@ -447,7 +447,7 @@ namespace ECSReact.CodeGen
       string eventsCode = generateUIEventClasses(selectedStates, firstNamespace.namespaceName);
 
       // Create a preview window
-      var previewWindow = GetWindow<CodePreviewWindow>("Generated Code Preview");
+      var previewWindow = GetWindow<UIStateNotifierCodePreviewWindow>("Generated Code Preview");
 
       string title = selectedNamespaces.Count > 1 ?
           $"Preview for {firstNamespace.namespaceName} (+{selectedNamespaces.Count - 1} more namespaces)" :
@@ -460,7 +460,7 @@ namespace ECSReact.CodeGen
     }
   }
 
-  public class CodePreviewWindow : EditorWindow
+  public class UIStateNotifierCodePreviewWindow : EditorWindow
   {
     private Vector2 scrollPosition;
     private string content1Title;

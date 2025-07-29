@@ -7,7 +7,7 @@ using Unity.Entities;
 using UnityEditor;
 using UnityEngine;
 
-namespace ECSReact.CodeGen
+namespace ECSReact.Editor.CodeGeneration
 {
   /// <summary>
   /// Two-step code generation for all ECS-React generators with namespace selection.
@@ -21,7 +21,7 @@ namespace ECSReact.CodeGen
     private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
     private bool hasDiscovered = false;
 
-    [MenuItem("ECS React/Auto Generate All")]
+    [MenuItem("ECS React/Auto Generate All Code", priority = 210)]
     public static void ShowWindow()
     {
       var window = GetWindow<AutoGenerateAllWindow>("Auto Generate All");
@@ -104,7 +104,7 @@ namespace ECSReact.CodeGen
         // Namespace name
         EditorGUILayout.LabelField(namespaceName, EditorStyles.boldLabel, GUILayout.ExpandWidth(true));
 
-        EditorGUILayout.LabelField(namespaceInfo.assemblyName, EditorStyles.miniLabel, GUILayout.Width(100));
+        EditorGUILayout.LabelField(namespaceInfo.assemblyName, EditorStyles.miniLabel, GUILayout.Width(240));
         EditorGUILayout.EndHorizontal();
 
         // Summary of what's in this namespace
@@ -199,6 +199,7 @@ namespace ECSReact.CodeGen
               if (isState) {
                 var stateInfo = new StateTypeInfo
                 {
+                  stateType = type,
                   typeName = type.Name,
                   fullTypeName = type.FullName,
                   namespaceName = namespaceName,
@@ -251,6 +252,7 @@ namespace ECSReact.CodeGen
       if (!EditorUtility.DisplayDialog(
           "Generate All Selected",
           $"This will automatically generate code for {selectedNamespaces.Count} namespace(s):\n\n" +
+          "• State Registry\n" +
           "• UIStateNotifier extensions\n" +
           "• StateSubscriptionHelper extensions\n" +
           "• Store action dispatch extensions\n\n" +
@@ -273,25 +275,31 @@ namespace ECSReact.CodeGen
           Debug.Log($"Created output directory: {outputPath}");
         }
 
-        // Step 1: Generate UIStateNotifier extensions
+        // Step 1: Generate State Registry
+        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating State Registry...", 0.25f);
+        var registryResult = generateStateRegistryForNamespaces(selectedNamespaces);
+        results.Add(registryResult.summary);
+        success &= registryResult.success;
+
+        // Step 2: Generate UIStateNotifier extensions
         EditorUtility.DisplayProgressBar("Auto Generate All", "Generating UIStateNotifier extensions...", 0.25f);
         var uiStateResult = generateUIStateNotifierForNamespaces(selectedNamespaces);
         results.Add(uiStateResult.summary);
         success &= uiStateResult.success;
 
-        // Step 2: Generate StateSubscriptionHelper extensions  
+        // Step 3: Generate StateSubscriptionHelper extensions  
         EditorUtility.DisplayProgressBar("Auto Generate All", "Generating StateSubscriptionHelper extensions...", 0.5f);
         var subscriptionResult = generateStateSubscriptionForNamespaces(selectedNamespaces);
         results.Add(subscriptionResult.summary);
         success &= subscriptionResult.success;
 
-        // Step 3: Generate Store extensions
+        // Step 4: Generate Store extensions
         EditorUtility.DisplayProgressBar("Auto Generate All", "Generating Store extensions...", 0.75f);
         var storeResult = generateStoreExtensionsForNamespaces(selectedNamespaces);
         results.Add(storeResult.summary);
         success &= storeResult.success;
 
-        // Step 4: Refresh Unity
+        // Step 5: Refresh Unity
         EditorUtility.DisplayProgressBar("Auto Generate All", "Refreshing Unity assets...", 0.9f);
         AssetDatabase.Refresh();
 
@@ -315,6 +323,42 @@ namespace ECSReact.CodeGen
         EditorUtility.DisplayDialog("Generation Failed", errorMessage, "OK");
 
         Debug.LogError($"Auto Generate All failed: {ex}");
+      }
+    }
+
+    private GenerationResult generateStateRegistryForNamespaces(List<NamespaceGroup> namespaces)
+    {
+      try {
+        // Simplified implementation - in practice, you'd integrate with the actual generator
+        var namespacesWithStates = namespaces.Where(ns => ns.stateCount > 0).ToList();
+
+        if (namespacesWithStates.Count == 0) {
+          return new GenerationResult
+          {
+            success = false,
+            summary = "❌ StateRegistryGenerator: No states found in selected namespaces"
+          };
+        }
+
+        foreach (var ns in namespacesWithStates) {
+          var gen = new StateRegistryGenerator();
+          var files = new List<string>();
+          gen.GenerateRegistryForNamespace(ns, ref files);
+        }
+        int totalStates = namespacesWithStates.Sum(ns => ns.stateCount);
+
+        return new GenerationResult
+        {
+          success = true,
+          summary = $"✅ StateRegistryGenerator: Generated for {totalStates} states across {namespacesWithStates.Count} namespaces"
+        };
+      } catch (Exception ex) {
+        Debug.LogError($"Failed to generate StateRegistryGenerator extensions: {ex.Message}");
+        return new GenerationResult
+        {
+          success = false,
+          summary = $"❌ StateRegistryGenerator: Generation failed - {ex.Message}"
+        };
       }
     }
 

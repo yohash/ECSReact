@@ -138,7 +138,7 @@ namespace ECSReact.Samples.BattleSystem
         battleState.turnOrder.Add(turnOrder[i]);
       }
 
-      entityManager.CreateSingleton(battleState);
+      var entity = entityManager.CreateSingleton(battleState, "Battle State");
     }
 
     private void InitializePartyState(EntityManager entityManager, PartySetup setup)
@@ -156,7 +156,7 @@ namespace ECSReact.Samples.BattleSystem
         partyState.characters.Add(character);
       }
 
-      entityManager.CreateSingleton(partyState);
+      var entity = entityManager.CreateSingleton(partyState, "Party State");
     }
 
     private void InitializeUIBattleState(EntityManager entityManager)
@@ -170,7 +170,7 @@ namespace ECSReact.Samples.BattleSystem
         selectedItemId = -1,
       };
 
-      entityManager.CreateSingleton(uiState);
+      var entity = entityManager.CreateSingleton(uiState, "UI State");
     }
 
     private void InitializeSaveState(EntityManager entityManager)
@@ -186,7 +186,7 @@ namespace ECSReact.Samples.BattleSystem
         totalSavesCompleted = 0
       };
 
-      entityManager.CreateSingleton(saveState);
+      var entity = entityManager.CreateSingleton(saveState, "Save State");
     }
 
     private void InitializeBattleLogState(EntityManager entityManager)
@@ -197,7 +197,7 @@ namespace ECSReact.Samples.BattleSystem
         totalEntriesLogged = 0
       };
 
-      entityManager.CreateSingleton(logState);
+      var entity = entityManager.CreateSingleton(logState, "Log State");
 
       // Add initial log entry
       var initialEntry = new BattleLogEntry
@@ -266,7 +266,6 @@ namespace ECSReact.Samples.BattleSystem
       ecb.AddComponent(logEntity, new ECSReact.Core.ActionTag());
     }
 
-#if UNITY_EDITOR
     /// <summary>
     /// Editor helper to validate setup
     /// </summary>
@@ -285,6 +284,5 @@ namespace ECSReact.Samples.BattleSystem
 
       Debug.Log($"Setup validation complete: {playerNames.Length} players, {enemyNames.Length} enemies");
     }
-#endif
   }
 }

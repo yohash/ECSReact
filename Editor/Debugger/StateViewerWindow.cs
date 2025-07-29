@@ -5,13 +5,12 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using Unity.Entities;
-using Unity.Collections;
 
-namespace ECSReact.Tools
+namespace ECSReact.Editor
 {
   public class StateViewerWindow : EditorWindow
   {
-    [MenuItem("ECS React/State Viewer")]
+    [MenuItem("ECS React/State Viewer", priority = 1)]
     public static void ShowWindow()
     {
       var window = GetWindow<StateViewerWindow>("ECS-React State Viewer");

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using ECSReact.Core;
 
-namespace ECSReact.CodeGen
+namespace ECSReact.Editor.CodeGeneration
 {
   public static class Constants
   {
