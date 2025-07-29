@@ -2,19 +2,17 @@
 
 ## Required Scene Setup
 
-### 1. **MonoBehaviours in Scene (3 required)**
+### 1. **MonoBehaviours in Scene (2 required)**
 
 * `Store` - Action dispatch singleton from UI to ECS
 * `UIEventQueue` - Frame-budgeted UI event processing
 * `SceneStateManager` - State singleton discovery and creation
-  * Enable "Auto Discover On Awake"
-  * Enable "Create Singletons On Start"
 
 ### 2. **Code Generation (one-time setup)**
 
 * Run **ECSReact → Auto Generate All** from Unity menu
-* Select your namespaces (avoid `ECSReact.Core`)
-* Generates all required glue code automatically
+* Select your namespaces
+* Generates all required code automatically
 
 ### 3. **Initialization Code (2 method calls)**
 
@@ -31,9 +29,36 @@ void Start()
 }
 ```
 
+### 4. **State Bootstrapping**
+
+To get your state into the ECS world, there are two options:
+
+1. **`SceneStateManager`** - State singleton discovery and creation
+    1. Place this `MonoBehaviour` into your scene
+    2. Run State Discovery
+    3. Check-box select the state that you'd like in your scene
+    4. (optional) Edit the default values of your state
+    5. The manager will load your state into the ECS world on start
+
+2. **Manual code** - Use this pattern to initialize your desired state
+
+```csharp
+    private void InitializeState(EntityManager entityManager)
+    {
+      var uiState = new UIState
+      {
+        activePanel = MenuPanel.None,
+        selectedTarget = Entity.Null,
+        selectedItemId = -1,
+      };
+
+      var entity = entityManager.CreateSingleton(uiState, "UI State");
+    }
+```
+
 ### **Finish**
 
-With these 3 MonoBehaviours in scene + 2 initialization calls + code generation, you have:
+With these 2 MonoBehaviours in scene + 2 initialization calls + code generation + state bootstrapping, you have:
 
 * **Action dispatch** from UI to ECS  
 * **State change detection** and UI updates  
