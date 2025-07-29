@@ -3,8 +3,8 @@
 namespace ECSReact.Core
 {
   /// <summary>
-  /// ECS entities shouldn't really call the Store directly since that's meant to be a UI→ECS bridge.
-  /// This is a preferred pattern.
+  /// ECS entities shouldn't really call the Store directly since that's meant to be a UI → ECS bridge.
+  /// This is the preferred pattern.
   /// The Store.Instance.Dispatch() should only be used from UI/MonoBehaviour code.
   /// </summary>
   public static class ECSActionDispatcher
