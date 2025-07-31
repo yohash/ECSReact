@@ -188,7 +188,6 @@ namespace ECSReact.Editor
 
       if (GUILayout.Button("Clear States")) {
         clearRegistries();
-        updateStateConfigurations(manager);
         EditorUtility.SetDirty(manager);
       }
 
@@ -259,10 +258,15 @@ namespace ECSReact.Editor
       EditorGUILayout.BeginVertical();
 
       EditorGUILayout.BeginHorizontal();
-      EditorGUILayout.LabelField("Search:", GUILayout.Width(50));
+      var width = 164;
+      EditorGUILayout.LabelField("Search:", GUILayout.Width(width));
+      var oldWidth = EditorGUIUtility.labelWidth;
+      EditorGUIUtility.labelWidth = width;
       searchFilter = EditorGUILayout.TextField(searchFilter);
-      showOnlyEnabled = EditorGUILayout.ToggleLeft("Show only enabled", showOnlyEnabled, GUILayout.Width(120));
       EditorGUILayout.EndHorizontal();
+
+      showOnlyEnabled = EditorGUILayout.Toggle("Show only enabled", showOnlyEnabled, GUILayout.Width(120));
+      EditorGUIUtility.labelWidth = oldWidth;
 
       EditorGUILayout.Space(3);
 
@@ -323,44 +327,35 @@ namespace ECSReact.Editor
         return duplicateStates.ContainsKey(baseTypeName);
       });
 
-      EditorGUILayout.BeginVertical("box");
+      EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
       // Namespace header
       EditorGUILayout.BeginHorizontal();
 
-      var headerStyle = new GUIStyle(EditorStyles.foldout)
-      {
-        fontStyle = FontStyle.Bold
-      };
+      // Toggle all in namespace
+      var allEnabled = configs.All(c => c.FindPropertyRelative("enabled").boolValue);
+      var newAllEnabled = EditorGUILayout.Toggle(allEnabled, GUILayout.Width(36));
+      if (newAllEnabled != allEnabled) {
+        foreach (var config in configs) {
+          config.FindPropertyRelative("enabled").boolValue = newAllEnabled;
+        }
+      }
 
       if (isDuplicate) {
         var oldColor = GUI.color;
         GUI.color = Color.yellow;
         namespaceFoldouts[namespaceName] = EditorGUILayout.Foldout(
           namespaceFoldouts.GetValueOrDefault(namespaceName, true),
-          $"⚠️ {namespaceName} ({configs.Count})",
-          true,
-          headerStyle
+          $"  ⚠️ {namespaceName} ({configs.Count} states)",
+          true
         );
         GUI.color = oldColor;
       } else {
         namespaceFoldouts[namespaceName] = EditorGUILayout.Foldout(
           namespaceFoldouts.GetValueOrDefault(namespaceName, true),
-          $"{namespaceName} ({configs.Count})",
-          true,
-          headerStyle
+          $"  {namespaceName} ({configs.Count} states)",
+          true
         );
-      }
-
-      GUILayout.FlexibleSpace();
-
-      // Toggle all in namespace
-      var allEnabled = configs.All(c => c.FindPropertyRelative("enabled").boolValue);
-      var newAllEnabled = EditorGUILayout.Toggle(allEnabled, GUILayout.Width(40));
-      if (newAllEnabled != allEnabled) {
-        foreach (var config in configs) {
-          config.FindPropertyRelative("enabled").boolValue = newAllEnabled;
-        }
       }
 
       EditorGUILayout.EndHorizontal();
