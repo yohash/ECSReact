@@ -18,7 +18,7 @@ namespace ECSReact.Core
   }
 
   /// <summary>
-  /// Scene State Manager that uses the registered state registry for strongly-typed state creation.
+  /// Scene State Manager that uses all registered state registries for strongly-typed state creation.
   /// This component is part of ECSReact.Core and has no direct dependencies on user code.
   /// All state discovery is handled by the editor at design time.
   /// </summary>
@@ -28,13 +28,14 @@ namespace ECSReact.Core
 
     private EntityManager entityManager;
     private Dictionary<Type, Entity> stateEntities = new();
-    private IStateRegistry stateRegistry;
+    private Dictionary<Type, IStateInfo> mergedStateInfos = new();
+    private HashSet<string> duplicateStateWarnings = new();
 
     private void Awake()
     {
-      // Check if a registry has been registered
-      if (!StateRegistryService.HasRegistry) {
-        Debug.LogWarning("[SceneStateManager] No state registry found. " +
+      // Check if any registries have been registered
+      if (StateRegistryService.AllRegistries.Count == 0) {
+        Debug.LogWarning("[SceneStateManager] No state registries found. " +
             "Make sure to generate the state registry (ECS React > Generate State Registry)");
       }
     }
@@ -42,8 +43,13 @@ namespace ECSReact.Core
     private void Start()
     {
       initializeEntityManager();
-      initializeStateRegistry();
+      mergeAllRegistries();
       createStateEntities();
+
+      // Display any duplicate warnings
+      foreach (var warning in duplicateStateWarnings) {
+        Debug.LogWarning($"[SceneStateManager] {warning}");
+      }
     }
 
     private void initializeEntityManager()
@@ -57,45 +63,108 @@ namespace ECSReact.Core
       entityManager = world.EntityManager;
     }
 
-    private void initializeStateRegistry()
+    private void mergeAllRegistries()
     {
-      stateRegistry = StateRegistryService.ActiveRegistry;
+      mergedStateInfos.Clear();
+      duplicateStateWarnings.Clear();
 
-      if (stateRegistry == null) {
-        Debug.LogError("[SceneStateManager] No state registry available. " +
+      var allRegistries = StateRegistryService.AllRegistries;
+
+      if (allRegistries.Count == 0) {
+        Debug.LogError("[SceneStateManager] No state registries available. " +
             "State creation will be skipped. Generate and register a state registry to use this feature.");
         return;
       }
 
-      Debug.Log($"[SceneStateManager] Using state registry with {stateRegistry.AllStates.Count} registered states");
+      Debug.Log($"[SceneStateManager] Merging {allRegistries.Count} state registries");
+
+      // Track which types we've seen and from which namespaces
+      var typeToNamespaces = new Dictionary<Type, List<string>>();
+
+      // Merge all registries, collecting state info from all namespaces
+      foreach (var registry in allRegistries) {
+        foreach (var kvp in registry.AllStates) {
+          var stateType = kvp.Key;
+          var stateInfo = kvp.Value;
+
+          // Track which namespaces contain this type
+          if (!typeToNamespaces.ContainsKey(stateType)) {
+            typeToNamespaces[stateType] = new List<string>();
+          }
+          typeToNamespaces[stateType].Add(stateInfo.Namespace);
+
+          // Store the state info (last one wins if duplicates)
+          mergedStateInfos[stateType] = stateInfo;
+        }
+      }
+
+      // Check for duplicates and generate warnings
+      foreach (var kvp in typeToNamespaces) {
+        if (kvp.Value.Count > 1) {
+          var typeName = kvp.Key.Name;
+          var namespaces = string.Join(", ", kvp.Value);
+          duplicateStateWarnings.Add(
+            $"State type '{typeName}' found in multiple namespaces: {namespaces}. " +
+            "Only one instance will be created. Consider using unique type names across namespaces.");
+        }
+      }
+
+      Debug.Log($"[SceneStateManager] Merged registry contains {mergedStateInfos.Count} unique state types");
     }
 
     private void createStateEntities()
     {
-      if (stateRegistry == null) {
-        Debug.LogWarning("[SceneStateManager] Cannot create states without a registered state registry");
+      if (mergedStateInfos.Count == 0) {
+        Debug.LogWarning("[SceneStateManager] No states found in merged registries");
         return;
       }
 
+      // Check for enabled states that would create duplicates
+      var enabledTypeNames = new HashSet<string>();
+      var duplicatesInConfig = new List<string>();
+
       foreach (var config in stateConfigurations.Where(c => c.enabled)) {
-        createStateEntity(config);
+        var baseTypeName = config.typeName.Split('.').Last();
+        if (!enabledTypeNames.Add(baseTypeName)) {
+          duplicatesInConfig.Add($"{config.displayName} ({config.namespaceName})");
+        }
+      }
+
+      if (duplicatesInConfig.Count > 0) {
+        Debug.LogError($"[SceneStateManager] Duplicate state types enabled: {string.Join(", ", duplicatesInConfig)}. " +
+            "States are singletons - only enable one instance of each state type!");
+
+        // You could choose to stop here or continue with first-one-wins
+        // For now, let's continue but skip duplicates
+      }
+
+      var createdTypes = new HashSet<Type>();
+
+      foreach (var config in stateConfigurations.Where(c => c.enabled)) {
+        // Try to find the state info in our merged registry
+        var stateInfo = mergedStateInfos.Values
+            .FirstOrDefault(info => info.Type.FullName == config.typeName);
+
+        if (stateInfo == null) {
+          Debug.LogWarning($"State type not found in any registry: {config.typeName} ({config.displayName})");
+          continue;
+        }
+
+        // Skip if we already created this type (handle duplicates)
+        if (!createdTypes.Add(stateInfo.Type)) {
+          Debug.LogWarning($"Skipping duplicate state creation for type: {stateInfo.Type.Name}");
+          continue;
+        }
+
+        createStateEntity(config, stateInfo);
       }
 
       Debug.Log($"[SceneStateManager] Created {stateEntities.Count} state singleton entities");
     }
 
-    private void createStateEntity(StateConfiguration config)
+    private void createStateEntity(StateConfiguration config, IStateInfo stateInfo)
     {
       try {
-        // Try to find the state info in the registry
-        var stateInfo = stateRegistry.AllStates.Values
-            .FirstOrDefault(info => info.Type.FullName == config.typeName);
-
-        if (stateInfo == null) {
-          Debug.LogWarning($"State type not found in registry: {config.typeName} ({config.displayName})");
-          return;
-        }
-
         // Create the singleton entity with a proper name
         var entityName = new FixedString64Bytes($"{config.displayName}");
         var entity = stateInfo.CreateSingleton(entityManager, entityName);
@@ -111,7 +180,7 @@ namespace ECSReact.Core
         }
 
         stateEntities[stateInfo.Type] = entity;
-        Debug.Log($"Created state singleton: {entityName}");
+        Debug.Log($"Created state singleton: {entityName} (from {stateInfo.Namespace})");
       } catch (Exception e) {
         Debug.LogError($"Failed to create state entity for {config.displayName}: {e.Message}");
       }
@@ -137,7 +206,7 @@ namespace ECSReact.Core
       }
     }
 
-    // Runtime type accessors using the registry (no direct dependency on generated code)
+    // Runtime type accessors using the merged registry
     public Entity GetStateEntity(Type stateType)
     {
       return stateEntities.TryGetValue(stateType, out var entity) ? entity : Entity.Null;
@@ -146,20 +215,20 @@ namespace ECSReact.Core
     public object GetState(Type stateType)
     {
       var entity = GetStateEntity(stateType);
-      if (entity == Entity.Null || stateRegistry == null)
+      if (entity == Entity.Null || !mergedStateInfos.ContainsKey(stateType))
         return null;
 
-      var stateInfo = stateRegistry.GetStateInfo(stateType);
+      var stateInfo = mergedStateInfos[stateType];
       return stateInfo?.GetComponent(entityManager, entity);
     }
 
     public void SetState(Type stateType, object state)
     {
       var entity = GetStateEntity(stateType);
-      if (entity == Entity.Null || stateRegistry == null)
+      if (entity == Entity.Null || !mergedStateInfos.ContainsKey(stateType))
         return;
 
-      var stateInfo = stateRegistry.GetStateInfo(stateType);
+      var stateInfo = mergedStateInfos[stateType];
       stateInfo?.SetComponent(entityManager, entity, state);
     }
 
@@ -177,6 +246,12 @@ namespace ECSReact.Core
     public IReadOnlyDictionary<Type, Entity> GetAllStateEntities()
     {
       return stateEntities;
+    }
+
+    // Get duplicate warnings for UI display
+    public IReadOnlyCollection<string> GetDuplicateWarnings()
+    {
+      return duplicateStateWarnings;
     }
   }
 }

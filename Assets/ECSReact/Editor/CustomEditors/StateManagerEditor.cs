@@ -17,6 +17,7 @@ namespace ECSReact.Editor
     private bool showOnlyEnabled = false;
     private List<IStateRegistry> cachedRegistries;
     private Dictionary<Type, IStateInfo> allDiscoveredStates = new();
+    private Dictionary<string, List<StateConfiguration>> duplicateStates = new();
 
     private void OnEnable()
     {
@@ -43,46 +44,69 @@ namespace ECSReact.Editor
         existingConfigs[typeName] = (enabled, defaults);
       }
 
-      // Clear and rebuild the configurations list
+      // Clear and rebuild configurations
       configurationsProperty.ClearArray();
 
-      // Sort states by namespace and name
-      var sortedStates = allDiscoveredStates.Values
-        .OrderBy(info => info.Namespace)
-        .ThenBy(info => info.Name)
-        .ToList();
+      foreach (var kvp in allDiscoveredStates) {
+        var stateInfo = kvp.Value;
 
-      // Add configurations for each discovered state
-      int index = 0;
-      foreach (var stateInfo in sortedStates) {
+        var index = configurationsProperty.arraySize;
         configurationsProperty.InsertArrayElementAtIndex(index);
-        var element = configurationsProperty.GetArrayElementAtIndex(index);
+        var configProp = configurationsProperty.GetArrayElementAtIndex(index);
 
-        element.FindPropertyRelative("typeName").stringValue = stateInfo.Type.FullName;
-        element.FindPropertyRelative("namespaceName").stringValue = stateInfo.Namespace;
-        element.FindPropertyRelative("displayName").stringValue = stateInfo.Name;
+        configProp.FindPropertyRelative("typeName").stringValue = stateInfo.Type.FullName;
+        configProp.FindPropertyRelative("namespaceName").stringValue = stateInfo.Namespace ?? "Global";
+        configProp.FindPropertyRelative("displayName").stringValue = stateInfo.Name;
 
-        // Preserve existing settings if available
+        // Restore existing settings if available
         if (existingConfigs.TryGetValue(stateInfo.Type.FullName, out var existing)) {
-          element.FindPropertyRelative("enabled").boolValue = existing.enabled;
-          element.FindPropertyRelative("serializedDefaults").stringValue = existing.defaults;
+          configProp.FindPropertyRelative("enabled").boolValue = existing.enabled;
+          configProp.FindPropertyRelative("serializedDefaults").stringValue = existing.defaults;
         } else {
-          element.FindPropertyRelative("enabled").boolValue = true;
-          element.FindPropertyRelative("serializedDefaults").stringValue = "";
+          configProp.FindPropertyRelative("enabled").boolValue = false;
+          configProp.FindPropertyRelative("serializedDefaults").stringValue = "";
         }
-
-        index++;
       }
 
       serializedObject.ApplyModifiedProperties();
     }
 
-    private void clearRegistries()
+    private void checkForDuplicates()
     {
-      cachedRegistries?.Clear();
-      allDiscoveredStates?.Clear();
-      cachedRegistries = new List<IStateRegistry>();
-      allDiscoveredStates = new Dictionary<Type, IStateInfo>();
+      duplicateStates.Clear();
+      var configurationsProperty = serializedObject.FindProperty("stateConfigurations");
+
+      // Group by base type name (without namespace)
+      var statesByBaseName = new Dictionary<string, List<StateConfiguration>>();
+
+      for (int i = 0; i < configurationsProperty.arraySize; i++) {
+        var config = configurationsProperty.GetArrayElementAtIndex(i);
+        var typeName = config.FindPropertyRelative("typeName").stringValue;
+        var namespaceName = config.FindPropertyRelative("namespaceName").stringValue;
+        var displayName = config.FindPropertyRelative("displayName").stringValue;
+        var enabled = config.FindPropertyRelative("enabled").boolValue;
+
+        var baseTypeName = typeName.Split('.').Last();
+
+        if (!statesByBaseName.ContainsKey(baseTypeName)) {
+          statesByBaseName[baseTypeName] = new List<StateConfiguration>();
+        }
+
+        statesByBaseName[baseTypeName].Add(new StateConfiguration
+        {
+          typeName = typeName,
+          namespaceName = namespaceName,
+          displayName = displayName,
+          enabled = enabled
+        });
+      }
+
+      // Find duplicates
+      foreach (var kvp in statesByBaseName) {
+        if (kvp.Value.Count > 1) {
+          duplicateStates[kvp.Key] = kvp.Value;
+        }
+      }
     }
 
     private void refreshRegistries()
@@ -93,7 +117,7 @@ namespace ECSReact.Editor
       // Collect all states from all registries
       foreach (var registry in cachedRegistries) {
         foreach (var kvp in registry.AllStates) {
-          // Later registries override earlier ones for the same type
+          // Store all instances, even duplicates
           allDiscoveredStates[kvp.Key] = kvp.Value;
         }
       }
@@ -104,9 +128,16 @@ namespace ECSReact.Editor
     private List<IStateRegistry> discoverAllRegistries()
     {
       var registries = new List<IStateRegistry>();
+
+      // Use StateRegistryService.AllRegistries if available
+      if (StateRegistryService.AllRegistries != null && StateRegistryService.AllRegistries.Count > 0) {
+        registries.AddRange(StateRegistryService.AllRegistries);
+        return registries;
+      }
+
+      // Fallback to discovery
       var registryInterface = typeof(IStateRegistry);
 
-      // Find all types that implement IStateRegistry
       var registryTypes = AppDomain.CurrentDomain.GetAssemblies()
           .SelectMany(a =>
           {
@@ -128,13 +159,6 @@ namespace ECSReact.Editor
             if (instance != null) {
               registries.Add(instance);
               Debug.Log($"[StateManagerEditor] Found registry: {registryType.Name}");
-            }
-          } else {
-            // Try to create instance directly
-            var instance = Activator.CreateInstance(registryType) as IStateRegistry;
-            if (instance != null) {
-              registries.Add(instance);
-              Debug.Log($"[StateManagerEditor] Created registry instance: {registryType.Name}");
             }
           }
         } catch (Exception e) {
@@ -174,6 +198,38 @@ namespace ECSReact.Editor
 
       EditorGUILayout.Space(10);
 
+      // Check for duplicates
+      checkForDuplicates();
+
+      // Show duplicate warnings
+      if (duplicateStates.Count > 0) {
+        EditorGUILayout.BeginVertical("box");
+        EditorGUILayout.HelpBox(
+            "⚠️ Duplicate state types detected across namespaces!\n" +
+            "States are singletons - only one instance of each type can exist.\n" +
+            "Consider using unique type names or only enable one per type.",
+            MessageType.Warning);
+
+        foreach (var kvp in duplicateStates) {
+          var enabled = kvp.Value.Count(s => s.enabled);
+          var icon = enabled > 1 ? "❌" : "⚠️";
+          var color = enabled > 1 ? Color.red : Color.yellow;
+
+          using (new EditorGUILayout.HorizontalScope()) {
+            var oldColor = GUI.color;
+            GUI.color = color;
+            EditorGUILayout.LabelField($"{icon} {kvp.Key}:", EditorStyles.boldLabel, GUILayout.Width(200));
+            GUI.color = oldColor;
+
+            var namespaces = kvp.Value.Select(s => $"{s.namespaceName} [{(s.enabled ? "ON" : "OFF")}]");
+            EditorGUILayout.LabelField(string.Join(", ", namespaces));
+          }
+        }
+
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space(10);
+      }
+
       // Check if we have any discovered states
       if (allDiscoveredStates == null || allDiscoveredStates.Count == 0) {
         EditorGUILayout.HelpBox(
@@ -195,11 +251,36 @@ namespace ECSReact.Editor
           enabledCount++;
       }
 
-      EditorGUILayout.HelpBox($"Total States: {configurationsProperty.arraySize} | Enabled: {enabledCount}", MessageType.Info);
+      EditorGUILayout.HelpBox($"Total States: {configurationsProperty.arraySize} | Enabled: {enabledCount} | Registries: {cachedRegistries.Count}", MessageType.Info);
 
       EditorGUILayout.Space(5);
 
-      // Group states by namespace using the configurations
+      // Filters and controls
+      EditorGUILayout.BeginVertical();
+
+      EditorGUILayout.BeginHorizontal();
+      EditorGUILayout.LabelField("Search:", GUILayout.Width(50));
+      searchFilter = EditorGUILayout.TextField(searchFilter);
+      showOnlyEnabled = EditorGUILayout.ToggleLeft("Show only enabled", showOnlyEnabled, GUILayout.Width(120));
+      EditorGUILayout.EndHorizontal();
+
+      EditorGUILayout.Space(3);
+
+      // Select/Deselect all buttons
+      EditorGUILayout.BeginHorizontal();
+      if (GUILayout.Button("Enable All Visible")) {
+        enableAllVisible(true);
+      }
+      if (GUILayout.Button("Disable All Visible")) {
+        enableAllVisible(false);
+      }
+      EditorGUILayout.EndHorizontal();
+
+      EditorGUILayout.EndVertical();
+
+      EditorGUILayout.Space(10);
+
+      // Group states by namespace
       var statesByNamespace = new Dictionary<string, List<SerializedProperty>>();
 
       for (int i = 0; i < configurationsProperty.arraySize; i++) {
@@ -225,67 +306,82 @@ namespace ECSReact.Editor
         statesByNamespace[namespaceName].Add(config);
       }
 
-      // Filters
-      EditorGUILayout.Space(5);
-      EditorGUILayout.BeginVertical();
-      var oldLabel = EditorGUIUtility.labelWidth;
-      EditorGUIUtility.labelWidth = 120;
-      searchFilter = EditorGUILayout.TextField("Search:", searchFilter);
-      showOnlyEnabled = EditorGUILayout.Toggle("Only Enabled", showOnlyEnabled);
-      EditorGUIUtility.labelWidth = oldLabel;
-      EditorGUILayout.Space(5);
-      EditorGUILayout.EndVertical();
-
-      // Display grouped states
+      // Draw namespace groups
       foreach (var kvp in statesByNamespace.OrderBy(k => k.Key)) {
-        var ns = kvp.Key;
-        var configs = kvp.Value;
-
-        if (!namespaceFoldouts.ContainsKey(ns)) {
-          namespaceFoldouts[ns] = true;
-        }
-        if (!namespaceIncludeAll.ContainsKey(ns)) {
-          namespaceIncludeAll[ns] = true;
-        }
-
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-
-        // Namespace header with batch operations
-        EditorGUILayout.BeginHorizontal();
-
-        bool newIncludeNamespace = EditorGUILayout.Toggle(namespaceIncludeAll[ns], GUILayout.Width(35));
-        if (newIncludeNamespace != namespaceIncludeAll[ns]) {
-          namespaceIncludeAll[ns] = newIncludeNamespace;
-          foreach (var config in configs) {
-            config.FindPropertyRelative("enabled").boolValue = newIncludeNamespace;
-          }
-        }
-
-        namespaceFoldouts[ns] = EditorGUILayout.Foldout(namespaceFoldouts[ns], $"  {ns} ({configs.Count} states)", true);
-
-        EditorGUILayout.EndHorizontal();
-
-        if (namespaceFoldouts[ns]) {
-          EditorGUI.indentLevel++;
-
-          foreach (var config in configs) {
-            var enabled = config.FindPropertyRelative("enabled").boolValue;
-
-            // Apply show only enabled filter
-            if (showOnlyEnabled && !enabled) {
-              continue;
-            }
-            drawStateConfiguration(config);
-          }
-
-          EditorGUI.indentLevel--;
-        }
-
-        EditorGUILayout.EndVertical();
-        EditorGUILayout.Space(5);
+        drawNamespaceGroup(kvp.Key, kvp.Value);
       }
 
       serializedObject.ApplyModifiedProperties();
+    }
+
+    private void drawNamespaceGroup(string namespaceName, List<SerializedProperty> configs)
+    {
+      var isDuplicate = configs.Any(c =>
+      {
+        var typeName = c.FindPropertyRelative("typeName").stringValue;
+        var baseTypeName = typeName.Split('.').Last();
+        return duplicateStates.ContainsKey(baseTypeName);
+      });
+
+      EditorGUILayout.BeginVertical("box");
+
+      // Namespace header
+      EditorGUILayout.BeginHorizontal();
+
+      var headerStyle = new GUIStyle(EditorStyles.foldout)
+      {
+        fontStyle = FontStyle.Bold
+      };
+
+      if (isDuplicate) {
+        var oldColor = GUI.color;
+        GUI.color = Color.yellow;
+        namespaceFoldouts[namespaceName] = EditorGUILayout.Foldout(
+          namespaceFoldouts.GetValueOrDefault(namespaceName, true),
+          $"⚠️ {namespaceName} ({configs.Count})",
+          true,
+          headerStyle
+        );
+        GUI.color = oldColor;
+      } else {
+        namespaceFoldouts[namespaceName] = EditorGUILayout.Foldout(
+          namespaceFoldouts.GetValueOrDefault(namespaceName, true),
+          $"{namespaceName} ({configs.Count})",
+          true,
+          headerStyle
+        );
+      }
+
+      GUILayout.FlexibleSpace();
+
+      // Toggle all in namespace
+      var allEnabled = configs.All(c => c.FindPropertyRelative("enabled").boolValue);
+      var newAllEnabled = EditorGUILayout.Toggle(allEnabled, GUILayout.Width(40));
+      if (newAllEnabled != allEnabled) {
+        foreach (var config in configs) {
+          config.FindPropertyRelative("enabled").boolValue = newAllEnabled;
+        }
+      }
+
+      EditorGUILayout.EndHorizontal();
+
+      // Show states in namespace
+      if (namespaceFoldouts[namespaceName]) {
+        EditorGUI.indentLevel++;
+
+        foreach (var config in configs) {
+          var enabled = config.FindPropertyRelative("enabled").boolValue;
+          if (showOnlyEnabled && !enabled) {
+            continue;
+          }
+          drawStateConfiguration(config);
+        }
+
+        EditorGUI.indentLevel--;
+      }
+
+      EditorGUILayout.EndVertical();
+      EditorGUILayout.Space(5);
     }
 
     private void drawStateConfiguration(SerializedProperty config)
@@ -293,14 +389,28 @@ namespace ECSReact.Editor
       var typeName = config.FindPropertyRelative("typeName").stringValue;
       var displayName = config.FindPropertyRelative("displayName").stringValue;
       var enabled = config.FindPropertyRelative("enabled");
+      var baseTypeName = typeName.Split('.').Last();
+      var isDuplicate = duplicateStates.ContainsKey(baseTypeName);
 
       EditorGUILayout.BeginHorizontal();
 
-      // Checkbox
+      // Checkbox with warning color if duplicate
+      var oldColor = GUI.color;
+      if (isDuplicate && enabled.boolValue) {
+        var dupeStates = duplicateStates[baseTypeName];
+        var enabledDupes = dupeStates.Count(s => s.enabled);
+        if (enabledDupes > 1) {
+          GUI.color = Color.red;
+        }
+      }
+
       enabled.boolValue = EditorGUILayout.Toggle(enabled.boolValue, GUILayout.Width(40));
+      GUI.color = oldColor;
 
       // Type name with tooltip showing full type name
-      var content = new GUIContent(displayName, typeName);
+      var content = isDuplicate
+        ? new GUIContent($"⚠️ {displayName}", typeName + "\n⚠️ Duplicate type name detected!")
+        : new GUIContent(displayName, typeName);
       EditorGUILayout.LabelField(content, GUILayout.MinWidth(150));
 
       // Show if defaults are set
@@ -324,6 +434,31 @@ namespace ECSReact.Editor
       }
 
       EditorGUILayout.EndHorizontal();
+    }
+
+    private void enableAllVisible(bool enable)
+    {
+      var configurationsProperty = serializedObject.FindProperty("stateConfigurations");
+
+      for (int i = 0; i < configurationsProperty.arraySize; i++) {
+        var config = configurationsProperty.GetArrayElementAtIndex(i);
+        var displayName = config.FindPropertyRelative("displayName").stringValue;
+
+        // Check search filter
+        if (!string.IsNullOrEmpty(searchFilter) &&
+            !displayName.ToLower().Contains(searchFilter.ToLower())) {
+          continue;
+        }
+
+        config.FindPropertyRelative("enabled").boolValue = enable;
+      }
+    }
+
+    private void clearRegistries()
+    {
+      var configurationsProperty = serializedObject.FindProperty("stateConfigurations");
+      configurationsProperty.ClearArray();
+      serializedObject.ApplyModifiedProperties();
     }
   }
 }
