@@ -35,29 +35,33 @@ namespace ECSReact.Samples.BattleSystem
       StateNotificationEvents.InitializeEvents();
       StateSubscriptionRegistration.InitializeSubscriptions();
 
-      var world = World.DefaultGameObjectInjectionWorld;
-      var entityManager = world.EntityManager;
+      //var world = World.DefaultGameObjectInjectionWorld;
+      //var entityManager = world.EntityManager;
 
-      // Create party characters and entities
-      var partySetup = CreatePartySetup(entityManager);
-      var turnOrder = CreateTurnOrder(partySetup.playerEntities, partySetup.enemyEntities);
+      //// Create party characters and entities
+      //var partySetup = CreatePartySetup(entityManager);
+      //var turnOrder = CreateTurnOrder(partySetup.playerEntities, partySetup.enemyEntities);
 
-      // Initialize core battle state
-      InitializeBattleState(entityManager, turnOrder);
+      //// Initialize core battle state
+      //InitializeBattleState(entityManager, turnOrder);
+      //Debug.Log("Initialized BattleState");
 
-      // Initialize party state with character data
-      InitializePartyState(entityManager, partySetup);
+      //// Initialize party state with character data
+      //InitializePartyState(entityManager, partySetup);
+      //Debug.Log("Initialized PartyState");
 
-      // Initialize UI state
-      InitializeUIBattleState(entityManager);
+      //// Initialize UI state
+      //InitializeUIBattleState(entityManager);
+      //Debug.Log("Initialized UIBattleState");
 
-      // Initialize save system state
-      InitializeSaveState(entityManager);
+      //// Initialize save system state
+      //InitializeSaveState(entityManager);
+      //Debug.Log("Initialized SaveState");
 
-      // Initialize battle log state
-      InitializeBattleLogState(entityManager);
+      //// Initialize battle log state
+      //InitializeBattleLogState(entityManager);
 
-      Debug.Log($"Battle System initialized with {playerNames.Length} players vs {enemyNames.Length} enemies");
+      //Debug.Log($"Battle System initialized with {playerNames.Length} players vs {enemyNames.Length} enemies");
     }
 
     private PartySetup CreatePartySetup(EntityManager entityManager)
@@ -139,6 +143,9 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       var entity = entityManager.CreateSingleton(battleState, "Battle State");
+
+      var phase = new NewPhaseAction() { BattlePhase = BattlePhase.PlayerSelectAction };
+      Store.Instance.Dispatch(phase);
     }
 
     private void InitializePartyState(EntityManager entityManager, PartySetup setup)
