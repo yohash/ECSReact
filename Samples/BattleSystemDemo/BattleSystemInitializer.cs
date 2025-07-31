@@ -143,9 +143,6 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       var entity = entityManager.CreateSingleton(battleState, "Battle State");
-
-      var phase = new NewPhaseAction() { BattlePhase = BattlePhase.PlayerSelectAction };
-      Store.Instance.Dispatch(phase);
     }
 
     private void InitializePartyState(EntityManager entityManager, PartySetup setup)
