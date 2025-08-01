@@ -109,10 +109,10 @@ namespace ECSReact.Editor
     private static ECSReactDebugDashboard instance;
     private bool isSubscribed = false;
 
-    [MenuItem("ECS React/Debug Dashboard", priority = 300)]
+    [MenuItem("ECS React/Dashboard", priority = 300)]
     public static void ShowWindow()
     {
-      instance = GetWindow<ECSReactDebugDashboard>("ECS Debug");
+      instance = GetWindow<ECSReactDebugDashboard>("ECSReact Dashboard");
       instance.minSize = new Vector2(400, 600);
     }
 
@@ -330,7 +330,6 @@ namespace ECSReact.Editor
       Repaint();
     }
 
-    // Main GUI
     private void OnGUI()
     {
       DrawToolbar();
@@ -385,6 +384,14 @@ namespace ECSReact.Editor
 
     private void DrawTabContent()
     {
+      // Check if we're in play mode      
+      if (!EditorApplication.isPlaying) {
+        EditorGUILayout.HelpBox(
+          "ECS React Dashboard is only available in Play Mode.",
+          MessageType.Info);
+        return;
+      }
+
       scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
       switch (currentTab) {
@@ -415,10 +422,6 @@ namespace ECSReact.Editor
             "The registry will auto-register and states will appear here.",
             MessageType.Warning
         );
-
-        if (GUILayout.Button("Open State Registry Generator")) {
-          EditorWindow.GetWindow(Type.GetType("ECSReact.Editor.CodeGeneration.StateRegistryGeneratorWindow"));
-        }
         return;
       }
 
