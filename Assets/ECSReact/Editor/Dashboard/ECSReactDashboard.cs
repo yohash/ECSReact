@@ -212,15 +212,18 @@ namespace ECSReact.Editor
     private void RefreshStateCache()
     {
       var world = World.DefaultGameObjectInjectionWorld;
-      if (world == null || !world.IsCreated)
+      if (world == null || !world.IsCreated) {
         return;
+      }
 
       var entityManager = world.EntityManager;
 
       // Try to use StateRegistryService first
-      var registry = StateRegistryService.ActiveRegistry;
-      if (registry != null) {
-        RefreshUsingRegistry(entityManager, registry);
+      var registries = StateRegistryService.AllRegistries;
+      if (registries != null) {
+        foreach (var registry in registries) {
+          RefreshUsingRegistry(entityManager, registry);
+        }
       } else {
         // Fallback to discovery from all registries
         var allStates = StateRegistryService.GetAllStatesFromAllRegistries();
@@ -295,10 +298,12 @@ namespace ECSReact.Editor
 
     private bool AreValuesEqual(object a, object b)
     {
-      if (a == null && b == null)
+      if (a == null && b == null) {
         return true;
-      if (a == null || b == null)
+      }
+      if (a == null || b == null) {
         return false;
+      }
 
       // Use IEquatable if available
       var equatableType = typeof(IEquatable<>).MakeGenericType(a.GetType());
