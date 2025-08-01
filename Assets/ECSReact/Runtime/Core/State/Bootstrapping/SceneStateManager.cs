@@ -24,6 +24,8 @@ namespace ECSReact.Core
   /// </summary>
   public class SceneStateManager : MonoBehaviour
   {
+    public static SceneStateManager Instance { get; private set; }
+
     [SerializeField] private List<StateConfiguration> stateConfigurations = new();
 
     private EntityManager entityManager;
@@ -33,6 +35,14 @@ namespace ECSReact.Core
 
     private void Awake()
     {
+      if (Instance != null) {
+        Debug.LogError("[SceneStateManager] Multiple instances found in the scene. " +
+            "Only one instance should exist. Disabling this instance.");
+        enabled = false;
+        return;
+      }
+      Instance = this;
+
       // Check if any registries have been registered
       if (StateRegistryService.AllRegistries.Count == 0) {
         Debug.LogWarning("[SceneStateManager] No state registries found. " +
@@ -192,18 +202,22 @@ namespace ECSReact.Core
       return stateEntities.TryGetValue(typeof(T), out var entity) ? entity : Entity.Null;
     }
 
-    public T GetState<T>() where T : unmanaged, IComponentData, IGameState
+    public bool GetState<T>(out T state) where T : unmanaged, IComponentData, IGameState
     {
       var entity = GetStateEntity<T>();
-      return entity != Entity.Null ? entityManager.GetComponentData<T>(entity) : default;
+      var exists = entity != Entity.Null && entityManager.HasComponent<T>(entity);
+      state = exists ? entityManager.GetComponentData<T>(entity) : default;
+      return exists;
     }
 
-    public void SetState<T>(T state) where T : unmanaged, IComponentData, IGameState
+    public bool SetState<T>(T state) where T : unmanaged, IComponentData, IGameState
     {
       var entity = GetStateEntity<T>();
-      if (entity != Entity.Null) {
+      var exists = entity != Entity.Null && entityManager.HasComponent<T>(entity);
+      if (exists) {
         entityManager.SetComponentData(entity, state);
       }
+      return exists;
     }
 
     // Runtime type accessors using the merged registry
@@ -215,8 +229,9 @@ namespace ECSReact.Core
     public object GetState(Type stateType)
     {
       var entity = GetStateEntity(stateType);
-      if (entity == Entity.Null || !mergedStateInfos.ContainsKey(stateType))
+      if (entity == Entity.Null || !mergedStateInfos.ContainsKey(stateType)) {
         return null;
+      }
 
       var stateInfo = mergedStateInfos[stateType];
       return stateInfo?.GetComponent(entityManager, entity);
@@ -225,8 +240,9 @@ namespace ECSReact.Core
     public void SetState(Type stateType, object state)
     {
       var entity = GetStateEntity(stateType);
-      if (entity == Entity.Null || !mergedStateInfos.ContainsKey(stateType))
+      if (entity == Entity.Null || !mergedStateInfos.ContainsKey(stateType)) {
         return;
+      }
 
       var stateInfo = mergedStateInfos[stateType];
       stateInfo?.SetComponent(entityManager, entity, state);
