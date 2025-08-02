@@ -12,9 +12,14 @@ namespace ECSReact.Core
     private static readonly List<IStateRegistry> _registeredRegistries = new List<IStateRegistry>();
 
     /// <summary>
-    /// All registered state registries (in case multiple assemblies register registries).
+    /// All registered state registries, for multiple assemblies.
     /// </summary>
     public static IReadOnlyList<IStateRegistry> AllRegistries => _registeredRegistries;
+
+    /// <summary>
+    /// Check if any registry has been registered.
+    /// </summary>
+    public static bool HasRegistry => _registeredRegistries != null && _registeredRegistries.Count > 0;
 
     /// <summary>
     /// Register a state registry implementation. Called by generated code.
@@ -33,19 +38,6 @@ namespace ECSReact.Core
     }
 
     /// <summary>
-    /// Clear all registered registries. Useful for testing.
-    /// </summary>
-    public static void ClearRegistries()
-    {
-      _registeredRegistries.Clear();
-    }
-
-    /// <summary>
-    /// Check if any registry has been registered.
-    /// </summary>
-    public static bool HasRegistry => _registeredRegistries != null && _registeredRegistries.Count > 0;
-
-    /// <summary>
     /// Utility method to get all states from all registered registries.
     /// </summary>
     public static Dictionary<Type, IStateInfo> GetAllStatesFromAllRegistries()
@@ -60,6 +52,14 @@ namespace ECSReact.Core
       }
 
       return allStates;
+    }
+
+    /// <summary>
+    /// Clear all registered registries. Useful for testing.
+    /// </summary>
+    public static void ClearRegistries()
+    {
+      _registeredRegistries.Clear();
     }
   }
 }
