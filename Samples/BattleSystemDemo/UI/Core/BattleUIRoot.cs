@@ -49,14 +49,6 @@ namespace ECSReact.Samples.BattleSystem
           parentTransform: leftColumn
       );
 
-      // Always show save system panel (compact, top-right corner)
-      yield return Mount.Element.FromResources(
-          key: "save_system",
-          prefabPath: "UI/SaveSystemPanel",
-          index: 5,
-          parentTransform: leftColumn
-      );
-
       // Conditional rendering based on battle phase
       switch (battleState.currentPhase) {
         case BattlePhase.Initializing:
@@ -173,6 +165,14 @@ namespace ECSReact.Samples.BattleSystem
         prefabPath: "UI/BattleLogDisplay",
         index: 10,
         parentTransform: leftColumn
+      );
+
+      // Always show save system panel (compact, top-right corner)
+      yield return Mount.Element.FromResources(
+          key: "save_system",
+          prefabPath: "UI/SaveSystemPanel",
+          index: 11,
+          parentTransform: leftColumn
       );
 
       //// Optional debug panels

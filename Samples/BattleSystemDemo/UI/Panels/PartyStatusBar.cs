@@ -11,6 +11,12 @@ namespace ECSReact.Samples.BattleSystem
   public class PartyStatusBar : ReactiveUIComponent<PartyState, BattleState>
   {
     [Header("Layout Configuration")]
+    [SerializeField] private RectTransform allyHeaderContainer;
+    [SerializeField] private RectTransform allyLayoutGroup;
+    [SerializeField] private RectTransform enemyHeaderContainer;
+    [SerializeField] private RectTransform enemyLayoutGroup;
+
+    [Header("Layout Configuration")]
     [SerializeField] private float cardSpacing = 10f;
     [SerializeField] private bool showEnemies = true;
     [SerializeField] private bool animateChanges = true;
@@ -37,7 +43,8 @@ namespace ECSReact.Samples.BattleSystem
           key: "party_header",
           props: new SectionHeaderProps { Title = "Your Party", IsEnemy = false },
           prefabPath: "UI/StatusSectionHeader",
-          index: 0
+          index: 0,
+          parentTransform: allyHeaderContainer
       );
 
       // Generate character cards for party members
@@ -66,7 +73,8 @@ namespace ECSReact.Samples.BattleSystem
               ShowMana = !character.isEnemy, // Only show mana for party
               AnimateChanges = animateChanges
             },
-            index: cardIndex++
+            index: cardIndex++,
+            parentTransform: allyLayoutGroup
         );
       }
 
@@ -76,7 +84,8 @@ namespace ECSReact.Samples.BattleSystem
             key: "enemy_header",
             prefabPath: "UI/StatusSectionHeader",
             props: new SectionHeaderProps { Title = "Enemies", IsEnemy = true },
-            index: cardIndex++
+            index: cardIndex++,
+            parentTransform: enemyHeaderContainer
         );
 
         // Generate enemy cards
@@ -100,7 +109,8 @@ namespace ECSReact.Samples.BattleSystem
                 ShowMana = false,
                 AnimateChanges = animateChanges
               },
-              index: cardIndex++
+              index: cardIndex++,
+              parentTransform: enemyLayoutGroup
           );
         }
       }

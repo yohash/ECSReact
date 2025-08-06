@@ -1,63 +1,58 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 using ECSReact.Core;
 
 namespace ECSReact.Editor
 {
+  /// <summary>
+  /// Enhanced ECS React Debug Dashboard for runtime state monitoring and testing.
+  /// Now supports complex types including FixedString, FixedList, structs, and Entity references.
+  /// </summary>
   public class ECSReactDebugDashboard : EditorWindow
   {
-    // Cache Architecture Core
+    // State tracking
     private class StateDebugInfo
     {
       public Type stateType;
+      public Entity entity;
       public object currentValue;
       public object previousValue;
-      public int changeCount;
       public float lastChangeTime;
-      public float changeFrequency; // Changes per second
-      public Entity entity;
+      public int changeCount;
+      public float changeFrequency;
       public bool isExpanded;
-
-      private float[] recentChangeTimes = new float[10];
-      private int changeTimeIndex = 0;
+      public Dictionary<string, bool> fieldFoldouts = new Dictionary<string, bool>();
 
       public void RecordChange(float time)
       {
         changeCount++;
         lastChangeTime = time;
 
-        // Track recent changes for frequency calculation
-        recentChangeTimes[changeTimeIndex] = time;
-        changeTimeIndex = (changeTimeIndex + 1) % recentChangeTimes.Length;
-
-        // Calculate frequency from recent changes
-        float oldestTime = recentChangeTimes.Min();
-        float timeSpan = time - oldestTime;
-        if (timeSpan > 0) {
-          int validChanges = recentChangeTimes.Count(t => t > oldestTime);
-          changeFrequency = validChanges / timeSpan;
-        }
+        var timeSinceStart = Time.realtimeSinceStartup;
+        if (timeSinceStart > 0)
+          changeFrequency = changeCount / timeSinceStart;
       }
 
       public StateHeat GetHeat()
       {
-        // Heat based on change frequency
-        if (changeFrequency > 10f)
+        var timeSinceChange = Time.realtimeSinceStartup - lastChangeTime;
+        if (timeSinceChange < 0.5f)
           return StateHeat.Hot;
-        if (changeFrequency > 1f)
+        if (timeSinceChange < 2f)
           return StateHeat.Warm;
-        if (changeCount > 0)
-          return StateHeat.Cold;
-        return StateHeat.None;
+        return StateHeat.Cold;
       }
     }
 
-    private enum StateHeat { None, Cold, Warm, Hot }
+    private enum StateHeat { Cold, Warm, Hot }
 
     private class ActionDebugInfo
     {
@@ -66,6 +61,7 @@ namespace ECSReact.Editor
       public float dispatchTime;
       public int frameNumber;
       public bool isExpanded;
+      public Dictionary<string, bool> fieldFoldouts = new Dictionary<string, bool>();
     }
 
     private class UIEventDebugInfo
@@ -77,6 +73,7 @@ namespace ECSReact.Editor
       public bool wasRateLimited;
       public UIEventPriority priority;
       public bool isExpanded;
+      public Dictionary<string, bool> fieldFoldouts = new Dictionary<string, bool>();
     }
 
     // Dashboard State
@@ -95,6 +92,7 @@ namespace ECSReact.Editor
     private bool autoRefresh = true;
     private float refreshInterval = 0.1f;
     private float lastRefreshTime;
+    private bool showDataTypes = true;
 
     // UI State
     private Vector2 scrollPosition;
@@ -112,69 +110,50 @@ namespace ECSReact.Editor
     [MenuItem("ECS React/Dashboard", priority = 300)]
     public static void ShowWindow()
     {
-      instance = GetWindow<ECSReactDebugDashboard>("ECSReact Dashboard");
-      instance.minSize = new Vector2(400, 600);
+      var window = GetWindow<ECSReactDebugDashboard>("ECS React Dashboard");
+      window.minSize = new Vector2(600, 400);
+      window.Show();
     }
 
     private void OnEnable()
     {
       instance = this;
-      InitializeReflectionCache();
-      SubscribeToEvents();
-      RefreshStateCache();
+      titleContent = new GUIContent("ECS React Dashboard");
 
-      // Ensure debug systems are active
-      EnsureDebugSystemsActive();
-    }
-
-    private void EnsureDebugSystemsActive()
-    {
-      var world = World.DefaultGameObjectInjectionWorld;
-      if (world != null && world.IsCreated) {
-        world.GetOrCreateSystem<DebugActionInterceptorSystem>();
+      if (!isSubscribed && EditorApplication.isPlaying) {
+        SubscribeToEvents();
       }
     }
 
     private void OnDisable()
     {
-      UnsubscribeFromEvents();
-    }
-
-    private void InitializeReflectionCache()
-    {
-      // Cache Store.Dispatch method for potential future interception
-      if (dispatchMethod == null) {
-        var storeType = typeof(Store);
-        dispatchMethod = storeType.GetMethod("Dispatch");
-        commandBufferField = storeType.GetField("commandBuffer", BindingFlags.NonPublic | BindingFlags.Instance);
+      if (isSubscribed) {
+        UnsubscribeFromEvents();
       }
     }
 
     private void SubscribeToEvents()
     {
-      if (isSubscribed)
-        return;
-
-      // Subscribe to UIEventQueue events
-      UIEventQueue.OnUIEventProcessed += OnUIEventProcessed;
-
-      // Subscribe to action detection
       DebugActionInterceptorSystem.OnActionDetected += OnActionDetected;
 
-      // Hook into Store dispatch using harmony or manual polling
-      EditorApplication.update += PollForChanges;
+      // Subscribe to UI events if available
+      try {
+        var uiEventQueueType = typeof(UIEventQueue);
+        var eventField = uiEventQueueType.GetField("OnEventProcessed", BindingFlags.Public | BindingFlags.Static);
+        if (eventField != null) {
+          var eventDelegate = eventField.GetValue(null) as Action<UIEvent>;
+          if (eventDelegate != null) {
+            eventDelegate += OnUIEventProcessed;
+          }
+        }
+      } catch { }
 
       isSubscribed = true;
     }
 
     private void UnsubscribeFromEvents()
     {
-      if (!isSubscribed)
-        return;
-
-      UIEventQueue.OnUIEventProcessed -= OnUIEventProcessed;
       DebugActionInterceptorSystem.OnActionDetected -= OnActionDetected;
-      EditorApplication.update -= PollForChanges;
 
       isSubscribed = false;
     }
@@ -186,8 +165,7 @@ namespace ECSReact.Editor
         actionType = data.actionType,
         actionData = data.actionData,
         dispatchTime = data.timestamp,
-        frameNumber = data.frame,
-        isExpanded = false
+        frameNumber = data.frame
       };
 
       actionHistory.Insert(0, info);
@@ -198,15 +176,21 @@ namespace ECSReact.Editor
       Repaint();
     }
 
-    private void PollForChanges()
+    private void Update()
     {
-      if (!autoRefresh)
+      if (!EditorApplication.isPlaying) {
         return;
-      if (Time.realtimeSinceStartup - lastRefreshTime < refreshInterval)
-        return;
+      }
 
-      RefreshStateCache();
-      lastRefreshTime = Time.realtimeSinceStartup;
+      if (!isSubscribed) {
+        SubscribeToEvents();
+      }
+
+      if (autoRefresh && Time.realtimeSinceStartup - lastRefreshTime > refreshInterval) {
+        RefreshStateCache();
+        lastRefreshTime = Time.realtimeSinceStartup;
+        Repaint();
+      }
     }
 
     private void RefreshStateCache()
@@ -219,18 +203,19 @@ namespace ECSReact.Editor
       var entityManager = world.EntityManager;
 
       // Try to use StateRegistryService first
-      var registries = StateRegistryService.AllRegistries;
-      if (registries != null) {
-        foreach (var registry in registries) {
+      if (StateRegistryService.HasRegistry) {
+        foreach (var registry in StateRegistryService.AllRegistries) {
           RefreshUsingRegistry(entityManager, registry);
         }
-      } else {
-        // Fallback to discovery from all registries
-        var allStates = StateRegistryService.GetAllStatesFromAllRegistries();
-        if (allStates.Count > 0) {
-          RefreshUsingStateInfos(entityManager, allStates);
+      }
+      // Fallback to SceneStateManager
+      else if (SceneStateManager.Instance != null) {
+        var allStates = SceneStateManager.Instance.GetAllStateEntities();
+        var allStateInfos = StateRegistryService.GetAllStatesFromAllRegistries();
+        if (allStateInfos != null && allStateInfos.Count > 0) {
+          RefreshUsingStateInfos(entityManager, allStateInfos);
         } else {
-          Debug.LogWarning("[ECSReactDebugDashboard] No state registry found. Please generate one using 'ECS React → Generate State Registry'");
+          Debug.LogWarning("No State Registry found! Please generate one using 'ECS React → Generate State Registry'");
         }
       }
     }
@@ -356,6 +341,7 @@ namespace ECSReact.Editor
       GUILayout.FlexibleSpace();
 
       // Settings
+      showDataTypes = GUILayout.Toggle(showDataTypes, "Types", EditorStyles.toolbarButton, GUILayout.Width(50));
       autoRefresh = GUILayout.Toggle(autoRefresh, "Auto", EditorStyles.toolbarButton, GUILayout.Width(40));
       if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(60))) {
         RefreshStateCache();
@@ -470,11 +456,11 @@ namespace ECSReact.Editor
 
       if (info.isExpanded && info.currentValue != null) {
         EditorGUI.indentLevel++;
-        DrawObjectFields(info.currentValue);
+        DrawComplexObjectFields(info.currentValue, info.fieldFoldouts, "");
 
         if (info.previousValue != null && !AreValuesEqual(info.currentValue, info.previousValue)) {
           EditorGUILayout.LabelField("Previous Value:", EditorStyles.boldLabel);
-          DrawObjectFields(info.previousValue);
+          DrawComplexObjectFields(info.previousValue, new Dictionary<string, bool>(), "");
         }
 
         // Quick test actions
@@ -492,36 +478,295 @@ namespace ECSReact.Editor
       EditorGUILayout.Space(2);
     }
 
-    private void DrawObjectFields(object obj)
+    private void DrawComplexObjectFields(object obj, Dictionary<string, bool> foldouts, string path)
     {
-      if (obj == null)
+      if (obj == null) {
         return;
+      }
 
       var type = obj.GetType();
       var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
-      foreach (var field in fields) {
-        var value = field.GetValue(obj);
-        var valueStr = value?.ToString() ?? "null";
-
+      // Table header if showing types
+      if (showDataTypes && string.IsNullOrEmpty(path)) {
+        float windowWidth = position.width;
         EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField(field.Name, GUILayout.Width(150));
-
-        if (value != null && IsComplexType(value.GetType())) {
-          if (GUILayout.Button("Inspect", GUILayout.Width(60))) {
-            // Could open a separate inspector window
-          }
-        } else {
-          EditorGUILayout.SelectableLabel(valueStr, GUILayout.Height(EditorGUIUtility.singleLineHeight));
-        }
-
+        EditorGUILayout.LabelField("Field", EditorStyles.boldLabel, GUILayout.Width(windowWidth / 3.5f));
+        EditorGUILayout.LabelField("Type", EditorStyles.miniLabel, GUILayout.Width(windowWidth / 3.5f));
+        EditorGUILayout.LabelField("Value", EditorStyles.boldLabel, GUILayout.Width(windowWidth / 3.5f));
         EditorGUILayout.EndHorizontal();
+        EditorGUILayout.Space(2);
+      }
+
+      foreach (var field in fields) {
+        DrawFieldWithType(field, obj, foldouts, path);
       }
     }
 
-    private bool IsComplexType(Type type)
+    private void DrawFieldWithType(FieldInfo field, object container, Dictionary<string, bool> foldouts, string pathPrefix)
     {
-      return !type.IsPrimitive && type != typeof(string) && !type.IsEnum;
+      var fieldPath = string.IsNullOrEmpty(pathPrefix) ? field.Name : $"{pathPrefix}.{field.Name}";
+      var fieldType = field.FieldType;
+      var fieldValue = field.GetValue(container);
+
+      EditorGUILayout.BeginHorizontal();
+
+      float windowWidth = position.width;
+
+      // Field name
+      var displayName = ObjectNames.NicifyVariableName(field.Name);
+
+      if (IsExpandableType(fieldType)) {
+        if (!foldouts.ContainsKey(fieldPath)) {
+          foldouts[fieldPath] = false;
+        }
+
+        EditorGUILayout.BeginHorizontal();
+        foldouts[fieldPath] = EditorGUILayout.Foldout(foldouts[fieldPath], $"  {displayName}", true);
+        EditorGUILayout.EndHorizontal();
+      } else {
+        EditorGUILayout.LabelField(displayName);
+      }
+
+      // Type name (if enabled)
+      if (showDataTypes) {
+        var typeName = GetFriendlyTypeName(fieldType);
+        EditorGUILayout.LabelField(typeName, EditorStyles.miniLabel, GUILayout.Width(windowWidth / 3.5f));
+      }
+
+      // Value
+      if (!IsExpandableType(fieldType)) {
+        DrawInlineValue(fieldType, fieldValue);
+      } else {
+        var preview = GetComplexTypePreview(fieldType, fieldValue);
+        EditorGUILayout.LabelField(preview, EditorStyles.miniLabel, GUILayout.Width(windowWidth / 3.5f));
+      }
+
+      EditorGUILayout.EndHorizontal();
+
+      // Draw expanded content
+      if (IsExpandableType(fieldType) && foldouts.ContainsKey(fieldPath) && foldouts[fieldPath]) {
+        EditorGUI.indentLevel++;
+        DrawExpandedComplexType(fieldType, fieldValue, foldouts, fieldPath);
+        EditorGUI.indentLevel--;
+      }
+    }
+
+    private bool IsExpandableType(Type type)
+    {
+      return IsFixedList(type) ||
+             IsCustomStruct(type) ||
+             (type.IsValueType && !type.IsPrimitive && !type.IsEnum &&
+              type != typeof(Entity) && !type.Name.StartsWith("FixedString"));
+    }
+
+    private bool IsFixedList(Type type)
+    {
+      return type.IsValueType && type.Name.StartsWith("FixedList");
+    }
+
+    private bool IsCustomStruct(Type type)
+    {
+      return type.IsValueType &&
+             !type.IsPrimitive &&
+             !type.IsEnum &&
+             type.Namespace != "Unity.Mathematics" &&
+             type != typeof(Entity) &&
+             !type.Name.StartsWith("FixedString") &&
+             !type.Name.StartsWith("FixedList");
+    }
+
+    private void DrawInlineValue(Type fieldType, object value)
+    {
+      var valueStr = "";
+
+      // Handle specific types
+      if (value == null) {
+        valueStr = "null";
+      } else if (fieldType == typeof(Entity)) {
+        var entity = (Entity)value;
+        valueStr = entity == Entity.Null ? "Entity.Null" : $"Entity({entity.Index}:{entity.Version})";
+      } else if (fieldType.Name.StartsWith("FixedString")) {
+        valueStr = $"\"{value}\"";
+      } else if (fieldType.IsEnum) {
+        valueStr = value.ToString();
+      } else if (fieldType == typeof(bool)) {
+        valueStr = value.ToString().ToLower();
+      } else if (fieldType.Namespace == "Unity.Mathematics") {
+        valueStr = FormatMathematicsType(fieldType, value);
+      } else {
+        valueStr = value.ToString();
+      }
+
+      float windowWidth = position.width;
+      EditorGUILayout.SelectableLabel(
+        valueStr,
+        GUILayout.Height(EditorGUIUtility.singleLineHeight),
+        GUILayout.Width(windowWidth / 3.5f)
+      );
+    }
+
+    private string FormatMathematicsType(Type type, object value)
+    {
+      switch (type.Name) {
+        case "float2":
+          var f2 = (float2)value;
+          return $"({f2.x:F2}, {f2.y:F2})";
+        case "float3":
+          var f3 = (float3)value;
+          return $"({f3.x:F2}, {f3.y:F2}, {f3.z:F2})";
+        case "float4":
+          var f4 = (float4)value;
+          return $"({f4.x:F2}, {f4.y:F2}, {f4.z:F2}, {f4.w:F2})";
+        case "int2":
+          var i2 = (int2)value;
+          return $"({i2.x}, {i2.y})";
+        case "int3":
+          var i3 = (int3)value;
+          return $"({i3.x}, {i3.y}, {i3.z})";
+        case "quaternion":
+          var q = (quaternion)value;
+          var euler = math.degrees(math.Euler(q));
+          return $"Euler({euler.x:F1}, {euler.y:F1}, {euler.z:F1})";
+        default:
+          return value.ToString();
+      }
+    }
+
+    private string GetComplexTypePreview(Type type, object value)
+    {
+      if (value == null) {
+        return "null";
+      }
+
+      if (IsFixedList(type)) {
+        var lengthProp = type.GetProperty("Length");
+        var capacityProp = type.GetProperty("Capacity");
+        if (lengthProp != null && capacityProp != null) {
+          var length = (int)lengthProp.GetValue(value);
+          var capacity = (int)capacityProp.GetValue(value);
+          return $"[{length}/{capacity} items]";
+        }
+      }
+
+      return "[Complex]";
+    }
+
+    private void DrawExpandedComplexType(Type type, object value, Dictionary<string, bool> foldouts, string path)
+    {
+      if (value == null) {
+        return;
+      }
+
+      if (IsFixedList(type)) {
+        DrawFixedListContents(type, value, foldouts, path);
+      } else if (IsCustomStruct(type)) {
+        DrawComplexObjectFields(value, foldouts, path);
+      }
+    }
+
+    private void DrawFixedListContents(Type listType, object listValue, Dictionary<string, bool> foldouts, string path)
+    {
+      var elementType = GetFixedListElementType(listType);
+      if (elementType == null) {
+        return;
+      }
+
+      var lengthProp = listType.GetProperty("Length");
+      var indexer = listType.GetProperty("Item");
+
+      if (lengthProp == null || indexer == null) {
+        return;
+      }
+
+      float windowWidth = position.width;
+
+      int length = (int)lengthProp.GetValue(listValue);
+
+      for (int i = 0; i < length; i++) {
+        var elementValue = indexer.GetValue(listValue, new object[] { i });
+        var elementPath = $"{path}[{i}]";
+
+        EditorGUILayout.BeginHorizontal();
+
+        var typeName = GetFriendlyTypeName(elementType);
+
+        if (IsExpandableType(elementType)) {
+          if (!foldouts.ContainsKey(elementPath)) {
+            foldouts[elementPath] = false;
+          }
+
+          EditorGUILayout.BeginHorizontal();
+          foldouts[elementPath] = EditorGUILayout.Foldout(
+            foldouts[elementPath],
+            $"  [{i}]  {typeName}",
+            true
+          );
+          EditorGUILayout.EndHorizontal();
+        } else {
+          EditorGUILayout.LabelField($"  [{i}]  {typeName}", GUILayout.Width(windowWidth / 3.5f));
+        }
+
+        if (IsExpandableType(elementType)) {
+          EditorGUILayout.LabelField(GetComplexTypePreview(elementType, elementValue), GUILayout.Width(windowWidth / 3.5f));
+        } else {
+          DrawInlineValue(elementType, elementValue);
+        }
+
+        EditorGUILayout.EndHorizontal();
+
+        if (IsExpandableType(elementType) && foldouts.ContainsKey(elementPath) && foldouts[elementPath]) {
+          EditorGUI.indentLevel++;
+          EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+          DrawExpandedComplexType(elementType, elementValue, foldouts, elementPath);
+          EditorGUILayout.EndVertical();
+          EditorGUI.indentLevel--;
+        }
+      }
+    }
+
+    private Type GetFixedListElementType(Type listType)
+    {
+      var enumerable = listType.GetInterfaces()
+        .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
+      if (enumerable != null) {
+        return enumerable.GetGenericArguments()[0];
+      }
+
+      var indexer = listType.GetProperty("Item");
+      return indexer?.PropertyType;
+    }
+
+    private string GetFriendlyTypeName(Type type)
+    {
+      if (type.Name.StartsWith("FixedString")) {
+        var match = System.Text.RegularExpressions.Regex.Match(type.Name, @"FixedString(\d+)Bytes");
+        if (match.Success) {
+          return $"FixedString[{match.Groups[1].Value}]";
+        }
+      }
+
+      if (type.Name.StartsWith("FixedList")) {
+        var elementType = GetFixedListElementType(type);
+        if (elementType != null) {
+          return $"FixedList<{elementType.Name}>";
+        }
+      }
+
+      if (type.Namespace == "Unity.Mathematics") {
+        return type.Name;
+      }
+
+      if (type == typeof(Entity)) {
+        return "Entity";
+      }
+
+      if (type.IsEnum) {
+        return $"enum {type.Name}";
+      }
+
+      return type.Name;
     }
 
     private void DrawActionsView()
@@ -584,7 +829,7 @@ namespace ECSReact.Editor
 
       if (info.isExpanded && info.actionData != null) {
         EditorGUI.indentLevel++;
-        DrawObjectFields(info.actionData);
+        DrawComplexObjectFields(info.actionData, info.fieldFoldouts, "");
         EditorGUI.indentLevel--;
       }
     }
@@ -646,7 +891,7 @@ namespace ECSReact.Editor
 
       if (info.isExpanded && info.eventData != null) {
         EditorGUI.indentLevel++;
-        DrawObjectFields(info.eventData);
+        DrawComplexObjectFields(info.eventData, info.fieldFoldouts, "");
         EditorGUI.indentLevel--;
       }
     }

@@ -143,7 +143,9 @@ namespace ECSReact.Editor.CodeGeneration
         }
       }
 
+      EditorGUILayout.BeginHorizontal();
       group.isExpanded = EditorGUILayout.Foldout(group.isExpanded, $"  {namespaceName} ({group.actions.Count} actions)", true);
+      EditorGUILayout.EndHorizontal();
 
       // Show namespace-level field summary
       int totalFields = group.actions.Sum(a => a.fields.Count);
@@ -319,13 +321,13 @@ namespace ECSReact.Editor.CodeGeneration
       int totalStatesGenerated = 0;
 
       foreach (var namespaceGroup in selectedNamespaces) {
-        var selectedStates = namespaceGroup.actions.Where(s => s.includeInGeneration).ToList();
-        if (selectedStates.Count == 0) {
+        var selectedActions = namespaceGroup.actions.Where(s => s.includeInGeneration).ToList();
+        if (selectedActions.Count == 0) {
           continue;
         }
 
         GenerateStoreExtensionsForNamespace(namespaceGroup, ref generatedFiles);
-        totalStatesGenerated += selectedStates.Count;
+        totalStatesGenerated += selectedActions.Count;
       }
 
       // Refresh Unity to recognize the new files
@@ -335,19 +337,18 @@ namespace ECSReact.Editor.CodeGeneration
 
       EditorUtility.DisplayDialog("Generation Complete",
           $"Generated Store extensions for {selectedNamespaces.Count} actions.\n\n" +
-          $"Files created:\n• {fileList}\n\n" +
-          "You can now use typed dispatch methods like Store.Instance.SpendMatter(100) in your UI code!", "OK");
+          $"Files created:\n• {fileList}\n\n", "OK");
     }
 
     public void GenerateStoreExtensionsForNamespace(NamespaceGroup namespaceGroup, ref List<string> generatedFiles)
     {
-      if (namespaceGroup.states.Count == 0) {
-        Debug.LogWarning($"No states found for namespace {namespaceGroup.namespaceName}");
+      if (namespaceGroup.actions.Count == 0) {
+        Debug.LogWarning($"No actions found for namespace {namespaceGroup.namespaceName}");
         return;
       }
-      var selectedStates = namespaceGroup.actions.Where(s => s.includeInGeneration).ToList();
-      if (selectedStates.Count == 0) {
-        Debug.LogWarning($"No states selected for generation in namespace {namespaceGroup.namespaceName}");
+      var selectedActions = namespaceGroup.actions.Where(s => s.includeInGeneration).ToList();
+      if (selectedActions.Count == 0) {
+        Debug.LogWarning($"No actions selected for generation in namespace {namespaceGroup.namespaceName}");
         return;
       }
 
@@ -355,7 +356,7 @@ namespace ECSReact.Editor.CodeGeneration
       string namespaceOutputPath = createNamespaceOutputPath(namespaceGroup.namespaceName);
 
       // Generate UIStateNotifier partial class for this namespace
-      string code = generateStoreExtensionsCode(selectedStates, namespaceGroup.namespaceName);
+      string code = generateStoreExtensionsCode(selectedActions, namespaceGroup.namespaceName);
       string path = Path.Combine(namespaceOutputPath, "StoreExtensions.Generated.cs");
       File.WriteAllText(path, code);
       generatedFiles.Add(path);

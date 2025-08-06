@@ -71,7 +71,7 @@ namespace ECSReact.Editor.CodeGeneration
       if (totalStates > 0) {
         EditorGUILayout.LabelField($"Discovered {totalStates} IGameState types in {namespaceGroups.Count} namespaces:", EditorStyles.boldLabel);
 
-        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Height(300));
+        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.MinHeight(180));
 
         foreach (var kvp in namespaceGroups.OrderBy(n => n.Key)) {
           drawNamespaceGroup(kvp.Key, kvp.Value);
@@ -157,7 +157,9 @@ namespace ECSReact.Editor.CodeGeneration
         }
       }
 
+      EditorGUILayout.BeginHorizontal();
       group.isExpanded = EditorGUILayout.Foldout(group.isExpanded, $"  {namespaceName} ({group.states.Count} states)", true);
+      EditorGUILayout.EndHorizontal();
 
       // Show namespace-level IEquatable summary
       int equatableCount = group.states.Count(s => s.implementsIEquatable);

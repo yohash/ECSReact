@@ -1,4 +1,5 @@
 using ECSReact.Core;
+using System.Collections;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
@@ -22,7 +23,7 @@ namespace ECSReact.Samples.BattleSystem
     private void Start()
     {
       if (initializeOnStart) {
-        Initialize();
+        StartCoroutine(Initialize());
       }
     }
 
@@ -30,25 +31,27 @@ namespace ECSReact.Samples.BattleSystem
     /// Initialize all battle system states with default values.
     /// Call this method to set up the battle system programmatically.
     /// </summary>
-    public void Initialize()
+    public IEnumerator Initialize()
     {
+      yield return new WaitForSeconds(1);
+
       StateNotificationEvents.InitializeEvents();
       StateSubscriptionRegistration.InitializeSubscriptions();
 
-      //var world = World.DefaultGameObjectInjectionWorld;
-      //var entityManager = world.EntityManager;
+      var world = World.DefaultGameObjectInjectionWorld;
+      var entityManager = world.EntityManager;
 
-      //// Create party characters and entities
-      //var partySetup = CreatePartySetup(entityManager);
-      //var turnOrder = CreateTurnOrder(partySetup.playerEntities, partySetup.enemyEntities);
+      // Create party characters and entities
+      var partySetup = CreatePartySetup(entityManager);
+      var turnOrder = CreateTurnOrder(partySetup.playerEntities, partySetup.enemyEntities);
 
       //// Initialize core battle state
       //InitializeBattleState(entityManager, turnOrder);
       //Debug.Log("Initialized BattleState");
 
-      //// Initialize party state with character data
-      //InitializePartyState(entityManager, partySetup);
-      //Debug.Log("Initialized PartyState");
+      // Initialize party state with character data
+      InitializePartyState(entityManager, partySetup);
+      Debug.Log("Initialized PartyState");
 
       //// Initialize UI state
       //InitializeUIBattleState(entityManager);
@@ -154,13 +157,27 @@ namespace ECSReact.Samples.BattleSystem
 
       // Add all characters (players first, then enemies)
       foreach (var character in setup.playerCharacters) {
-        partyState.characters.Add(character);
+        Store.Instance.AddCharacter(
+          character.name,
+          character.maxHealth,
+          character.maxMana,
+          character.isEnemy,
+          character.status
+        );
+        //partyState.characters.Add(character);
       }
       foreach (var character in setup.enemyCharacters) {
-        partyState.characters.Add(character);
+        Store.Instance.AddCharacter(
+          character.name,
+          character.maxHealth,
+          character.maxMana,
+          character.isEnemy,
+          character.status
+        );
+        //partyState.characters.Add(character);
       }
 
-      var entity = entityManager.CreateSingleton(partyState, "Party State");
+      //var entity = entityManager.CreateSingleton(partyState, "Party State");
     }
 
     private void InitializeUIBattleState(EntityManager entityManager)
