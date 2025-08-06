@@ -5,6 +5,45 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
+  /// Handles adding new characters to the party state
+  /// </summary>
+  [ReducerSystem]
+  public partial class AddCharacterReducer : ReducerSystem<PartyState, AddCharacterAction>
+  {
+    protected override void ReduceState(ref PartyState state, AddCharacterAction action)
+    {
+      // Create new entity for the character
+      var newEntity = EntityManager.CreateEntity();
+
+      // Create character data with full health/mana
+      var newCharacter = new CharacterData
+      {
+        entity = newEntity,
+        name = action.name,
+        maxHealth = action.maxHealth,
+        currentHealth = action.maxHealth, // Start at full health
+        maxMana = action.maxMana,
+        currentMana = action.maxMana,     // Start at full mana
+        isEnemy = action.isEnemy,
+        isAlive = true,                   // New characters start alive
+        status = action.initialStatus
+      };
+
+      // Add to characters array
+      state.characters.Add(newCharacter);
+
+      // Update party counters
+      if (action.isEnemy) {
+        state.enemyCount++;
+        state.aliveEnemyCount++; // New enemies start alive
+      } else {
+        state.activePartySize++;
+        state.aliveCount++; // New party members start alive
+      }
+    }
+  }
+
+  /// <summary>
   /// Handles damage application and health updates
   /// </summary>
   [ReducerSystem]
