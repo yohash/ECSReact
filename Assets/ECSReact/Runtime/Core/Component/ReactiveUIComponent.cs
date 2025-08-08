@@ -13,14 +13,13 @@ namespace ECSReact.Core
   /// </summary>
   public abstract class ReactiveUIComponent : MonoBehaviour
   {
-    private readonly Dictionary<string, UIElement> _children = new Dictionary<string, UIElement>();
+    private readonly Dictionary<string, UIElement> _children = new();
     private readonly SemaphoreSlim _updateSemaphore = new SemaphoreSlim(1, 1);
-    private CancellationTokenSource _cancellationTokenSource;
+    private CancellationTokenSource _cancellationTokenSource = new();
     private Task _currentUpdateTask;
 
     protected virtual void Start()
     {
-      _cancellationTokenSource = new CancellationTokenSource();
       SubscribeToStateChanges();
 
       // Trigger initial element update
@@ -184,7 +183,7 @@ namespace ECSReact.Core
           element.GameObject.transform.SetSiblingIndex(element.Index);
         }
       } catch (Exception ex) {
-        Debug.LogError($"Failed to mount element {element.Key}: {ex.Message}");
+        Debug.LogError($"{GetType()} failed to mount element {element.Key}: {ex.Message}");
 
         // Remove from children if mount failed
         _children.Remove(element.Key);

@@ -107,7 +107,8 @@ namespace ECSReact.Core
         }
 
         return UnityEngine.Object.Instantiate(prefab);
-      } catch {
+      } catch (Exception e) {
+        Debug.LogError("ResourceMounter.MountAsync, error : " + e.Message);
         throw;
       }
     }

@@ -30,18 +30,13 @@ namespace ECSReact.Core
       commandBufferSystem = world.GetOrCreateSystemManaged<EndInitializationEntityCommandBufferSystem>();
     }
 
-    void Update()
-    {
-      // Get fresh command buffer each frame
-      commandBuffer = commandBufferSystem.CreateCommandBuffer().AsParallelWriter();
-    }
-
     /// <summary>
     /// Dispatch an action to be processed by ECS systems.
     /// Actions are created as entities with ActionTag for cleanup.
     /// </summary>
     public void Dispatch<T>(T action) where T : unmanaged, IGameAction
     {
+      commandBuffer = commandBufferSystem.CreateCommandBuffer().AsParallelWriter();
       var entity = commandBuffer.CreateEntity(0);
       commandBuffer.AddComponent(0, entity, action);
       commandBuffer.AddComponent(0, entity, new ActionTag());
