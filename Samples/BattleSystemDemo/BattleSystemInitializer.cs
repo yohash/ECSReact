@@ -23,7 +23,7 @@ namespace ECSReact.Samples.BattleSystem
     private void Start()
     {
       if (initializeOnStart) {
-        StartCoroutine(Initialize());
+        Initialize();
       }
     }
 
@@ -31,9 +31,9 @@ namespace ECSReact.Samples.BattleSystem
     /// Initialize all battle system states with default values.
     /// Call this method to set up the battle system programmatically.
     /// </summary>
-    public IEnumerator Initialize()
+    public void Initialize()
     {
-      yield return new WaitForSeconds(1);
+      Debug.Log("Battle System Initializing...");
 
       StateNotificationEvents.InitializeEvents();
       StateSubscriptionRegistration.InitializeSubscriptions();
@@ -45,9 +45,9 @@ namespace ECSReact.Samples.BattleSystem
       var partySetup = CreatePartySetup(entityManager);
       var turnOrder = CreateTurnOrder(partySetup.playerEntities, partySetup.enemyEntities);
 
-      //// Initialize core battle state
-      //InitializeBattleState(entityManager, turnOrder);
-      //Debug.Log("Initialized BattleState");
+      // Initialize core battle state
+      InitializeBattleState(entityManager, turnOrder);
+      Debug.Log("Initialized BattleState");
 
       // Initialize party state with character data
       InitializePartyState(entityManager, partySetup);
@@ -86,6 +86,7 @@ namespace ECSReact.Samples.BattleSystem
           maxMana = 50,
           currentMana = 50,
           status = CharacterStatus.None,
+          isEnemy = false,
         };
       }
 
@@ -104,6 +105,7 @@ namespace ECSReact.Samples.BattleSystem
           maxMana = 25,
           currentMana = 25,
           status = CharacterStatus.None,
+          isEnemy = true,
         };
       }
 
@@ -145,7 +147,7 @@ namespace ECSReact.Samples.BattleSystem
         battleState.turnOrder.Add(turnOrder[i]);
       }
 
-      var entity = entityManager.CreateSingleton(battleState, "Battle State");
+      //var entity = entityManager.CreateSingleton(battleState, "Battle State");
     }
 
     private void InitializePartyState(EntityManager entityManager, PartySetup setup)
