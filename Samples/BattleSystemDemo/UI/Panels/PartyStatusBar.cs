@@ -52,8 +52,7 @@ namespace ECSReact.Samples.BattleSystem
       for (int i = 0; i < partyState.characters.Length; i++) {
         var character = partyState.characters[i];
 
-        // Skip enemies if we're only showing party
-        if (character.isEnemy && !showEnemies)
+        if (character.isEnemy)
           continue;
 
         // Skip dead characters (unless we want to show them grayed out)
