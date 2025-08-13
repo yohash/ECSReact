@@ -210,16 +210,6 @@ namespace ECSReact.Core
       return exists;
     }
 
-    public bool SetState<T>(T state) where T : unmanaged, IComponentData, IGameState
-    {
-      var entity = GetStateEntity<T>();
-      var exists = entity != Entity.Null && entityManager.HasComponent<T>(entity);
-      if (exists) {
-        entityManager.SetComponentData(entity, state);
-      }
-      return exists;
-    }
-
     // Runtime type accessors using the merged registry
     public Entity GetStateEntity(Type stateType)
     {
@@ -235,17 +225,6 @@ namespace ECSReact.Core
 
       var stateInfo = mergedStateInfos[stateType];
       return stateInfo?.GetComponent(entityManager, entity);
-    }
-
-    public void SetState(Type stateType, object state)
-    {
-      var entity = GetStateEntity(stateType);
-      if (entity == Entity.Null || !mergedStateInfos.ContainsKey(stateType)) {
-        return;
-      }
-
-      var stateInfo = mergedStateInfos[stateType];
-      stateInfo?.SetComponent(entityManager, entity, state);
     }
 
     // Query methods
