@@ -1,5 +1,6 @@
 using ECSReact.Core;
 using System.Collections;
+using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
@@ -18,7 +19,6 @@ namespace ECSReact.Samples.BattleSystem
 
     [Header("Battle Settings")]
     [SerializeField] private bool initializeOnStart = true;
-    [SerializeField] private BattlePhase startingPhase = BattlePhase.PlayerSelectAction;
 
     private void Start()
     {
@@ -31,7 +31,7 @@ namespace ECSReact.Samples.BattleSystem
     /// Initialize all battle system states with default values.
     /// Call this method to set up the battle system programmatically.
     /// </summary>
-    public void Initialize()
+    public async Task Initialize()
     {
       Debug.Log("Battle System Initializing...");
 
@@ -42,16 +42,19 @@ namespace ECSReact.Samples.BattleSystem
       var entityManager = world.EntityManager;
 
       // Create party characters and entities
-      var partySetup = CreatePartySetup(entityManager);
-      var turnOrder = CreateTurnOrder(partySetup.playerEntities, partySetup.enemyEntities);
-
-      // Initialize core battle state
-      InitializeBattleState(entityManager, turnOrder);
-      Debug.Log("Initialized BattleState");
+      var partySetup = CreatePartySetup();
 
       // Initialize party state with character data
       InitializePartyState(entityManager, partySetup);
       Debug.Log("Initialized PartyState");
+
+      await Task.Delay(1000);
+
+      var turnOrder = CreateTurnOrder(partySetup);
+
+      // Initialize core battle state
+      InitializeBattleState(entityManager, turnOrder);
+      Debug.Log("Initialized BattleState");
 
       //// Initialize UI state
       //InitializeUIBattleState(entityManager);
@@ -67,19 +70,17 @@ namespace ECSReact.Samples.BattleSystem
       //Debug.Log($"Battle System initialized with {playerNames.Length} players vs {enemyNames.Length} enemies");
     }
 
-    private PartySetup CreatePartySetup(EntityManager entityManager)
+    private PartySetup CreatePartySetup()
     {
       var setup = new PartySetup();
 
       // Create player entities
-      setup.playerEntities = new Entity[playerNames.Length];
       setup.playerCharacters = new CharacterData[playerNames.Length];
 
       for (int i = 0; i < playerNames.Length; i++) {
-        setup.playerEntities[i] = entityManager.CreateEntity();
         setup.playerCharacters[i] = new CharacterData
         {
-          entity = setup.playerEntities[i],
+          entity = Entity.Null,
           name = playerNames[i],
           maxHealth = 100,
           currentHealth = 100,
@@ -91,14 +92,12 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Create enemy entities  
-      setup.enemyEntities = new Entity[enemyNames.Length];
       setup.enemyCharacters = new CharacterData[enemyNames.Length];
 
       for (int i = 0; i < enemyNames.Length; i++) {
-        setup.enemyEntities[i] = entityManager.CreateEntity();
         setup.enemyCharacters[i] = new CharacterData
         {
-          entity = setup.enemyEntities[i],
+          entity = Entity.Null,
           name = enemyNames[i],
           maxHealth = 75,
           currentHealth = 75,
@@ -112,17 +111,45 @@ namespace ECSReact.Samples.BattleSystem
       return setup;
     }
 
-    private Entity[] CreateTurnOrder(Entity[] players, Entity[] enemies)
+    private Entity[] CreateTurnOrder(PartySetup setup)
     {
       // Simple alternating turn order: Player, Enemy, Player, Enemy, etc.
-      var turnOrder = new Entity[players.Length + enemies.Length];
-      int playerIndex = 0, enemyIndex = 0, turnIndex = 0;
+      var turnOrder = new Entity[setup.playerCharacters.Length + setup.enemyCharacters.Length];
 
-      while (playerIndex < players.Length || enemyIndex < enemies.Length) {
-        if (playerIndex < players.Length) {
+      var players = new Entity[setup.playerCharacters.Length];
+      var enemies = new Entity[setup.enemyCharacters.Length];
+
+      var hasState = SceneStateManager.Instance.GetState<PartyState>(out var partyState);
+      if (hasState) {
+
+        int pIndex = 0;
+        int eIndex = 0;
+
+        foreach (var character in partyState.characters) {
+          if (character.isEnemy) {
+            if (eIndex < setup.enemyCharacters.Length) {
+              enemies[eIndex++] = character.entity;
+            }
+          } else {
+            if (pIndex < setup.playerCharacters.Length) {
+              players[pIndex++] = character.entity;
+            }
+          }
+        }
+      } else {
+        Debug.LogError("BattleSystemInitializer - PartyState not found, cannot create Turn Order");
+        return new Entity[0];
+      }
+
+      int playerIndex = 0;
+      int enemyIndex = 0;
+      int turnIndex = 0;
+
+      while (playerIndex < setup.playerCharacters.Length || enemyIndex < setup.enemyCharacters.Length) {
+        if (playerIndex < setup.playerCharacters.Length) {
           turnOrder[turnIndex++] = players[playerIndex++];
         }
-        if (enemyIndex < enemies.Length) {
+        if (enemyIndex < setup.enemyCharacters.Length) {
           turnOrder[turnIndex++] = enemies[enemyIndex++];
         }
       }
@@ -132,20 +159,32 @@ namespace ECSReact.Samples.BattleSystem
 
     private void InitializeBattleState(EntityManager entityManager, Entity[] turnOrder)
     {
-      var battleState = new BattleState
+      var action = new InitializeTurnOrderAction
       {
-        battleActive = true,
-        currentPhase = startingPhase,
-        activeCharacterIndex = 0,
-        turnCount = 1,
-        turnTimer = 0f,
         turnOrder = new FixedList32Bytes<Entity>()
       };
 
-      // Add entities to turn order
+      // Add entities to the turn order
       for (int i = 0; i < turnOrder.Length && i < 32; i++) {
-        battleState.turnOrder.Add(turnOrder[i]);
+        action.turnOrder.Add(turnOrder[i]);
       }
+
+      Store.Instance.Dispatch(action);
+
+      //var battleState = new BattleState
+      //{
+      //  battleActive = true,
+      //  currentPhase = startingPhase,
+      //  activeCharacterIndex = 0,
+      //  turnCount = 1,
+      //  turnTimer = 0f,
+      //  turnOrder = new FixedList32Bytes<Entity>()
+      //};
+
+      //// Add entities to turn order
+      //for (int i = 0; i < turnOrder.Length && i < 32; i++) {
+      //  battleState.turnOrder.Add(turnOrder[i]);
+      //}
 
       //var entity = entityManager.CreateSingleton(battleState, "Battle State");
     }
@@ -248,8 +287,6 @@ namespace ECSReact.Samples.BattleSystem
     /// </summary>
     private struct PartySetup
     {
-      public Entity[] playerEntities;
-      public Entity[] enemyEntities;
       public CharacterData[] playerCharacters;
       public CharacterData[] enemyCharacters;
     }

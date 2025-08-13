@@ -47,23 +47,23 @@ namespace ECSReact.Samples.BattleSystem
     public static void InitializeEvents()
     {
       ECSReact.Core.UIStateNotifier
-        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.BattleLogStateChangedEvent>(evt =>
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.BattleLogStateChangedEvent>(evt => 
           OnBattleLogStateChanged?.Invoke(evt.newState));
 
       ECSReact.Core.UIStateNotifier
-        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.BattleStateChangedEvent>(evt =>
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.BattleStateChangedEvent>(evt => 
           OnBattleStateChanged?.Invoke(evt.newState));
 
       ECSReact.Core.UIStateNotifier
-        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.PartyStateChangedEvent>(evt =>
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.PartyStateChangedEvent>(evt => 
           OnPartyStateChanged?.Invoke(evt.newState));
 
       ECSReact.Core.UIStateNotifier
-        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.SaveStateChangedEvent>(evt =>
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.SaveStateChangedEvent>(evt => 
           OnSaveStateChanged?.Invoke(evt.newState));
 
       ECSReact.Core.UIStateNotifier
-        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.UIBattleStateChangedEvent>(evt =>
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.UIBattleStateChangedEvent>(evt => 
           OnUIBattleStateChanged?.Invoke(evt.newState));
     }
   }
