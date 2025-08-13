@@ -1,9 +1,30 @@
 using Unity.Entities;
-using Unity.Mathematics;
+using Unity.Collections;
 using ECSReact.Core;
 
 namespace ECSReact.Samples.BattleSystem
 {
+  /// <summary>
+  /// Handles turn progression and battle phase transitions
+  /// </summary>
+  [ReducerSystem]
+  public partial class TurnOrderReducer : ReducerSystem<BattleState, InitializeTurnOrderAction>
+  {
+    protected override void ReduceState(ref BattleState state, InitializeTurnOrderAction action)
+    {
+      state.battleActive = true;
+      state.turnCount = 1;
+      state.turnTimer = 0f;
+      state.activeCharacterIndex = 0;
+      state.currentPhase = BattlePhase.PlayerSelectAction;
+      state.turnOrder = new FixedList128Bytes<Entity>();
+
+      foreach (var entity in action.turnOrder) {
+        state.turnOrder.Add(entity);
+      }
+    }
+  }
+
   /// <summary>
   /// Handles turn progression and battle phase transitions
   /// </summary>

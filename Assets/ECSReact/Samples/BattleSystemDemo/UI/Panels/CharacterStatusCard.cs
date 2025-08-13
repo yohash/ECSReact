@@ -122,7 +122,8 @@ namespace ECSReact.Samples.BattleSystem
                 StatusType = status,
                 Duration = GetStatusDuration(status) // Would track in real implementation
               },
-              index: effectIndex++
+              index: effectIndex++,
+              parentTransform: statusEffectContainer
           );
         }
       }
