@@ -402,7 +402,7 @@ MonoBehaviour:
   turnSlotContainer: {fileID: 1762190067721016732}
   turnCounterText: {fileID: 5465007830334950738}
   maxVisibleTurns: 5
-  slotSpacing: 80
+  slotSpacing: 240
   animationDuration: 0.3
   movementCurve:
     serializedVersion: 2
@@ -428,7 +428,7 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  currentTurnScale: {x: 1.2, y: 1.2}
+  currentTurnScale: {x: 1.1, y: 1.1}
   normalTurnScale: {x: 1, y: 1}
   currentTurnYOffset: -10
 --- !u!1 &2911549849658922641
@@ -466,7 +466,7 @@ RectTransform:
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: -50}
   m_SizeDelta: {x: 0, y: -100}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &2482172501725777916
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -474,7 +474,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2911549849658922641}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
   m_Name: 

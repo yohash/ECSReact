@@ -464,7 +464,7 @@ MonoBehaviour:
   activeIndicator: {fileID: 48200746555127466}
   targetIndicator: {fileID: 6025507278860692229}
   deathOverlay: {fileID: 2899285683668643939}
-  statusEffectContainer: {fileID: 23693821436339435}
+  statusEffectContainer: {fileID: 8380413163609282842}
   normalColor: {r: 0.6786668, g: 0.786235, b: 0.9528302, a: 1}
   activeColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   targetedColor: {r: 1, g: 0, b: 0, a: 1}

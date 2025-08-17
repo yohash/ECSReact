@@ -159,17 +159,14 @@ namespace ECSReact.Samples.BattleSystem
 
     private void InitializeBattleState(EntityManager entityManager, Entity[] turnOrder)
     {
-      var action = new InitializeTurnOrderAction
-      {
-        turnOrder = new FixedList32Bytes<Entity>()
-      };
+      var order = new FixedList128Bytes<Entity>();
 
       // Add entities to the turn order
       for (int i = 0; i < turnOrder.Length && i < 32; i++) {
-        action.turnOrder.Add(turnOrder[i]);
+        order.Add(turnOrder[i]);
       }
 
-      Store.Instance.Dispatch(action);
+      Store.Instance.InitializeTurnOrder(order);
 
       //var battleState = new BattleState
       //{

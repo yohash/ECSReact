@@ -42,6 +42,8 @@ namespace ECSReact.Samples.BattleSystem
     private Vector2 currentScale;
     private Coroutine animationCoroutine;
 
+    private BattleState battleState;
+
     public void InitializeWithProps(UIProps props)
     {
       currentProps = props as TurnOrderSlotProps;
@@ -75,6 +77,15 @@ namespace ECSReact.Samples.BattleSystem
     public override void OnStateChanged(BattleState newState)
     {
       // Turn slots primarily update through props
+
+      // Detect turn changes for animation
+      bool turnChanged = battleState.activeCharacterIndex != newState.activeCharacterIndex;
+
+      if (turnChanged) {
+        StartSlideAnimation();
+      }
+
+      battleState = newState;
     }
 
     private void UpdateDisplay()
@@ -169,7 +180,7 @@ namespace ECSReact.Samples.BattleSystem
       currentScale = targetScale;
     }
 
-    public void StartSlideAnimation()
+    private void StartSlideAnimation()
     {
       // Called by parent when turn changes
       // Could add special effects here
