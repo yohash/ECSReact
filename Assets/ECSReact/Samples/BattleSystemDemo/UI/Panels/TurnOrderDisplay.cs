@@ -36,14 +36,7 @@ namespace ECSReact.Samples.BattleSystem
 
     public override void OnStateChanged(BattleState newState)
     {
-      // Detect turn changes for animation
-      bool turnChanged = battleState.activeCharacterIndex != newState.activeCharacterIndex;
-
       battleState = newState;
-
-      if (turnChanged) {
-        AnimateTurnTransition();
-      }
 
       UpdateElements();
       UpdateTurnCounter();
@@ -74,7 +67,7 @@ namespace ECSReact.Samples.BattleSystem
           continue;
 
         // Calculate target position for this slot
-        float targetX = i * slotSpacing;
+        float targetX = i * slotSpacing + 120;
         float targetY = (i == 0) ? currentTurnYOffset : 0f;
         Vector2 targetScale = (i == 0) ? currentTurnScale : normalTurnScale;
 
@@ -118,16 +111,6 @@ namespace ECSReact.Samples.BattleSystem
           return partyState.characters[i];
       }
       return null;
-    }
-
-    private void AnimateTurnTransition()
-    {
-      // Mark all current elements for slide animation
-      foreach (var element in GetComponentsInChildren<TurnOrderSlot>()) {
-        element.StartSlideAnimation();
-      }
-
-      previousActiveIndex = battleState.activeCharacterIndex;
     }
 
     private void UpdateTurnCounter()
