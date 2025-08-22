@@ -459,8 +459,10 @@ namespace ECSReact.Editor
         DrawComplexObjectFields(info.currentValue, info.fieldFoldouts, "");
 
         if (info.previousValue != null && !AreValuesEqual(info.currentValue, info.previousValue)) {
+          EditorGUILayout.BeginVertical(EditorStyles.helpBox);
           EditorGUILayout.LabelField("Previous Value:", EditorStyles.boldLabel);
           DrawComplexObjectFields(info.previousValue, new Dictionary<string, bool>(), "");
+          EditorGUILayout.EndVertical();
         }
 
         // Quick test actions

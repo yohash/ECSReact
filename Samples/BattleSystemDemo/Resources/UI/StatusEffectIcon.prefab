@@ -777,11 +777,11 @@ MonoBehaviour:
   pulseSpeed: 2
   pulseIntensity: 0.1
   animateOnApply: 1
-  poisonedIcon: {fileID: 21300000, guid: 6dfa2a0bcd3ec504186b8a2ef8c2e248, type: 3}
-  stunnedIcon: {fileID: 21300000, guid: 6dfa2a0bcd3ec504186b8a2ef8c2e248, type: 3}
-  defendingIcon: {fileID: 21300000, guid: 6dfa2a0bcd3ec504186b8a2ef8c2e248, type: 3}
-  buffedIcon: {fileID: 21300000, guid: 6dfa2a0bcd3ec504186b8a2ef8c2e248, type: 3}
-  weakenedIcon: {fileID: 21300000, guid: 6dfa2a0bcd3ec504186b8a2ef8c2e248, type: 3}
+  poisonedIcon: {fileID: 21300000, guid: 23973cfef3aed074caa70d4a7f00e839, type: 3}
+  stunnedIcon: {fileID: 21300000, guid: 0958bc5b5f5042e46a3a5d118fe972af, type: 3}
+  defendingIcon: {fileID: 21300000, guid: d3bd10e6bcf506c429ed85b6db7de115, type: 3}
+  buffedIcon: {fileID: 21300000, guid: 0a68ee209d5afc643b44109fb8c2342e, type: 3}
+  weakenedIcon: {fileID: 21300000, guid: 37cde8e145b0e5b42b9e88c7d22223f5, type: 3}
 --- !u!1 &7939470769716535814
 GameObject:
   m_ObjectHideFlags: 0
