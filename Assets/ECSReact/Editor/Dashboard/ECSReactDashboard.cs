@@ -136,17 +136,7 @@ namespace ECSReact.Editor
     {
       DebugActionInterceptorSystem.OnActionDetected += OnActionDetected;
 
-      // Subscribe to UI events if available
-      try {
-        var uiEventQueueType = typeof(UIEventQueue);
-        var eventField = uiEventQueueType.GetField("OnEventProcessed", BindingFlags.Public | BindingFlags.Static);
-        if (eventField != null) {
-          var eventDelegate = eventField.GetValue(null) as Action<UIEvent>;
-          if (eventDelegate != null) {
-            eventDelegate += OnUIEventProcessed;
-          }
-        }
-      } catch { }
+      UIEventQueue.OnUIEventProcessed += OnUIEventProcessed;
 
       isSubscribed = true;
     }
@@ -154,6 +144,7 @@ namespace ECSReact.Editor
     private void UnsubscribeFromEvents()
     {
       DebugActionInterceptorSystem.OnActionDetected -= OnActionDetected;
+      UIEventQueue.OnUIEventProcessed -= OnUIEventProcessed;
 
       isSubscribed = false;
     }
