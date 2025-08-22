@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Unity.Entities;
 using UnityEngine;
 using ECSReact.Core;
+using System.Linq;
 
 namespace ECSReact.Editor
 {
@@ -11,8 +11,8 @@ namespace ECSReact.Editor
   /// ECS System that monitors action entities to feed data to the debug dashboard.
   /// This runs in the editor and captures action data before cleanup.
   /// </summary>
-  [UpdateInGroup(typeof(InitializationSystemGroup))]
-  [UpdateAfter(typeof(BeginInitializationEntityCommandBufferSystem))]
+  [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+  [UpdateBefore(typeof(ReducerSystemGroup))]
   public partial class DebugActionInterceptorSystem : SystemBase
   {
     public struct ActionDebugData
@@ -27,9 +27,6 @@ namespace ECSReact.Editor
     private static Dictionary<Type, EntityQuery> actionQueries = new Dictionary<Type, EntityQuery>();
     private static List<Type> cachedActionTypes;
     public static event Action<ActionDebugData> OnActionDetected;
-
-    private float lastUpdateTime;
-    private const float UPDATE_INTERVAL = 0.05f; // 20 Hz update rate
 
     protected override void OnCreate()
     {
@@ -77,10 +74,10 @@ namespace ECSReact.Editor
           var queryDesc = new EntityQueryDesc
           {
             All = new[]
-              {
-                            ComponentType.ReadOnly(actionType),
-                            ComponentType.ReadOnly<ActionTag>()
-                        }
+            {
+              ComponentType.ReadOnly(actionType),
+              ComponentType.ReadOnly<ActionTag>()
+            }
           };
 
           actionQueries[actionType] = GetEntityQuery(queryDesc);
@@ -92,31 +89,19 @@ namespace ECSReact.Editor
 
     protected override void OnUpdate()
     {
-      // Throttle updates to reduce overhead
-      var currentTime = World.Time.ElapsedTime;
-      if (currentTime - lastUpdateTime < UPDATE_INTERVAL)
-        return;
-
-      lastUpdateTime = (float)currentTime;
+      var nonEmpty = actionQueries.Where(q => !q.Value.IsEmpty);
 
       // Check all action queries
-      foreach (var kvp in actionQueries) {
+      foreach (var kvp in nonEmpty) {
         var actionType = kvp.Key;
         var query = kvp.Value;
-
-        if (query.IsEmpty)
-          continue;
 
         var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
 
         foreach (var entity in entities) {
           try {
-            // Get action data using reflection
-            var getComponentMethod = typeof(EntityManager)
-                .GetMethod("GetComponentData")
-                .MakeGenericMethod(actionType);
-
-            var actionData = getComponentMethod.Invoke(EntityManager, new object[] { entity });
+            // Get action data using GetComponentObject for runtime type handling
+            var actionData = ComponentDataGetter.GetComponentData(EntityManager, entity, actionType);
 
             var debugData = new ActionDebugData
             {

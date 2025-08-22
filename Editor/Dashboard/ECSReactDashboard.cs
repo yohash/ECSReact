@@ -119,6 +119,7 @@ namespace ECSReact.Editor
     {
       instance = this;
       titleContent = new GUIContent("ECS React Dashboard");
+      lastRefreshTime = Time.time;
 
       if (!isSubscribed && EditorApplication.isPlaying) {
         SubscribeToEvents();
@@ -135,7 +136,6 @@ namespace ECSReact.Editor
     private void SubscribeToEvents()
     {
       DebugActionInterceptorSystem.OnActionDetected += OnActionDetected;
-
       UIEventQueue.OnUIEventProcessed += OnUIEventProcessed;
 
       isSubscribed = true;
