@@ -1,4 +1,3 @@
-using Unity.Entities;
 using ECSReact.Core;
 
 namespace ECSReact.Samples.BattleSystem
@@ -9,5 +8,6 @@ namespace ECSReact.Samples.BattleSystem
   public struct NextTurnAction : IGameAction
   {
     public bool skipAnimation;
+    public bool isPlayerTurn;
   }
 }

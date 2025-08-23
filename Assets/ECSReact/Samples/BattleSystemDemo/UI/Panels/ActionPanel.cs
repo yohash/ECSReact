@@ -217,7 +217,22 @@ namespace ECSReact.Samples.BattleSystem
       });
 
       // Also dispatch next turn action
-      DispatchAction(new NextTurnAction { skipAnimation = false });
+      var nextIndex = (battleState.activeCharacterIndex + 1) % battleState.turnOrder.Length;
+      var nextEntity = battleState.turnOrder[nextIndex];
+      bool isPlayer = false;
+
+      for (int i = 0; i < partyState.characters.Length; i++) {
+        if (partyState.characters[i].entity == nextEntity) {
+          isPlayer = !partyState.characters[i].isEnemy;
+          break;
+        }
+      }
+
+      DispatchAction(new NextTurnAction
+      {
+        skipAnimation = false,
+        isPlayerTurn = isPlayer
+      });
     }
 
     private void OnRunClicked()
