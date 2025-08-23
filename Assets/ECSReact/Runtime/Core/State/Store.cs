@@ -27,7 +27,7 @@ namespace ECSReact.Core
     void Start()
     {
       var world = World.DefaultGameObjectInjectionWorld;
-      commandBufferSystem = world.GetOrCreateSystemManaged<EndInitializationEntityCommandBufferSystem>();
+      commandBufferSystem = world.GetOrCreateSystemManaged<BeginInitializationEntityCommandBufferSystem>();
     }
 
     /// <summary>

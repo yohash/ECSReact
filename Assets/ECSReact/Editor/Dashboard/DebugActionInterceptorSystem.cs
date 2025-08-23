@@ -11,8 +11,8 @@ namespace ECSReact.Editor
   /// ECS System that monitors action entities to feed data to the debug dashboard.
   /// This runs in the editor and captures action data before cleanup.
   /// </summary>
-  [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
-  [UpdateBefore(typeof(ReducerSystemGroup))]
+  [UpdateInGroup(typeof(InitializationSystemGroup))]
+  [UpdateAfter(typeof(BeginInitializationEntityCommandBufferSystem))]
   public partial class DebugActionInterceptorSystem : SystemBase
   {
     public struct ActionDebugData
