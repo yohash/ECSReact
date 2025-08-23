@@ -42,15 +42,7 @@ namespace ECSReact.Samples.BattleSystem
       state.turnTimer = 0f;
 
       // Determine next phase based on whose turn it is
-      var nextEntity = state.turnOrder[state.activeCharacterIndex];
-      state.currentPhase = DeterminePhaseForEntity(nextEntity);
-    }
-
-    private BattlePhase DeterminePhaseForEntity(Entity entity)
-    {
-      // In a real implementation, we'd check if entity is player or enemy
-      // For now, alternate between player and enemy turns
-      return (SystemAPI.Time.ElapsedTime % 2) > 1
+      state.currentPhase = action.isPlayerTurn
           ? BattlePhase.PlayerSelectAction
           : BattlePhase.EnemyTurn;
     }
