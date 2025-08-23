@@ -21,8 +21,8 @@ namespace ECSReact.Core
 
       // Create query for the specific action type
       actionQuery = GetEntityQuery(
-          ComponentType.ReadOnly<TAction>(),
-          ComponentType.ReadOnly<ActionTag>()
+        ComponentType.ReadOnly<TAction>(),
+        ComponentType.ReadOnly<ActionTag>()
       );
 
       // Only run this system when the state singleton exists

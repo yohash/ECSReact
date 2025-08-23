@@ -20,8 +20,8 @@ namespace ECSReact.Core
 
       // Create query for the specific action type
       actionQuery = GetEntityQuery(
-          ComponentType.ReadOnly<T>(),
-          ComponentType.ReadOnly<ActionTag>()
+        ComponentType.ReadOnly<T>(),
+        ComponentType.ReadOnly<ActionTag>()
       );
     }
 
