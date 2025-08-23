@@ -5,7 +5,7 @@ namespace ECSReact.Samples.BattleSystem
   // State for battle log
   public struct BattleLogState : IGameState, System.IEquatable<BattleLogState>
   {
-    public Unity.Collections.FixedList512Bytes<BattleLogEntry> entries;
+    public Unity.Collections.FixedList4096Bytes<BattleLogEntry> entries;
     public int totalEntriesLogged;
 
     public bool Equals(BattleLogState other)
