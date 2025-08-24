@@ -118,3 +118,4 @@ public class ElementPerformanceTracker : MonoBehaviour
 4. [API](API.md)
 5. Debugging Tools
 6. [Examples & Patterns](Examples.md)
+7. [Best Practices](BestPractices.md)

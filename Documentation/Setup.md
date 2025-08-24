@@ -257,3 +257,4 @@ public partial class DamageValidation : MiddlewareSystem<TakeDamageAction>
 4. [API](API.md)
 5. [Debugging Tools](Debugging.md)
 6. [Examples & Patterns](Examples.md)
+7. [Best Practices](BestPractices.md)

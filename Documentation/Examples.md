@@ -473,3 +473,4 @@ public class CharacterSheetPanel : ReactiveUIComponent<PlayerState>
 4. [API](API.md)
 5. [Debugging Tools](Debugging.md)
 6. Examples & Patterns
+7. [Best Practices](BestPractices.md)

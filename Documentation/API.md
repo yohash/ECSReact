@@ -207,3 +207,4 @@ public class ItemDisplay : ReactiveUIComponent<InventoryState>, IElement
 4. API
 5. [Debugging Tools](Debugging.md)
 6. [Examples & Patterns](Examples.md)
+7. [Best Practices](BestPractices.md)
