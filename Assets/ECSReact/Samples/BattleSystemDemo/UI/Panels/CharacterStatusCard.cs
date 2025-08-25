@@ -136,16 +136,6 @@ namespace ECSReact.Samples.BattleSystem
     public void OnPointerEnter(PointerEventData eventData)
     {
       isHovered = true;
-
-      // Only dispatch hover if we're a valid target
-      if (IsValidTarget()) {
-        DispatchAction(new SelectTargetAction
-        {
-          targetEntity = currentProps.Character.entity,
-          confirmSelection = false
-        });
-      }
-
       UpdateTargetingVisuals();
     }
 
@@ -153,16 +143,6 @@ namespace ECSReact.Samples.BattleSystem
     public void OnPointerExit(PointerEventData eventData)
     {
       isHovered = false;
-
-      // Clear hover if we were the hovered target
-      if (uiState.selectedTarget == currentProps?.Character.entity && !isSelected) {
-        DispatchAction(new SelectTargetAction
-        {
-          targetEntity = Entity.Null,
-          confirmSelection = false
-        });
-      }
-
       UpdateTargetingVisuals();
     }
 
