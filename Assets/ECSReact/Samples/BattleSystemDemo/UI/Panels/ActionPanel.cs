@@ -1,3 +1,4 @@
+using Unity.Entities;
 using UnityEngine;
 using UnityEngine.UI;
 using ECSReact.Core;
@@ -7,7 +8,7 @@ namespace ECSReact.Samples.BattleSystem
 {
   public class ActionPanelProps : UIProps
   {
-    public Unity.Entities.Entity ActiveCharacterEntity { get; set; }
+    public Entity ActiveCharacterEntity { get; set; }
     public bool CanUseSkills { get; set; }
     public bool CanUseItems { get; set; }
   }
