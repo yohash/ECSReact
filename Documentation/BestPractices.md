@@ -23,6 +23,99 @@
 - **Value Equality** - Implement `IEquatable<T>` for efficient change detection
 - **Minimal State** - Store only essential data, compute derived values as needed
 
+## State Normalization
+
+### The Problem
+
+A common anti-pattern in state management occurs when complex data structures are embedded directly within state, leading to duplicate data, inefficient lookups, and difficult updates. For example, when `PartyState` contains a `FixedList<CharacterData>` where each `CharacterData` includes an Entity reference, finding a specific character requires O(n) iteration. Meanwhile, `BattleState` maintains its own `turnOrder` list of the same entities, creating redundancy and potential synchronization issues.
+
+This creates multiple problems: how do we efficiently look up entity data? Should we duplicate entity information across states? How do we handle relationships between entities without creating deeply nested structures?
+
+### React Best Practices for State Normalization
+
+In React/Redux architecture, state should be **normalized like a database** - flat structure with entities stored in lookup tables and relationships expressed through IDs. Redux documentation explicitly recommends:
+
+1. **Store entities in objects keyed by ID** - Enables O(1) lookups instead of array searches
+2. **Store relationships as arrays of IDs** - Prevents duplication and ensures single source of truth
+3. **Keep state shape flat** - Avoid nested data structures that are hard to update immutably
+4. **Derive computed data in selectors** - Don't store values that can be calculated from existing state
+
+The principle is: **"Store state in a normalized shape, then denormalize as needed for the UI"** - the storage format optimizes for updates, while views compute the shape they need.
+
+### Unity ECS Performance Best Practices
+
+For optimal ECS performance with normalized state:
+
+- **Use Entity as the natural primary key** - Entities are already unique, stable identifiers perfect for lookups
+- **Prefer NativeHashMap for lookups** - O(1) access with excellent cache performance for small key types
+- **Keep data structures small and focused** - Better cache locality when iterating related data
+- **Minimize component lookups in hot paths** - Store frequently accessed data in dedicated lookup tables
+- **Leverage Burst compilation** - NativeHashMap operations are Burst-compatible for maximum performance
+
+### Entity-as-Key Normalization
+
+The optimal pattern that leverages both React principles and ECS strengths is **Entity-as-Key Normalization**. States store data in NativeHashMaps keyed by Entity, with separate states for different aspects of the data.
+
+#### Example Implementation
+
+```csharp
+// ❌ BAD: Embedded data with linear lookups
+public struct PartyState : IGameState
+{
+    public FixedList512Bytes<CharacterData> characters; // Large embedded structs
+    
+    // Finding a character requires O(n) iteration
+    public CharacterData? GetCharacter(Entity entity)
+    {
+        for (int i = 0; i < characters.Length; i++)
+            if (characters[i].entity == entity)
+                return characters[i];
+        return null;
+    }
+}
+
+// ✅ GOOD: Normalized with entity lookups
+public struct CharacterHealthState : IGameState
+{
+    public NativeHashMap<Entity, Health> healths;      // O(1) lookup
+    public FixedList32Bytes<Entity> aliveCharacters;   // Categorization only
+}
+
+public struct CharacterStatsState : IGameState
+{
+    public NativeHashMap<Entity, Stats> stats;         // Separate concerns
+    public FixedList32Bytes<Entity> playerCharacters;  // Just IDs
+    public FixedList32Bytes<Entity> enemyCharacters;   // Just IDs
+}
+
+// Reducer works with normalized state efficiently
+public partial class DamageReducer : StateReducerSystem<CharacterHealthState, DealDamageAction>
+{
+    protected override void ReduceState(ref CharacterHealthState state, DealDamageAction action)
+    {
+        // Direct O(1) lookup and update
+        if (state.healths.TryGetValue(action.target, out var health))
+        {
+            health.current = math.max(0, health.current - action.damage);
+            state.healths[action.target] = health;
+            
+            // Update categorization if needed
+            if (health.current == 0)
+                state.aliveCharacters.Remove(action.target);
+        }
+    }
+}
+```
+
+#### Why This Pattern?
+
+1. **Optimal Performance** - O(1) lookups instead of O(n) searches through lists
+2. **Single Source of Truth** - Each piece of data exists in exactly one place
+3. **Cache-Friendly Updates** - Small focused structures improve memory access patterns
+4. **Composable States** - Different aspects can be updated independently by different systems
+5. **Natural ECS Integration** - Entity is already the perfect unique identifier
+6. **Scalability** - Adding new data aspects doesn't affect existing state structures
+
 ## Cross-Reducer State Dependencies
 
 ### The Problem
