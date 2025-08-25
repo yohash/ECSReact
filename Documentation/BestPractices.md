@@ -4,24 +4,51 @@
 
 ### Action Design
 
-- **Actions are Events** - Name them as past-tense events: `CharacterAttacked`, not `AttackCharacter`
+- **Single Responsibility** - Each action represents one logical event
 - **Complete Context** - Include all data needed by reducers to process the action
 - **Immutable Data** - Use value types and fixed collections for action data
-- **Single Responsibility** - Each action represents one logical event
+- **Serializable Payload** - Actions must be serializable for debugging, replay, and networking
+- **Actions are Events** - Name them as past-tense events: `CharacterAttacked`, not `AttackCharacter`
+- **Domain Language** - Name actions after business events (`PlayerLeveledUp`) not technical operations (`IncrementLevel`)
+- **Failure Actions** - For every async action, consider corresponding failure/error actions
 
 ### Reducer Design
 
 - **Pure Functions** - No side effects, no external dependencies
+- **Avoid Reducer Logic** - Business logic belongs in middleware, reducers just apply updates
+- **Compose Small Reducers** - Break complex state updates into smaller, focused reducers
 - **Defensive Copying** - Always work with copies of state data
 - **Predictable Updates** - Same state + same action = same result
 - **Fast Execution** - Keep reducers lightweight, defer heavy computation
+- **Batch-Friendly** - Design reducers to handle multiple similar actions efficiently
 
 ### State Design
 
+- **Minimal State** - Store only essential data, compute derived values as needed
 - **Normalized Structure** - Avoid deeply nested state trees
+- **Avoid Circular References** - Use Entity IDs, not object references, to prevent serialization issues
+- **Separate Concerns** - Domain state (game data) vs UI state (menu selections) vs Meta state (settings)
 - **Fixed-Size Collections** - Use `FixedList` types for predictable memory layout
 - **Value Equality** - Implement `IEquatable<T>` for efficient change detection
-- **Minimal State** - Store only essential data, compute derived values as needed
+- **Serialization-Ready** - State must be serializable for save/load and networking
+- **Version Your Schema** - Include version fields for migration compatibility
+- **Design for Undo** - Structure state to support undo/redo and replay systems
+
+### Component Design
+
+- **Local State Ownership** - Components manage their own UI state and interactions, communicating through actions
+- **Props Down, Actions Up** - Receive data via props/state-subscriptions, communicate changes only through dispatched actions
+- **Single UI Responsibility** - Each component renders one logical piece of UI and handles its specific interactions
+- **Declarative Rendering** - Describe what the UI should look like for a given state, not how to manipulate it
+- **Composition Over Inheritance** - Build complex UIs by composing simple components, not through deep inheritance
+- **Controlled Inputs** - Form inputs and interactive elements should be controlled by state, not self-managed
+- **Effect Isolation** - Side effects (animations, external calls) belong in lifecycle methods, not render logic
+  - **Render Logic** is the code that directly maps state to UI properties. This happens in `OnStateChanged` and `DeclareElements`
+  - **Lifecycle Methods** are the Unity MonoBehaviour hooks like `Start`, `OnEnable`, `Update`, etc.
+  - This makes the UI updates deterministic and testable while still allowing visual feedback
+- **Memoize Expensive Views** - Cache computed visual data when the underlying state hasn't changed
+- **Stateless When Possible** - Prefer stateless components that just transform props into UI
+- **Clear Data Dependencies** - Explicitly declare which states a component subscribes to
 
 ## State Normalization
 
