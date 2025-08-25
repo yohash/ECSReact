@@ -1,8 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using ECSReact.Core;
 using TMPro;
+using Unity.Entities;
 
 namespace ECSReact.Samples.BattleSystem
 {
@@ -19,9 +21,10 @@ namespace ECSReact.Samples.BattleSystem
 
   /// <summary>
   /// Individual character status display that receives props from PartyStatusBar.
-  /// Demonstrates IElement pattern for prop-based updates.
+  /// Now handles its own targeting interactions and visual feedback.
   /// </summary>
-  public class CharacterStatusCard : ReactiveUIComponent<PartyState>, IElementChild
+  public class CharacterStatusCard : ReactiveUIComponent<PartyState, BattleState, UIBattleState>,
+    IElementChild, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
   {
     [Header("UI References")]
     [SerializeField] private Image portraitImage;
@@ -39,14 +42,31 @@ namespace ECSReact.Samples.BattleSystem
     [Header("Status Effect Display")]
     [SerializeField] private Transform statusEffectContainer;
 
+    [Header("Targeting Visuals")]
+    [SerializeField] private GameObject targetableBorder;
+    [SerializeField] private GameObject hoveredBorder;
+    [SerializeField] private GameObject selectedBorder;
+    [SerializeField] private Image targetableOverlay;
+
     [Header("Visual Configuration")]
     [SerializeField] private Color normalColor = Color.white;
     [SerializeField] private Color activeColor = Color.yellow;
     [SerializeField] private Color targetedColor = Color.red;
     [SerializeField] private Color deadColor = new Color(0.5f, 0.5f, 0.5f, 0.7f);
+    [SerializeField] private Color targetableColor = new Color(1f, 0.8f, 0.8f, 1f);
+    [SerializeField] private Color hoveredColor = new Color(1f, 1f, 0.8f, 1f);
+    [SerializeField] private Color invalidTargetColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
 
     private CharacterStatusProps currentProps;
     private CharacterData previousCharacterData;
+    private PartyState partyState;
+    private BattleState battleState;
+    private UIBattleState uiState;
+
+    // Interaction state
+    private bool isHovered = false;
+    private bool isValidTarget = false;
+    private bool isSelected = false;
 
     // For animations
     private float healthAnimationVelocity;
@@ -58,11 +78,9 @@ namespace ECSReact.Samples.BattleSystem
     {
       currentProps = props as CharacterStatusProps;
       if (currentProps != null) {
-        // Initialize display values for smooth animation
         currentDisplayHealth = currentProps.Character.currentHealth;
         currentDisplayMana = currentProps.Character.currentMana;
         previousCharacterData = currentProps.Character;
-
         UpdateDisplay();
       }
     }
@@ -71,18 +89,16 @@ namespace ECSReact.Samples.BattleSystem
     {
       var newProps = props as CharacterStatusProps;
       if (newProps != null) {
-        // Store previous data for animation
         previousCharacterData = currentProps?.Character ?? newProps.Character;
         currentProps = newProps;
-
         UpdateDisplay();
       }
     }
 
     public override void OnStateChanged(PartyState newState)
     {
-      // We primarily update through props, but we can still respond
-      // to global party state changes if needed
+      partyState = newState;
+
       if (currentProps != null) {
         // Find our character in the new state
         for (int i = 0; i < newState.characters.Length; i++) {
@@ -97,6 +113,175 @@ namespace ECSReact.Samples.BattleSystem
             break;
           }
         }
+      }
+    }
+
+    public override void OnStateChanged(BattleState newState)
+    {
+      battleState = newState;
+      UpdateTargetingVisuals();
+    }
+
+    public override void OnStateChanged(UIBattleState newState)
+    {
+      uiState = newState;
+
+      // Check if we're the selected target
+      isSelected = (newState.selectedTarget == currentProps?.Character.entity);
+
+      UpdateTargetingVisuals();
+    }
+
+    // IPointerEnterHandler - Mouse enters this card
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+      isHovered = true;
+
+      // Only dispatch hover if we're a valid target
+      if (IsValidTarget()) {
+        DispatchAction(new SelectTargetAction
+        {
+          targetEntity = currentProps.Character.entity,
+          confirmSelection = false
+        });
+      }
+
+      UpdateTargetingVisuals();
+    }
+
+    // IPointerExitHandler - Mouse leaves this card
+    public void OnPointerExit(PointerEventData eventData)
+    {
+      isHovered = false;
+
+      // Clear hover if we were the hovered target
+      if (uiState.selectedTarget == currentProps?.Character.entity && !isSelected) {
+        DispatchAction(new SelectTargetAction
+        {
+          targetEntity = Entity.Null,
+          confirmSelection = false
+        });
+      }
+
+      UpdateTargetingVisuals();
+    }
+
+    // IPointerClickHandler - Card is clicked
+    public void OnPointerClick(PointerEventData eventData)
+    {
+      // Only process clicks during target selection phase
+      if (!IsInTargetingPhase())
+        return;
+
+      // Only process if we're a valid target
+      if (!IsValidTarget())
+        return;
+
+      // Dispatch selection action
+      DispatchAction(new SelectTargetAction
+      {
+        targetEntity = currentProps.Character.entity,
+        confirmSelection = false
+      });
+
+      isSelected = true;
+      UpdateTargetingVisuals();
+    }
+
+    private bool IsInTargetingPhase()
+    {
+      // Check if we're in a phase that allows targeting
+      return battleState.currentPhase == BattlePhase.PlayerSelectTarget ||
+             (battleState.currentPhase == BattlePhase.PlayerSelectAction &&
+              uiState.activePanel == MenuPanel.TargetSelection);
+    }
+
+    private bool IsValidTarget()
+    {
+      if (currentProps == null || !currentProps.Character.isAlive)
+        return false;
+
+      if (!IsInTargetingPhase())
+        return false;
+
+      // Determine if this character is a valid target based on action type
+      bool isEnemy = currentProps.Character.isEnemy;
+
+      switch (uiState.selectedAction) {
+        case ActionType.Attack:
+          // Can only attack enemies
+          return isEnemy;
+
+        case ActionType.Skill:
+          // Depends on skill type - for now assume offensive skills target enemies
+          // Healing skills (IDs 2, 5) target allies
+          if (uiState.selectedSkillId == 2 || uiState.selectedSkillId == 5)
+            return !isEnemy; // Healing targets allies
+          else
+            return isEnemy; // Offensive skills target enemies
+
+        case ActionType.Item:
+          // Most items target allies
+          return !isEnemy;
+
+        default:
+          return false;
+      }
+    }
+
+    private void UpdateTargetingVisuals()
+    {
+      isValidTarget = IsValidTarget();
+      bool inTargetingPhase = IsInTargetingPhase();
+
+      // Update targetable border (shows who can be targeted)
+      if (targetableBorder != null) {
+        targetableBorder.SetActive(inTargetingPhase && isValidTarget);
+      }
+
+      // Update hovered border (shows current hover)
+      if (hoveredBorder != null) {
+        hoveredBorder.SetActive(isHovered && isValidTarget);
+      }
+
+      // Update selected border (shows selected target)
+      if (selectedBorder != null) {
+        selectedBorder.SetActive(isSelected);
+      }
+
+      // Update background color based on state
+      if (backgroundImage != null) {
+        if (!currentProps.Character.isAlive) {
+          backgroundImage.color = deadColor;
+        } else if (isSelected) {
+          backgroundImage.color = targetedColor;
+        } else if (isHovered && isValidTarget) {
+          backgroundImage.color = hoveredColor;
+        } else if (inTargetingPhase && isValidTarget) {
+          backgroundImage.color = targetableColor;
+        } else if (inTargetingPhase && !isValidTarget) {
+          backgroundImage.color = invalidTargetColor;
+        } else if (currentProps.IsActive) {
+          backgroundImage.color = activeColor;
+        } else {
+          backgroundImage.color = normalColor;
+        }
+      }
+
+      // Update overlay for invalid targets during targeting
+      if (targetableOverlay != null) {
+        if (inTargetingPhase && !isValidTarget) {
+          targetableOverlay.gameObject.SetActive(true);
+          targetableOverlay.color = new Color(0, 0, 0, 0.5f); // Darken invalid targets
+        } else {
+          targetableOverlay.gameObject.SetActive(false);
+        }
+      }
+
+      // Update cursor when hovering
+      if (isHovered && inTargetingPhase) {
+        Cursor.SetCursor(isValidTarget ? null : null, Vector2.zero, CursorMode.Auto);
+        // In real implementation, set attack cursor for valid targets, X cursor for invalid
       }
     }
 
@@ -120,7 +305,7 @@ namespace ECSReact.Samples.BattleSystem
               props: new StatusEffectProps
               {
                 StatusType = status,
-                Duration = GetStatusDuration(status) // Would track in real implementation
+                Duration = GetStatusDuration(status)
               },
               index: effectIndex++,
               parentTransform: statusEffectContainer
@@ -163,88 +348,24 @@ namespace ECSReact.Samples.BattleSystem
 
       if (currentProps.ShowMana && manaBar) {
         float manaPercent = character.maxMana > 0
-            ? (float)character.currentMana / character.maxMana
+            ? character.currentMana / character.maxMana
             : 0f;
-
-        if (currentProps.AnimateChanges) {
-          // Smooth animation will happen in Update()
-        } else {
-          manaBar.value = manaPercent;
-          currentDisplayMana = character.currentMana;
-        }
+        manaBar.value = manaPercent;
       }
 
-      if (manaText && currentProps.ShowMana)
+      if (manaText)
         manaText.text = $"{character.currentMana}/{character.maxMana}";
 
-      // Update visual states
-      if (activeIndicator)
-        activeIndicator.SetActive(currentProps.IsActive);
-
-      if (targetIndicator)
-        targetIndicator.SetActive(currentProps.IsTargeted);
-
+      // Update death state
       if (deathOverlay)
         deathOverlay.SetActive(!character.isAlive);
 
-      // Update background color
-      if (backgroundImage) {
-        if (!character.isAlive)
-          backgroundImage.color = deadColor;
-        else if (currentProps.IsActive)
-          backgroundImage.color = activeColor;
-        else if (currentProps.IsTargeted)
-          backgroundImage.color = targetedColor;
-        else
-          backgroundImage.color = normalColor;
-      }
-
-      // Update status effects through element system
-      UpdateElements();
-    }
-
-    private void Update()
-    {
-      if (currentProps == null || !currentProps.AnimateChanges)
-        return;
-
-      // Smooth health bar animation
-      if (healthBar && currentProps.Character.currentHealth != currentDisplayHealth) {
-        currentDisplayHealth = Mathf.SmoothDamp(
-            currentDisplayHealth,
-            currentProps.Character.currentHealth,
-            ref healthAnimationVelocity,
-            0.3f
-        );
-
-        float healthPercent = currentProps.Character.maxHealth > 0
-            ? currentDisplayHealth / currentProps.Character.maxHealth
-            : 0f;
-
-        healthBar.value = healthPercent;
-      }
-
-      // Smooth mana bar animation
-      if (manaBar && currentProps.ShowMana && currentProps.Character.currentMana != currentDisplayMana) {
-        currentDisplayMana = Mathf.SmoothDamp(
-            currentDisplayMana,
-            currentProps.Character.currentMana,
-            ref manaAnimationVelocity,
-            0.3f
-        );
-
-        float manaPercent = currentProps.Character.maxMana > 0
-            ? currentDisplayMana / currentProps.Character.maxMana
-            : 0f;
-
-        manaBar.value = manaPercent;
-      }
+      // Update targeting visuals
+      UpdateTargetingVisuals();
     }
 
     private void PlayHealthChangeAnimation(int oldHealth, int newHealth)
     {
-      // In full implementation, could trigger particle effects,
-      // screen shake, damage numbers, etc.
       if (newHealth < oldHealth) {
         Debug.Log($"{currentProps.Character.name} took {oldHealth - newHealth} damage!");
       } else if (newHealth > oldHealth) {

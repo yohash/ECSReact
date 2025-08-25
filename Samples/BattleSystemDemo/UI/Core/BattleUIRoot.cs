@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Entities;
 using ECSReact.Core;
 
 namespace ECSReact.Samples.BattleSystem
@@ -8,7 +9,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Root battle UI component that demonstrates conditional element rendering
   /// based on battle phase. This is the main orchestrator for all battle UI.
   /// </summary>
-  public class BattleUIRoot : ReactiveUIComponent<BattleState, UIBattleState>
+  public class BattleUIRoot : ReactiveUIComponent<BattleState, PartyState, UIBattleState>
   {
     [Header("UI Configuration")]
     [SerializeField] private bool showDebugPanels = false;
@@ -17,6 +18,7 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private RectTransform leftColumn;
 
     private BattleState battleState;
+    private PartyState partyState;
     private UIBattleState uiState;
 
     public override void OnStateChanged(BattleState newState)
@@ -28,6 +30,12 @@ namespace ECSReact.Samples.BattleSystem
     public override void OnStateChanged(UIBattleState newState)
     {
       uiState = newState;
+      UpdateElements();
+    }
+
+    public override void OnStateChanged(PartyState newState)
+    {
+      partyState = newState;
       UpdateElements();
     }
 
@@ -73,6 +81,22 @@ namespace ECSReact.Samples.BattleSystem
             parentTransform: leftColumn
           );
 
+          // Show target selection if in targeting mode (UI state driven)
+          if (uiState.showTargetingMode || uiState.activePanel == MenuPanel.TargetSelection) {
+            yield return Mount.Element.FromResources(
+              key: "target_selection",
+              prefabPath: "UI/TargetSelectionPanel",
+              props: new TargetSelectionProps
+              {
+                ActiveCharacter = GetActiveCharacterEntity(),
+                ActionType = uiState.selectedAction,
+                SelectedSkillId = uiState.selectedSkillId
+              },
+              index: 4,
+              parentTransform: leftColumn
+            );
+          }
+
           // Conditional sub-panels based on UI state
           if (uiState.activePanel == MenuPanel.SkillList) {
             yield return Mount.Element.FromResources(
@@ -94,22 +118,33 @@ namespace ECSReact.Samples.BattleSystem
           break;
 
         case BattlePhase.PlayerSelectTarget:
-          // Targeting overlay
-          //yield return UIElement.FromComponent<TargetingOverlay>(
-          //    key: "targeting",
-          //    props: new TargetingProps
-          //    {
-          //      ActionType = uiState.selectedAction,
-          //      ValidTargets = GetValidTargets(uiState.selectedAction)
-          //    },
-          //    index: 2
-          //);
+          // Target selection overlay panel
+          yield return Mount.Element.FromResources(
+            key: "target_selection",
+            prefabPath: "UI/TargetSelectionPanel",
+            props: new TargetSelectionProps
+            {
+              ActiveCharacter = GetActiveCharacterEntity(),
+              ActionType = uiState.selectedAction,
+              SelectedSkillId = uiState.selectedSkillId
+            },
+            index: 4,
+            parentTransform: leftColumn
+          );
 
-          //// Target confirmation panel
-          //yield return UIElement.FromComponent<TargetConfirmPanel>(
-          //    key: "target_confirm",
-          //    index: 3
-          //);
+          // Keep the action panel visible but disabled during targeting
+          yield return Mount.Element.FromResources(
+            key: "action_panel_disabled",
+            prefabPath: "UI/ActionPanel",
+            props: new ActionPanelProps
+            {
+              ActiveCharacterEntity = GetActiveCharacterEntity(),
+              CanUseSkills = false, // Disabled during targeting
+              CanUseItems = false
+            },
+            index: 2,
+            parentTransform: leftColumn
+          );
           break;
 
         case BattlePhase.ExecutingAction:
@@ -214,8 +249,17 @@ namespace ECSReact.Samples.BattleSystem
 
     private bool HasManaForSkills()
     {
-      // In real implementation, check PartyState for active character's mana
-      return true;
+      var activeEntity = GetActiveCharacterEntity();
+      if (activeEntity == Entity.Null)
+        return false;
+
+      // Check if active character has mana
+      for (int i = 0; i < partyState.characters.Length; i++) {
+        if (partyState.characters[i].entity == activeEntity) {
+          return partyState.characters[i].currentMana > 0;
+        }
+      }
+      return false;
     }
 
     private bool HasItemsAvailable()
