@@ -407,7 +407,7 @@ MonoBehaviour:
   damageIcon: {fileID: 21300000, guid: b0ddfd29f8554bb47994d0ad75cb03cd, type: 3}
   healIcon: {fileID: 21300000, guid: 2fd77f4bbac2fc049b30c39d1e0c6c88, type: 3}
   turnIcon: {fileID: 21300000, guid: 8d20469f09493454bb75133436fdc15e, type: 3}
-  systemIcon: {fileID: 21300000, guid: 6dfa2a0bcd3ec504186b8a2ef8c2e248, type: 3}
+  systemIcon: {fileID: 21300000, guid: 23e604a3eef7c66498bd9a9cb02f020d, type: 3}
 --- !u!225 &6512876826713237052
 CanvasGroup:
   m_ObjectHideFlags: 0
