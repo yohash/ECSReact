@@ -1,3 +1,4 @@
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Burst;
 
@@ -32,7 +33,7 @@ namespace ECSReact.Core
     protected override void OnUpdate()
     {
       var state = SystemAPI.GetSingletonRW<TState>();
-      var actionEntities = actionQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
+      var actionEntities = actionQuery.ToEntityArray(Allocator.Temp);
 
       foreach (var entity in actionEntities) {
         var action = EntityManager.GetComponentData<TAction>(entity);
