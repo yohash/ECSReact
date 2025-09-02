@@ -5,7 +5,7 @@ namespace ECSReact.Core
 {
   /// <summary>
   /// Interface for Burst-compatible reducer logic.
-  /// Implement this in a struct for zero-allocation, Burst-compiled reduction.
+  /// Implement this in a struct for zero-allocation, Burst-compiled state reduction.
   /// </summary>
   public interface IBurstReducer<TState, TAction>
       where TState : unmanaged

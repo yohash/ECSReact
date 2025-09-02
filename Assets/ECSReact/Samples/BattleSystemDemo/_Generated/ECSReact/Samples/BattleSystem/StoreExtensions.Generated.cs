@@ -115,129 +115,6 @@ namespace ECSReact.Samples.BattleSystem
     }
 
     /// <summary>
-    /// Dispatch a BattleLogAction to the ECS world.
-    /// </summary>
-    /// <param name="logType">The logType value for the action.</param>
-    /// <param name="message">The message value for the action.</param>
-    /// <param name="sourceEntity">The sourceEntity value for the action.</param>
-    /// <param name="targetEntity">The targetEntity value for the action.</param>
-    /// <param name="numericValue">The numericValue value for the action.</param>
-    /// <param name="timestamp">The timestamp value for the action.</param>
-    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool BattleLog(this Store store, LogType logType, FixedString128Bytes message, Entity sourceEntity, Entity targetEntity, int numericValue, float timestamp)
-    {
-      if (store == null)
-      {
-        UnityEngine.Debug.LogError("Store instance is null when dispatching BattleLogAction");
-        return false;
-      }
-
-      var action = new BattleLogAction
-      {
-        logType = logType,
-        message = message,
-        sourceEntity = sourceEntity,
-        targetEntity = targetEntity,
-        numericValue = numericValue,
-        timestamp = timestamp,
-      };
-
-      store.Dispatch(action);
-      return true;
-    }
-
-    /// <summary>
-    /// Dispatch a BattleLogAction using the Store singleton instance.
-    /// </summary>
-    /// <param name="logType">The logType value for the action.</param>
-    /// <param name="message">The message value for the action.</param>
-    /// <param name="sourceEntity">The sourceEntity value for the action.</param>
-    /// <param name="targetEntity">The targetEntity value for the action.</param>
-    /// <param name="numericValue">The numericValue value for the action.</param>
-    /// <param name="timestamp">The timestamp value for the action.</param>
-    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool BattleLog(LogType logType, FixedString128Bytes message, Entity sourceEntity, Entity targetEntity, int numericValue, float timestamp)
-    {
-      if (Store.Instance == null)
-      {
-        UnityEngine.Debug.LogError("Store.Instance is null when dispatching BattleLogAction");
-        return false;
-      }
-
-      return Store.Instance.BattleLog(logType, message, sourceEntity, targetEntity, numericValue, timestamp);
-    }
-
-    /// <summary>
-    /// Dispatch a ClearBattleLogAction to the ECS world.
-    /// </summary>
-    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool ClearBattleLog(this Store store)
-    {
-      if (store == null)
-      {
-        UnityEngine.Debug.LogError("Store instance is null when dispatching ClearBattleLogAction");
-        return false;
-      }
-
-      var action = new ClearBattleLogAction
-      {
-      };
-
-      store.Dispatch(action);
-      return true;
-    }
-
-    /// <summary>
-    /// Dispatch a ClearBattleLogAction using the Store singleton instance.
-    /// </summary>
-    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool ClearBattleLog()
-    {
-      if (Store.Instance == null)
-      {
-        UnityEngine.Debug.LogError("Store.Instance is null when dispatching ClearBattleLogAction");
-        return false;
-      }
-
-      return Store.Instance.ClearBattleLog();
-    }
-
-    /// <summary>
-    /// Dispatch a ClearSaveErrorAction to the ECS world.
-    /// </summary>
-    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool ClearSaveError(this Store store)
-    {
-      if (store == null)
-      {
-        UnityEngine.Debug.LogError("Store instance is null when dispatching ClearSaveErrorAction");
-        return false;
-      }
-
-      var action = new ClearSaveErrorAction
-      {
-      };
-
-      store.Dispatch(action);
-      return true;
-    }
-
-    /// <summary>
-    /// Dispatch a ClearSaveErrorAction using the Store singleton instance.
-    /// </summary>
-    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool ClearSaveError()
-    {
-      if (Store.Instance == null)
-      {
-        UnityEngine.Debug.LogError("Store.Instance is null when dispatching ClearSaveErrorAction");
-        return false;
-      }
-
-      return Store.Instance.ClearSaveError();
-    }
-
-    /// <summary>
     /// Dispatch a InitializeTurnOrderAction to the ECS world.
     /// </summary>
     /// <param name="turnOrder">The turnOrder value for the action.</param>
@@ -279,8 +156,9 @@ namespace ECSReact.Samples.BattleSystem
     /// Dispatch a NextTurnAction to the ECS world.
     /// </summary>
     /// <param name="skipAnimation">The skipAnimation value for the action.</param>
+    /// <param name="isPlayerTurn">The isPlayerTurn value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool NextTurn(this Store store, bool skipAnimation)
+    public static bool NextTurn(this Store store, bool skipAnimation, bool isPlayerTurn)
     {
       if (store == null)
       {
@@ -291,6 +169,7 @@ namespace ECSReact.Samples.BattleSystem
       var action = new NextTurnAction
       {
         skipAnimation = skipAnimation,
+        isPlayerTurn = isPlayerTurn,
       };
 
       store.Dispatch(action);
@@ -301,8 +180,9 @@ namespace ECSReact.Samples.BattleSystem
     /// Dispatch a NextTurnAction using the Store singleton instance.
     /// </summary>
     /// <param name="skipAnimation">The skipAnimation value for the action.</param>
+    /// <param name="isPlayerTurn">The isPlayerTurn value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool NextTurn(bool skipAnimation)
+    public static bool NextTurn(bool skipAnimation, bool isPlayerTurn)
     {
       if (Store.Instance == null)
       {
@@ -310,7 +190,89 @@ namespace ECSReact.Samples.BattleSystem
         return false;
       }
 
-      return Store.Instance.NextTurn(skipAnimation);
+      return Store.Instance.NextTurn(skipAnimation, isPlayerTurn);
+    }
+
+    /// <summary>
+    /// Dispatch a SelectActionTypeAction to the ECS world.
+    /// </summary>
+    /// <param name="actionType">The actionType value for the action.</param>
+    /// <param name="actingCharacter">The actingCharacter value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool SelectActionType(this Store store, ActionType actionType, Entity actingCharacter)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching SelectActionTypeAction");
+        return false;
+      }
+
+      var action = new SelectActionTypeAction
+      {
+        actionType = actionType,
+        actingCharacter = actingCharacter,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a SelectActionTypeAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="actionType">The actionType value for the action.</param>
+    /// <param name="actingCharacter">The actingCharacter value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool SelectActionType(ActionType actionType, Entity actingCharacter)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching SelectActionTypeAction");
+        return false;
+      }
+
+      return Store.Instance.SelectActionType(actionType, actingCharacter);
+    }
+
+    /// <summary>
+    /// Dispatch a SelectTargetAction to the ECS world.
+    /// </summary>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="confirmSelection">The confirmSelection value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool SelectTarget(this Store store, Entity targetEntity, bool confirmSelection)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching SelectTargetAction");
+        return false;
+      }
+
+      var action = new SelectTargetAction
+      {
+        targetEntity = targetEntity,
+        confirmSelection = confirmSelection,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a SelectTargetAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="confirmSelection">The confirmSelection value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool SelectTarget(Entity targetEntity, bool confirmSelection)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching SelectTargetAction");
+        return false;
+      }
+
+      return Store.Instance.SelectTarget(targetEntity, confirmSelection);
     }
 
     /// <summary>
@@ -352,6 +314,47 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       return Store.Instance.SaveBattle(fileName, format);
+    }
+
+    /// <summary>
+    /// Dispatch a SaveBattleStartedAction to the ECS world.
+    /// </summary>
+    /// <param name="fileName">The fileName value for the action.</param>
+    /// <param name="timestamp">The timestamp value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool SaveBattleStarted(this Store store, FixedString128Bytes fileName, float timestamp)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching SaveBattleStartedAction");
+        return false;
+      }
+
+      var action = new SaveBattleStartedAction
+      {
+        fileName = fileName,
+        timestamp = timestamp,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a SaveBattleStartedAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="fileName">The fileName value for the action.</param>
+    /// <param name="timestamp">The timestamp value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool SaveBattleStarted(FixedString128Bytes fileName, float timestamp)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching SaveBattleStartedAction");
+        return false;
+      }
+
+      return Store.Instance.SaveBattleStarted(fileName, timestamp);
     }
 
     /// <summary>
@@ -446,22 +449,30 @@ namespace ECSReact.Samples.BattleSystem
     }
 
     /// <summary>
-    /// Dispatch a SaveBattleStartedAction to the ECS world.
+    /// Dispatch a BattleLogAction to the ECS world.
     /// </summary>
-    /// <param name="fileName">The fileName value for the action.</param>
+    /// <param name="logType">The logType value for the action.</param>
+    /// <param name="message">The message value for the action.</param>
+    /// <param name="sourceEntity">The sourceEntity value for the action.</param>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="numericValue">The numericValue value for the action.</param>
     /// <param name="timestamp">The timestamp value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool SaveBattleStarted(this Store store, FixedString128Bytes fileName, float timestamp)
+    public static bool BattleLog(this Store store, LogType logType, FixedString128Bytes message, Entity sourceEntity, Entity targetEntity, int numericValue, float timestamp)
     {
       if (store == null)
       {
-        UnityEngine.Debug.LogError("Store instance is null when dispatching SaveBattleStartedAction");
+        UnityEngine.Debug.LogError("Store instance is null when dispatching BattleLogAction");
         return false;
       }
 
-      var action = new SaveBattleStartedAction
+      var action = new BattleLogAction
       {
-        fileName = fileName,
+        logType = logType,
+        message = message,
+        sourceEntity = sourceEntity,
+        targetEntity = targetEntity,
+        numericValue = numericValue,
         timestamp = timestamp,
       };
 
@@ -470,39 +481,325 @@ namespace ECSReact.Samples.BattleSystem
     }
 
     /// <summary>
-    /// Dispatch a SaveBattleStartedAction using the Store singleton instance.
+    /// Dispatch a BattleLogAction using the Store singleton instance.
     /// </summary>
-    /// <param name="fileName">The fileName value for the action.</param>
+    /// <param name="logType">The logType value for the action.</param>
+    /// <param name="message">The message value for the action.</param>
+    /// <param name="sourceEntity">The sourceEntity value for the action.</param>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="numericValue">The numericValue value for the action.</param>
     /// <param name="timestamp">The timestamp value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool SaveBattleStarted(FixedString128Bytes fileName, float timestamp)
+    public static bool BattleLog(LogType logType, FixedString128Bytes message, Entity sourceEntity, Entity targetEntity, int numericValue, float timestamp)
     {
       if (Store.Instance == null)
       {
-        UnityEngine.Debug.LogError("Store.Instance is null when dispatching SaveBattleStartedAction");
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching BattleLogAction");
         return false;
       }
 
-      return Store.Instance.SaveBattleStarted(fileName, timestamp);
+      return Store.Instance.BattleLog(logType, message, sourceEntity, targetEntity, numericValue, timestamp);
     }
 
     /// <summary>
-    /// Dispatch a SelectActionTypeAction to the ECS world.
+    /// Dispatch a ClearBattleLogAction to the ECS world.
     /// </summary>
-    /// <param name="actionType">The actionType value for the action.</param>
-    /// <param name="actingCharacter">The actingCharacter value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool SelectActionType(this Store store, ActionType actionType, Entity actingCharacter)
+    public static bool ClearBattleLog(this Store store)
     {
       if (store == null)
       {
-        UnityEngine.Debug.LogError("Store instance is null when dispatching SelectActionTypeAction");
+        UnityEngine.Debug.LogError("Store instance is null when dispatching ClearBattleLogAction");
         return false;
       }
 
-      var action = new SelectActionTypeAction
+      var action = new ClearBattleLogAction
       {
-        actionType = actionType,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a ClearBattleLogAction using the Store singleton instance.
+    /// </summary>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool ClearBattleLog()
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching ClearBattleLogAction");
+        return false;
+      }
+
+      return Store.Instance.ClearBattleLog();
+    }
+
+    /// <summary>
+    /// Dispatch a AIThinkingAction to the ECS world.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="thinkDuration">The thinkDuration value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool AIThinking(this Store store, Entity enemyEntity, float thinkDuration)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching AIThinkingAction");
+        return false;
+      }
+
+      var action = new AIThinkingAction
+      {
+        enemyEntity = enemyEntity,
+        thinkDuration = thinkDuration,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a AIThinkingAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="thinkDuration">The thinkDuration value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool AIThinking(Entity enemyEntity, float thinkDuration)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching AIThinkingAction");
+        return false;
+      }
+
+      return Store.Instance.AIThinking(enemyEntity, thinkDuration);
+    }
+
+    /// <summary>
+    /// Dispatch a AIDecisionMadeAction to the ECS world.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="chosenAction">The chosenAction value for the action.</param>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="skillId">The skillId value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool AIDecisionMade(this Store store, Entity enemyEntity, ActionType chosenAction, Entity targetEntity, int skillId)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching AIDecisionMadeAction");
+        return false;
+      }
+
+      var action = new AIDecisionMadeAction
+      {
+        enemyEntity = enemyEntity,
+        chosenAction = chosenAction,
+        targetEntity = targetEntity,
+        skillId = skillId,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a AIDecisionMadeAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="chosenAction">The chosenAction value for the action.</param>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="skillId">The skillId value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool AIDecisionMade(Entity enemyEntity, ActionType chosenAction, Entity targetEntity, int skillId)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching AIDecisionMadeAction");
+        return false;
+      }
+
+      return Store.Instance.AIDecisionMade(enemyEntity, chosenAction, targetEntity, skillId);
+    }
+
+    /// <summary>
+    /// Dispatch a InitializeAIAction to the ECS world.
+    /// </summary>
+    /// <param name="useAdvancedAI">The useAdvancedAI value for the action.</param>
+    /// <param name="globalDifficultyModifier">The globalDifficultyModifier value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool InitializeAI(this Store store, bool useAdvancedAI, float globalDifficultyModifier)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching InitializeAIAction");
+        return false;
+      }
+
+      var action = new InitializeAIAction
+      {
+        useAdvancedAI = useAdvancedAI,
+        globalDifficultyModifier = globalDifficultyModifier,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a InitializeAIAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="useAdvancedAI">The useAdvancedAI value for the action.</param>
+    /// <param name="globalDifficultyModifier">The globalDifficultyModifier value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool InitializeAI(bool useAdvancedAI, float globalDifficultyModifier)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching InitializeAIAction");
+        return false;
+      }
+
+      return Store.Instance.InitializeAI(useAdvancedAI, globalDifficultyModifier);
+    }
+
+    /// <summary>
+    /// Dispatch a ModifyAIBehaviorAction to the ECS world.
+    /// </summary>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="newStrategy">The newStrategy value for the action.</param>
+    /// <param name="aggressionModifier">The aggressionModifier value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool ModifyAIBehavior(this Store store, Entity targetEntity, AIStrategy newStrategy, float aggressionModifier)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching ModifyAIBehaviorAction");
+        return false;
+      }
+
+      var action = new ModifyAIBehaviorAction
+      {
+        targetEntity = targetEntity,
+        newStrategy = newStrategy,
+        aggressionModifier = aggressionModifier,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a ModifyAIBehaviorAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="newStrategy">The newStrategy value for the action.</param>
+    /// <param name="aggressionModifier">The aggressionModifier value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool ModifyAIBehavior(Entity targetEntity, AIStrategy newStrategy, float aggressionModifier)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching ModifyAIBehaviorAction");
+        return false;
+      }
+
+      return Store.Instance.ModifyAIBehavior(targetEntity, newStrategy, aggressionModifier);
+    }
+
+    /// <summary>
+    /// Dispatch a AIDecisionFailedAction to the ECS world.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="failureReason">The failureReason value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool AIDecisionFailed(this Store store, Entity enemyEntity, FixedString32Bytes failureReason)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching AIDecisionFailedAction");
+        return false;
+      }
+
+      var action = new AIDecisionFailedAction
+      {
+        enemyEntity = enemyEntity,
+        failureReason = failureReason,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a AIDecisionFailedAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="failureReason">The failureReason value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool AIDecisionFailed(Entity enemyEntity, FixedString32Bytes failureReason)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching AIDecisionFailedAction");
+        return false;
+      }
+
+      return Store.Instance.AIDecisionFailed(enemyEntity, failureReason);
+    }
+
+    /// <summary>
+    /// Dispatch a ClearSaveErrorAction to the ECS world.
+    /// </summary>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool ClearSaveError(this Store store)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching ClearSaveErrorAction");
+        return false;
+      }
+
+      var action = new ClearSaveErrorAction
+      {
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a ClearSaveErrorAction using the Store singleton instance.
+    /// </summary>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool ClearSaveError()
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching ClearSaveErrorAction");
+        return false;
+      }
+
+      return Store.Instance.ClearSaveError();
+    }
+
+    /// <summary>
+    /// Dispatch a CancelActionAction to the ECS world.
+    /// </summary>
+    /// <param name="actingCharacter">The actingCharacter value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool CancelAction(this Store store, Entity actingCharacter)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching CancelActionAction");
+        return false;
+      }
+
+      var action = new CancelActionAction
+      {
         actingCharacter = actingCharacter,
       };
 
@@ -511,20 +808,19 @@ namespace ECSReact.Samples.BattleSystem
     }
 
     /// <summary>
-    /// Dispatch a SelectActionTypeAction using the Store singleton instance.
+    /// Dispatch a CancelActionAction using the Store singleton instance.
     /// </summary>
-    /// <param name="actionType">The actionType value for the action.</param>
     /// <param name="actingCharacter">The actingCharacter value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool SelectActionType(ActionType actionType, Entity actingCharacter)
+    public static bool CancelAction(Entity actingCharacter)
     {
       if (Store.Instance == null)
       {
-        UnityEngine.Debug.LogError("Store.Instance is null when dispatching SelectActionTypeAction");
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching CancelActionAction");
         return false;
       }
 
-      return Store.Instance.SelectActionType(actionType, actingCharacter);
+      return Store.Instance.CancelAction(actingCharacter);
     }
 
     /// <summary>
@@ -569,47 +865,6 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       return Store.Instance.SelectSkill(skillId, actingCharacter, targetRequired);
-    }
-
-    /// <summary>
-    /// Dispatch a SelectTargetAction to the ECS world.
-    /// </summary>
-    /// <param name="targetEntity">The targetEntity value for the action.</param>
-    /// <param name="confirmSelection">The confirmSelection value for the action.</param>
-    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool SelectTarget(this Store store, Entity targetEntity, bool confirmSelection)
-    {
-      if (store == null)
-      {
-        UnityEngine.Debug.LogError("Store instance is null when dispatching SelectTargetAction");
-        return false;
-      }
-
-      var action = new SelectTargetAction
-      {
-        targetEntity = targetEntity,
-        confirmSelection = confirmSelection,
-      };
-
-      store.Dispatch(action);
-      return true;
-    }
-
-    /// <summary>
-    /// Dispatch a SelectTargetAction using the Store singleton instance.
-    /// </summary>
-    /// <param name="targetEntity">The targetEntity value for the action.</param>
-    /// <param name="confirmSelection">The confirmSelection value for the action.</param>
-    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool SelectTarget(Entity targetEntity, bool confirmSelection)
-    {
-      if (Store.Instance == null)
-      {
-        UnityEngine.Debug.LogError("Store.Instance is null when dispatching SelectTargetAction");
-        return false;
-      }
-
-      return Store.Instance.SelectTarget(targetEntity, confirmSelection);
     }
 
     /// <summary>
