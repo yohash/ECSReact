@@ -4,56 +4,57 @@ using Unity.Burst;
 namespace ECSReact.Core
 {
   /// <summary>
-  /// Abstract base class for Burst-compatible middleware systems.
-  /// Use this when your middleware doesn't need managed objects or Unity APIs.
-  /// Provides better performance for high-frequency action processing.
+  /// Interface for Burst-compatible middleware logic.
+  /// Implement this in a struct for zero-allocation, Burst-compiled middleware.
   /// </summary>
-  [BurstCompile]
+  public interface IBurstMiddleware<TAction>
+      where TAction : unmanaged
+  {
+    /// <summary>
+    /// Execute the middleware logic. This method will be Burst-compiled.
+    /// Use 'in' for the action parameter to avoid copies.
+    /// Note: Cannot dispatch new actions from Burst middleware (use standard middleware for that).
+    /// </summary>
+    void Execute(in TAction action, Entity actionEntity);
+  }
+
+  /// <summary>
+  /// Burst-optimized middleware using struct-based logic.
+  /// Use this for high-performance middleware like input validation or metrics.
+  /// 
+  /// LIMITATION: Burst middleware cannot dispatch new actions or use managed code.
+  /// For middleware that needs to dispatch actions or use Unity APIs, use standard MiddlewareSystem.
+  /// 
+  /// Usage:
+  /// 1. Create a struct implementing IBurstMiddleware
+  /// 2. Inherit from BurstMiddlewareSystem with your struct as TLogic
+  /// 3. That's it! No methods to override, no boilerplate.
+  /// </summary>
   [UpdateInGroup(typeof(MiddlewareSystemGroup))]
   [UpdateBefore(typeof(SimulationSystemGroup))]
-  public abstract partial class BurstMiddlewareSystem<T> : SystemBase
-      where T : unmanaged, IGameAction
+  [BurstCompile]
+  public abstract partial class BurstMiddlewareSystem<TAction, TLogic> : SystemBase
+      where TAction : unmanaged, IGameAction
+      where TLogic : struct, IBurstMiddleware<TAction>
   {
-    private EntityQuery actionQuery;
-
     protected override void OnCreate()
     {
       base.OnCreate();
 
-      // Create query for the specific action type
-      actionQuery = GetEntityQuery(
-          ComponentType.ReadOnly<T>(),
-          ComponentType.ReadOnly<ActionTag>()
-      );
+      // CRITICAL: Disable this system - the generated bridge will handle execution
+      Enabled = false;
     }
 
     protected override void OnUpdate()
     {
-      var actionEntities = actionQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
-
-      foreach (var entity in actionEntities) {
-        var action = EntityManager.GetComponentData<T>(entity);
-        ProcessAction(action, entity);
-      }
-
-      actionEntities.Dispose();
+      // Should never run - bridge handles execution
+      throw new System.InvalidOperationException(
+        $"BurstMiddlewareSystem {GetType().Name} should never run directly. " +
+        $"Ensure code generation has created the bridge system."
+      );
     }
 
-    /// <summary>
-    /// Override this method to implement your Burst-compatible middleware logic.
-    /// Cannot use managed objects, Unity APIs, or async operations.
-    /// </summary>
-    protected abstract void ProcessAction(T action, Entity actionEntity);
-
-    /// <summary>
-    /// Burst-compatible helper for dispatching additional actions.
-    /// </summary>
-    protected void DispatchAction<TNewAction>(TNewAction newAction)
-        where TNewAction : unmanaged, IGameAction
-    {
-      var entity = EntityManager.CreateEntity();
-      EntityManager.AddComponentData(entity, newAction);
-      EntityManager.AddComponentData(entity, new ActionTag());
-    }
+    // No methods to override! The logic is in the struct.
+    // Note: No DispatchAction helper - Burst middleware can't create entities.
   }
 }

@@ -13,7 +13,7 @@ namespace ECSReact.Samples.BattleSystem
   [UpdateBefore(typeof(SimulationSystemGroup))]
   public partial class AttackLoggingMiddleware : MiddlewareSystem<AttackAction>
   {
-    protected override void ProcessAction(AttackAction action, Entity actionEntity)
+    public override void ProcessAction(AttackAction action, Entity actionEntity)
     {
       // Get character names for the log message
       var attackerName = GetCharacterName(action.attackerEntity);
@@ -64,7 +64,7 @@ namespace ECSReact.Samples.BattleSystem
   [UpdateInGroup(typeof(MiddlewareSystemGroup))]
   public partial class TurnChangeLoggingMiddleware : MiddlewareSystem<NextTurnAction>
   {
-    protected override void ProcessAction(NextTurnAction action, Entity actionEntity)
+    public override void ProcessAction(NextTurnAction action, Entity actionEntity)
     {
       // Get current battle state to determine whose turn it is
       if (SystemAPI.TryGetSingleton<BattleState>(out var battleState)) {
@@ -111,7 +111,7 @@ namespace ECSReact.Samples.BattleSystem
   [UpdateInGroup(typeof(MiddlewareSystemGroup))]
   public partial class ActionSelectionLoggingMiddleware : MiddlewareSystem<SelectActionTypeAction>
   {
-    protected override void ProcessAction(SelectActionTypeAction action, Entity actionEntity)
+    public override void ProcessAction(SelectActionTypeAction action, Entity actionEntity)
     {
       if (action.actionType == ActionType.None)
         return;

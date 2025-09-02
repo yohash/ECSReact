@@ -15,7 +15,7 @@ namespace ECSReact.Editor.CodeGeneration
   public class StateRegistryGenerator : EditorWindow
   {
     private Vector2 scrollPosition;
-    private Dictionary<string, NamespaceGroup> namespaceGroups = new Dictionary<string, NamespaceGroup>();
+    private Dictionary<string, NamespaceGroup> namespaceGroups = new();
     private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
     private bool autoRefreshDiscovery = false;
     private bool generateDebugLogs = false;
@@ -490,29 +490,6 @@ namespace ECSReact.Editor.CodeGeneration
     }
   }
 
-  // Simple code preview window
-  public class CodePreviewWindow : EditorWindow
-  {
-    private string code;
-    private Vector2 scrollPosition;
-
-    public void SetCode(string code)
-    {
-      this.code = code;
-    }
-
-    private void OnGUI()
-    {
-      scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-
-      var style = new GUIStyle(EditorStyles.textArea);
-      style.wordWrap = false;
-
-      EditorGUILayout.TextArea(code, style, GUILayout.ExpandHeight(true));
-
-      EditorGUILayout.EndScrollView();
-    }
-  }
 
   // Extension to check if a type is unmanaged
   public static class TypeExtensions

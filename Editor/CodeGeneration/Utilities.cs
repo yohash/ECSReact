@@ -1,7 +1,7 @@
-using System;
-using System.Linq;
-using System.Collections.Generic;
 using ECSReact.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ECSReact.Editor.CodeGeneration
 {
@@ -15,12 +15,24 @@ namespace ECSReact.Editor.CodeGeneration
   {
     public string namespaceName;
     public string assemblyName;
-    public bool includeInGeneration;
+    public bool includeInGeneration = true;
     public bool isExpanded;
-    public List<ActionTypeInfo> actions;
-    public List<StateTypeInfo> states;
-    public int actionCount => actions?.Count ?? 0;
-    public int stateCount => states?.Count ?? 0;
+
+    // Counts
+    public int StateCount => states.Count;
+    public int ActionCount => actions.Count;
+    public int ReducerCount => StandardReducerCount + BurstMiddlewareCount;
+    public int MiddlewareCount => StandardMiddlewareCount + BurstMiddlewareCount;
+    public int SystemCount => systems.Count;
+    public int StandardReducerCount => systems.Count(s => s.systemKind == SystemType.StandardReducer);
+    public int BurstReducerCount => systems.Count(s => s.systemKind == SystemType.BurstReducer);
+    public int StandardMiddlewareCount => systems.Count(s => s.systemKind == SystemType.StandardMiddleware);
+    public int BurstMiddlewareCount => systems.Count(s => s.systemKind == SystemType.BurstMiddleware);
+
+    // Type lists
+    public List<StateTypeInfo> states = new();
+    public List<ActionTypeInfo> actions = new();
+    public List<SystemInfo> systems = new();
   }
 
   [Serializable]
@@ -38,6 +50,7 @@ namespace ECSReact.Editor.CodeGeneration
     public string namespaceName;
     public string assemblyName;
     public bool includeInGeneration;
+    public bool hasFields;
     public List<FieldInfo> fields = new List<FieldInfo>();
   }
 
@@ -60,6 +73,46 @@ namespace ECSReact.Editor.CodeGeneration
     public string fieldName;
     public string fieldType;
     public bool isOptional;
+  }
+
+  [Serializable]
+  public class SystemTypeInfo
+  {
+    public string typeName;
+    public string fullTypeName;
+    public bool includeInGeneration;
+  }
+
+  public enum SystemType
+  {
+    // ReducerSystem<TState, TAction>
+    StandardReducer,
+    // BurstReducerSystem<TState, TAction, TLogic>
+    BurstReducer,
+    // MiddlewareSystem<TAction>
+    StandardMiddleware,
+    // BurstMiddlewareSystem<TAction, TLogic>
+    BurstMiddleware
+  }
+
+  public class SystemInfo
+  {
+    public Type systemType;
+    public Type stateType;
+    public Type actionType;
+    public Type logicType;
+    public SystemType systemKind;
+    public bool includeInGeneration = true;
+    public string namespaceName;
+    public string className;
+
+    public string GetBridgeName()
+    {
+      return $"{className}_{actionType.Name}_Bridge";
+    }
+
+    public bool IsBurstOptimized =>
+      systemKind == SystemType.BurstReducer || systemKind == SystemType.BurstMiddleware;
   }
 
   public static class CodeGenUtils

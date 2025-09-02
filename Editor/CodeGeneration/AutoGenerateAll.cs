@@ -6,6 +6,7 @@ using System.Reflection;
 using Unity.Entities;
 using UnityEditor;
 using UnityEngine;
+using ECSReact.Core;
 
 namespace ECSReact.Editor.CodeGeneration
 {
@@ -52,7 +53,7 @@ namespace ECSReact.Editor.CodeGeneration
       }
 
       if (discoveredNamespaces.Count == 0) {
-        EditorGUILayout.HelpBox("No IGameState or IGameAction types found in your project. Make sure you have defined state and action types.", MessageType.Warning);
+        EditorGUILayout.HelpBox("No IGameState, IGameAction, or Reducer/Middleware systems found in your project.", MessageType.Warning);
 
         EditorGUILayout.Space();
         if (GUILayout.Button("Refresh Discovery")) {
@@ -63,7 +64,14 @@ namespace ECSReact.Editor.CodeGeneration
 
       // Step 1: Namespace Selection
       EditorGUILayout.LabelField("Select Namespaces to Generate", EditorStyles.boldLabel);
-      EditorGUILayout.HelpBox("Choose which namespaces you want to generate code for. This will run all three generators (UIStateNotifier, StateSubscriptionHelper, and Store Extensions) for the selected namespaces.", MessageType.Info);
+      EditorGUILayout.HelpBox(
+        "Choose which namespaces you want to generate code for. This will run all generators:\n" +
+        "• Bridge Systems (for reducers/middleware)\n" +
+        "• State Registry\n" +
+        "• UIStateNotifier extensions\n" +
+        "• StateSubscriptionHelper extensions\n" +
+        "• Store action dispatch extensions",
+        MessageType.Info);
 
       EditorGUILayout.Space();
 
@@ -108,9 +116,24 @@ namespace ECSReact.Editor.CodeGeneration
         EditorGUILayout.EndHorizontal();
 
         // Summary of what's in this namespace
-        string summary = $"{namespaceInfo.stateCount} states, {namespaceInfo.actionCount} actions";
-        EditorGUILayout.LabelField(summary, EditorStyles.miniLabel);
+        int totalStates = discoveredNamespaces.Values.Sum(ns => ns.StateCount);
+        int totalActions = discoveredNamespaces.Values.Sum(ns => ns.ActionCount);
+        int totalReducers = discoveredNamespaces.Values.Sum(ns => ns.ReducerCount);
+        int totalBurstReducers = discoveredNamespaces.Values.Sum(ns => ns.BurstReducerCount);
+        int totalMiddleware = discoveredNamespaces.Values.Sum(ns => ns.MiddlewareCount);
+        int totalBurstMiddleware = discoveredNamespaces.Values.Sum(ns => ns.BurstMiddlewareCount);
 
+        var summaryParts = new List<string>();
+
+        if (totalStates > 0) { summaryParts.Add($"{totalStates} states"); }
+        if (totalActions > 0) { summaryParts.Add($"{totalActions} actions"); }
+        if (totalReducers > 0) { summaryParts.Add($"{totalReducers} reducers"); }
+        if (totalBurstReducers > 0) { summaryParts.Add($"{totalBurstReducers} burst reducers"); }
+        if (totalMiddleware > 0) { summaryParts.Add($"{totalMiddleware} middleware"); }
+        if (totalBurstMiddleware > 0) { summaryParts.Add($"{totalBurstMiddleware} burst middleware"); }
+        var summary = string.Join(", ", summaryParts);
+
+        EditorGUILayout.LabelField(summary, EditorStyles.miniLabel);
 
         EditorGUILayout.EndVertical();
       }
@@ -127,8 +150,13 @@ namespace ECSReact.Editor.CodeGeneration
       if (selectedNamespaces.Count == 0) {
         EditorGUILayout.HelpBox("Select at least one namespace to enable code generation.", MessageType.Info);
       } else {
+        int totalSystems = selectedNamespaces.Sum(ns => ns.SystemCount);
+        string systemInfo = totalSystems > 0 ? $" + {totalSystems} bridge systems" : "";
+
         EditorGUILayout.HelpBox($"Ready to generate code for {selectedNamespaces.Count} namespace(s):\n• " +
-            string.Join("\n• ", selectedNamespaces.Select(ns => $"{ns.namespaceName} ({ns.stateCount} states, {ns.actionCount} actions)")),
+            string.Join("\n• ", selectedNamespaces.Select(ns =>
+                $"{ns.namespaceName} ({ns.StateCount} states, {ns.ActionCount} actions" +
+                (ns.SystemCount > 0 ? $", {ns.SystemCount} systems)" : ")"))),
             MessageType.Info);
       }
 
@@ -169,13 +197,16 @@ namespace ECSReact.Editor.CodeGeneration
 
         foreach (var assembly in assemblies) {
           try {
-            var types = assembly.GetTypes()
+            var types = assembly.GetTypes();
+
+            // First, discover states and actions
+            var componentTypes = types
                 .Where(t => t.IsValueType && !t.IsEnum && !t.IsGenericType)
                 .Where(t => typeof(IComponentData).IsAssignableFrom(t))
                 .Where(t => t.GetInterfaces().Any(i => i.Name == "IGameState" || i.Name == "IGameAction"))
                 .ToList();
 
-            foreach (var type in types) {
+            foreach (var type in componentTypes) {
               string namespaceName = type.Namespace ?? "Global";
               bool isState = type.GetInterfaces().Any(i => i.Name == "IGameState");
               bool isAction = type.GetInterfaces().Any(i => i.Name == "IGameAction");
@@ -188,9 +219,7 @@ namespace ECSReact.Editor.CodeGeneration
                     namespaceName,
                     // Default to selected UNLESS it's the core namespace
                     namespaceName == "ECSReact.Core" ? false : true),
-                  assemblyName = assembly.GetName().Name,
-                  states = new List<StateTypeInfo>(),
-                  actions = new List<ActionTypeInfo>(),
+                  assemblyName = assembly.GetName().Name
                 };
               }
 
@@ -204,7 +233,7 @@ namespace ECSReact.Editor.CodeGeneration
                   fullTypeName = type.FullName,
                   namespaceName = namespaceName,
                   assemblyName = assembly.GetName().Name,
-                  includeInGeneration = namespaceName == "ECSReact.Core" ? false : true,
+                  includeInGeneration = true
                 };
                 namespaceInfo.states.Add(stateInfo);
               }
@@ -225,22 +254,84 @@ namespace ECSReact.Editor.CodeGeneration
                   fullTypeName = type.FullName,
                   namespaceName = namespaceName,
                   assemblyName = assembly.GetName().Name,
-                  includeInGeneration = namespaceName == "ECSReact.Core" ? false : true,
+                  includeInGeneration = type.Name == "Payload" ? false : true,
                   fields = fields
                 };
                 namespaceInfo.actions.Add(actionInfo);
               }
             }
+
+            // Then, discover reducer and middleware systems
+            var systemTypes = types
+                .Where(t => t.IsClass && !t.IsAbstract && !t.IsGenericType && isRedOrMed(t))
+                .ToList();
+
+            bool isRedOrMed(Type type)
+            {
+              // Check if it inherits from any of our system base classes
+              var baseType = type.BaseType;
+
+              while (baseType != null) {
+                if (baseType.IsGenericType) {
+                  var genericDef = baseType.GetGenericTypeDefinition();
+                  var genericDefName = genericDef.Name;
+
+                  // Check for our four system types
+                  if (genericDefName == "ReducerSystem`2" ||
+                      genericDefName == "BurstReducerSystem`3" ||
+                      genericDefName == "MiddlewareSystem`1" ||
+                      genericDefName == "BurstMiddlewareSystem`2") {
+                    return true;
+                  }
+                }
+                baseType = baseType.BaseType;
+              }
+
+              return false;
+            }
+
+            foreach (var type in systemTypes) {
+              string namespaceName = type.Namespace ?? "Global";
+
+              if (!discoveredNamespaces.ContainsKey(namespaceName)) {
+                discoveredNamespaces[namespaceName] = new NamespaceGroup
+                {
+                  namespaceName = namespaceName,
+                  includeInGeneration = previousSelections.GetValueOrDefault(
+                    namespaceName,
+                    namespaceName == "ECSReact.Core" ? false : true),
+                  assemblyName = assembly.GetName().Name
+                };
+              }
+
+              var namespaceInfo = discoveredNamespaces[namespaceName];
+
+              // Add system info
+              var systemInfo = BridgeSystemGenerator.AnalyzeSystemType(type);
+              namespaceInfo.systems.Add(systemInfo);
+            }
+
           } catch (Exception ex) {
             Debug.LogWarning($"Error discovering types in assembly {assembly.GetName().Name}: {ex.Message}");
           }
         }
 
         hasDiscovered = true;
-        int totalStates = discoveredNamespaces.Values.Sum(ns => ns.stateCount);
-        int totalActions = discoveredNamespaces.Values.Sum(ns => ns.actionCount);
+        int totalStates = discoveredNamespaces.Values.Sum(ns => ns.StateCount);
+        int totalActions = discoveredNamespaces.Values.Sum(ns => ns.ActionCount);
+        int totalReducers = discoveredNamespaces.Values.Sum(ns => ns.ReducerCount);
+        int totalBurstReducers = discoveredNamespaces.Values.Sum(ns => ns.BurstReducerCount);
+        int totalMiddleware = discoveredNamespaces.Values.Sum(ns => ns.MiddlewareCount);
+        int totalBurstMiddleware = discoveredNamespaces.Values.Sum(ns => ns.BurstMiddlewareCount);
 
-        Debug.Log($"Auto Generate All: Discovered {totalStates} states and {totalActions} actions across {discoveredNamespaces.Count} namespaces");
+        Debug.Log($"Auto Generate All: " +
+          $"Discovered {totalStates} states, " +
+          $"{totalActions} actions, " +
+          $"{totalReducers} reducers" +
+          (totalBurstReducers > 0 ? $" ({totalBurstReducers} burst), " : ", ") +
+          $"and {totalMiddleware} middleware" +
+          (totalBurstMiddleware > 0 ? $" ({totalBurstMiddleware} burst) " : " ") +
+          $"across {discoveredNamespaces.Count} namespaces");
       } catch (Exception ex) {
         Debug.LogError($"Auto Generate All: Discovery failed - {ex.Message}");
         hasDiscovered = true; // Allow UI to show error state
@@ -252,70 +343,59 @@ namespace ECSReact.Editor.CodeGeneration
       if (!EditorUtility.DisplayDialog(
           "Generate All Selected",
           $"This will automatically generate code for {selectedNamespaces.Count} namespace(s):\n\n" +
+          "• Bridge Systems (for reducers/middleware)\n" +
           "• State Registry\n" +
           "• UIStateNotifier extensions\n" +
           "• StateSubscriptionHelper extensions\n" +
           "• Store action dispatch extensions\n\n" +
           "Selected namespaces:\n• " + string.Join("\n• ", selectedNamespaces.Select(ns => ns.namespaceName)) + "\n\n" +
           "Continue?",
-          "Generate All",
+          "Generate",
           "Cancel")) {
         return;
       }
 
-      bool success = true;
-      var results = new List<string>();
-
       try {
-        EditorUtility.DisplayProgressBar("Auto Generate All", "Preparing output directory...", 0.1f);
+        List<GenerationResult> results = new List<GenerationResult>();
 
-        // Ensure output directory exists
-        if (!Directory.Exists(outputPath)) {
-          Directory.CreateDirectory(outputPath);
-          Debug.Log($"Created output directory: {outputPath}");
-        }
+        EditorUtility.DisplayProgressBar("Auto Generate All", "Starting generation...", 0);
 
-        // Step 1: Generate State Registry
-        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating State Registry...", 0.25f);
-        var registryResult = generateStateRegistryForNamespaces(selectedNamespaces);
-        results.Add(registryResult.summary);
-        success &= registryResult.success;
+        // Generate Bridge Systems
+        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating Bridge Systems...", 0.1f);
+        results.Add(generateBridgeSystemsForNamespaces(selectedNamespaces));
 
-        // Step 2: Generate UIStateNotifier extensions
-        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating UIStateNotifier extensions...", 0.25f);
-        var uiStateResult = generateUIStateNotifierForNamespaces(selectedNamespaces);
-        results.Add(uiStateResult.summary);
-        success &= uiStateResult.success;
+        // Generate StateRegistry
+        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating State Registry...", 0.3f);
+        results.Add(generateStateRegistryForNamespaces(selectedNamespaces));
 
-        // Step 3: Generate StateSubscriptionHelper extensions  
-        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating StateSubscriptionHelper extensions...", 0.5f);
-        var subscriptionResult = generateStateSubscriptionForNamespaces(selectedNamespaces);
-        results.Add(subscriptionResult.summary);
-        success &= subscriptionResult.success;
+        // Generate UIStateNotifier
+        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating UIStateNotifier extensions...", 0.5f);
+        results.Add(generateUIStateNotifierForNamespaces(selectedNamespaces));
 
-        // Step 4: Generate Store extensions
-        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating Store extensions...", 0.75f);
-        var storeResult = generateStoreExtensionsForNamespaces(selectedNamespaces);
-        results.Add(storeResult.summary);
-        success &= storeResult.success;
+        // Generate StateSubscriptionHelper
+        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating StateSubscriptionHelper extensions...", 0.7f);
+        results.Add(generateStateSubscriptionForNamespaces(selectedNamespaces));
 
-        // Step 5: Refresh Unity
-        EditorUtility.DisplayProgressBar("Auto Generate All", "Refreshing Unity assets...", 0.9f);
-        AssetDatabase.Refresh();
+        // Generate Store Extensions
+        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating Store extensions...", 0.9f);
+        results.Add(generateStoreExtensionsForNamespaces(selectedNamespaces));
 
         EditorUtility.ClearProgressBar();
 
+        // Refresh the asset database to recognize the new files
+        AssetDatabase.Refresh();
+
         // Show results
-        string title = success ? "Generation Complete!" : "Generation Completed with Issues";
-        string message = success ?
-            $"All code generation completed successfully for {selectedNamespaces.Count} namespaces!\n\n" + string.Join("\n", results) :
-            $"Code generation completed but some generators had issues:\n\n" + string.Join("\n", results);
-
-        EditorUtility.DisplayDialog(title, message, "OK");
-
-        if (success) {
-          Debug.Log($"Auto Generate All: Successfully generated all ECS-React code for {selectedNamespaces.Count} namespaces!");
+        string summaryMessage = "Code generation complete!\n\n";
+        foreach (var result in results) {
+          summaryMessage += result.summary + "\n";
         }
+
+        EditorUtility.DisplayDialog("Generation Complete", summaryMessage, "OK");
+
+        Debug.Log($"Auto Generate All: Successfully generated code for {selectedNamespaces.Count} namespaces\n" +
+                  string.Join("\n", results.Select(r => r.summary)));
+
       } catch (Exception ex) {
         EditorUtility.ClearProgressBar();
 
@@ -326,11 +406,48 @@ namespace ECSReact.Editor.CodeGeneration
       }
     }
 
+    private GenerationResult generateBridgeSystemsForNamespaces(List<NamespaceGroup> namespaces)
+    {
+      try {
+        var namespacesWithSystems = namespaces.Where(ns => ns.SystemCount > 0).ToList();
+
+        if (namespacesWithSystems.Count == 0) {
+          return new GenerationResult
+          {
+            success = true, // Not a failure, just nothing to do
+            summary = "✓ Bridge Systems: No reducer/middleware systems found to generate bridges for"
+          };
+        }
+
+        // Call the BridgeSystemGenerator method
+        var gen = new BridgeSystemGenerator();
+        var generatedFiles = new List<string>();
+        int totalBridges = 0;
+
+        foreach (var ns in namespacesWithSystems) {
+          int bridgesInNamespace = gen.GenerateBridgesForNamespace(ns, outputPath, ref generatedFiles);
+          totalBridges += bridgesInNamespace;
+        }
+
+        return new GenerationResult
+        {
+          success = true,
+          summary = $"✅ Bridge Systems: Generated {totalBridges} bridges across {namespacesWithSystems.Count} namespaces"
+        };
+      } catch (Exception ex) {
+        Debug.LogError($"Failed to generate Bridge Systems: {ex.Message}");
+        return new GenerationResult
+        {
+          success = false,
+          summary = $"❌ Bridge Systems: Generation failed - {ex.Message}"
+        };
+      }
+    }
+
     private GenerationResult generateStateRegistryForNamespaces(List<NamespaceGroup> namespaces)
     {
       try {
-        // Simplified implementation - in practice, you'd integrate with the actual generator
-        var namespacesWithStates = namespaces.Where(ns => ns.stateCount > 0).ToList();
+        var namespacesWithStates = namespaces.Where(ns => ns.StateCount > 0).ToList();
 
         if (namespacesWithStates.Count == 0) {
           return new GenerationResult
@@ -345,7 +462,7 @@ namespace ECSReact.Editor.CodeGeneration
           var files = new List<string>();
           gen.GenerateRegistryForNamespace(ns, ref files);
         }
-        int totalStates = namespacesWithStates.Sum(ns => ns.stateCount);
+        int totalStates = namespacesWithStates.Sum(ns => ns.StateCount);
 
         return new GenerationResult
         {
@@ -365,8 +482,7 @@ namespace ECSReact.Editor.CodeGeneration
     private GenerationResult generateUIStateNotifierForNamespaces(List<NamespaceGroup> namespaces)
     {
       try {
-        // Simplified implementation - in practice, you'd integrate with the actual generator
-        var namespacesWithStates = namespaces.Where(ns => ns.stateCount > 0).ToList();
+        var namespacesWithStates = namespaces.Where(ns => ns.StateCount > 0).ToList();
 
         if (namespacesWithStates.Count == 0) {
           return new GenerationResult
@@ -381,7 +497,7 @@ namespace ECSReact.Editor.CodeGeneration
           var files = new List<string>();
           gen.GenerateUIStateNotifierExtensionsForNamespace(ns, ref files);
         }
-        int totalStates = namespacesWithStates.Sum(ns => ns.stateCount);
+        int totalStates = namespacesWithStates.Sum(ns => ns.StateCount);
 
         return new GenerationResult
         {
@@ -401,7 +517,7 @@ namespace ECSReact.Editor.CodeGeneration
     private GenerationResult generateStateSubscriptionForNamespaces(List<NamespaceGroup> namespaces)
     {
       try {
-        var namespacesWithStates = namespaces.Where(ns => ns.stateCount > 0).ToList();
+        var namespacesWithStates = namespaces.Where(ns => ns.StateCount > 0).ToList();
 
         if (namespacesWithStates.Count == 0) {
           return new GenerationResult
@@ -416,7 +532,7 @@ namespace ECSReact.Editor.CodeGeneration
           var files = new List<string>();
           gen.GenerateStateSubscriptionHelperCodeForNamespace(ns, ref files);
         }
-        int totalStates = namespacesWithStates.Sum(ns => ns.stateCount);
+        int totalStates = namespacesWithStates.Sum(ns => ns.StateCount);
 
         return new GenerationResult
         {
@@ -436,7 +552,7 @@ namespace ECSReact.Editor.CodeGeneration
     private GenerationResult generateStoreExtensionsForNamespaces(List<NamespaceGroup> namespaces)
     {
       try {
-        var namespacesWithActions = namespaces.Where(ns => ns.actionCount > 0).ToList();
+        var namespacesWithActions = namespaces.Where(ns => ns.ActionCount > 0).ToList();
 
         if (namespacesWithActions.Count == 0) {
           return new GenerationResult
@@ -451,7 +567,7 @@ namespace ECSReact.Editor.CodeGeneration
           var files = new List<string>();
           gen.GenerateStoreExtensionsForNamespace(ns, ref files);
         }
-        int totalActions = namespacesWithActions.Sum(ns => ns.actionCount);
+        int totalActions = namespacesWithActions.Sum(ns => ns.ActionCount);
 
         return new GenerationResult
         {
@@ -477,7 +593,7 @@ namespace ECSReact.Editor.CodeGeneration
         EditorUtility.RevealInFinder(outputPath);
       } else {
         EditorUtility.DisplayDialog("Folder Not Found",
-            $"Generated code folder not found at:\n{outputPath}\n\nRun 'Auto Generate All' first to create generated code.",
+            $"Generated code folder not found at:\n{outputPath}\n\nRun 'Generate All' first to create generated code.",
             "OK");
       }
     }

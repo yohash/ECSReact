@@ -9,7 +9,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class BattleLogReducer : ReducerSystem<BattleLogState, BattleLogAction>
   {
-    protected override void ReduceState(ref BattleLogState state, BattleLogAction action)
+    public override void ReduceState(ref BattleLogState state, BattleLogAction action)
     {
       // Create new log entry
       var entry = new BattleLogEntry
@@ -41,7 +41,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class ClearBattleLogReducer : ReducerSystem<BattleLogState, ClearBattleLogAction>
   {
-    protected override void ReduceState(ref BattleLogState state, ClearBattleLogAction action)
+    public override void ReduceState(ref BattleLogState state, ClearBattleLogAction action)
     {
       state.entries.Clear();
       // Keep total count for statistics

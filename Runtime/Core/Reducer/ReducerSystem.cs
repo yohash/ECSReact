@@ -1,52 +1,46 @@
-using Unity.Collections;
 using Unity.Entities;
-using Unity.Burst;
 
 namespace ECSReact.Core
 {
   /// <summary>
   /// Abstract base class for reducer systems that process actions and update state.
-  /// Uses dynamic queries to work around Unity ECS generic type constraints.
+  /// 
+  /// IMPORTANT: This base system is automatically DISABLED on creation. A generated bridge system
+  /// handles the actual execution using optimal SystemAPI.Query patterns. This avoids Unity ECS's 
+  /// generic type limitations while maintaining zero allocations in the hot path.
+  /// 
+  /// Use this for general game logic that doesn't require maximum performance.
+  /// For performance-critical reducers, use BurstReducerSystem instead.
   /// </summary>
-  [BurstCompile]
   [ReducerSystem]
   public abstract partial class ReducerSystem<TState, TAction> : SystemBase
       where TState : unmanaged, IGameState
       where TAction : unmanaged, IGameAction
   {
-    private EntityQuery actionQuery;
-
     protected override void OnCreate()
     {
       base.OnCreate();
 
-      // Create query for the specific action type
-      actionQuery = GetEntityQuery(
-        ComponentType.ReadOnly<TAction>(),
-        ComponentType.ReadOnly<ActionTag>()
-      );
-
       // Only run this system when the state singleton exists
       RequireForUpdate<TState>();
+
+      // CRITICAL: Disable this system - the generated bridge will handle execution
+      Enabled = false;
     }
 
     protected override void OnUpdate()
     {
-      var state = SystemAPI.GetSingletonRW<TState>();
-      var actionEntities = actionQuery.ToEntityArray(Allocator.Temp);
-
-      foreach (var entity in actionEntities) {
-        var action = EntityManager.GetComponentData<TAction>(entity);
-        ReduceState(ref state.ValueRW, action);
-      }
-
-      actionEntities.Dispose();
+      // This should never run in production - the bridge system handles execution
+      throw new System.InvalidOperationException(
+        $"ReducerSystem {GetType().Name} should never run directly. " +
+        $"Ensure code generation has created the bridge system."
+      );
     }
 
     /// <summary>
     /// Override this method to implement your state reduction logic.
     /// This is called once for each action of the specified type.
     /// </summary>
-    protected abstract void ReduceState(ref TState state, TAction action);
+    public abstract void ReduceState(ref TState state, TAction action);
   }
 }

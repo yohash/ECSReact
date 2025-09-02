@@ -11,7 +11,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class UIActionSelectionReducer : ReducerSystem<UIBattleState, SelectActionTypeAction>
   {
-    protected override void ReduceState(ref UIBattleState state, SelectActionTypeAction action)
+    public override void ReduceState(ref UIBattleState state, SelectActionTypeAction action)
     {
       // Store the selected action type
       state.selectedAction = action.actionType;
@@ -85,7 +85,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class UITargetSelectionReducer : ReducerSystem<UIBattleState, SelectTargetAction>
   {
-    protected override void ReduceState(ref UIBattleState state, SelectTargetAction action)
+    public override void ReduceState(ref UIBattleState state, SelectTargetAction action)
     {
       if (action.confirmSelection) {
         // Target confirmed - store it and prepare for execution
@@ -119,7 +119,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class UIActionExecutionReducer : ReducerSystem<UIBattleState, AttackAction>
   {
-    protected override void ReduceState(ref UIBattleState state, AttackAction action)
+    public override void ReduceState(ref UIBattleState state, AttackAction action)
     {
       // Clear all UI state when attack executes
       state.selectedAction = ActionType.None;
@@ -137,7 +137,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class UISkillSelectionReducer : ReducerSystem<UIBattleState, SelectSkillAction>
   {
-    protected override void ReduceState(ref UIBattleState state, SelectSkillAction action)
+    public override void ReduceState(ref UIBattleState state, SelectSkillAction action)
     {
       state.selectedSkillId = action.skillId;
 
@@ -161,7 +161,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class UITurnChangeReducer : ReducerSystem<UIBattleState, NextTurnAction>
   {
-    protected override void ReduceState(ref UIBattleState state, NextTurnAction action)
+    public override void ReduceState(ref UIBattleState state, NextTurnAction action)
     {
       // Reset UI for next turn
       state.selectedAction = ActionType.None;
@@ -186,7 +186,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class UICancelActionReducer : ReducerSystem<UIBattleState, CancelActionAction>
   {
-    protected override void ReduceState(ref UIBattleState state, CancelActionAction action)
+    public override void ReduceState(ref UIBattleState state, CancelActionAction action)
     {
       // Go back one step in the menu hierarchy
       switch (state.activePanel) {
