@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: TurnChangeLoggingMiddleware
 // System type: StandardMiddleware
-// Generated at: 2025-09-02 00:09:58
+// Generated at: 2025-09-03 11:00:47
 // </auto-generated>
 
 using Unity.Entities;
@@ -22,17 +22,17 @@ namespace ECSReact.Samples.BattleSystem
   [UpdateBefore(typeof(SimulationSystemGroup))]
   internal partial class TurnChangeLoggingMiddleware_NextTurnAction_Bridge : SystemBase
   {
-    private TurnChangeLoggingMiddleware userMiddleware;
+    private TurnChangeLoggingMiddleware middleware;
 
     protected override void OnCreate()
     {
       base.OnCreate();
       RequireForUpdate<NextTurnAction>();
 
-      userMiddleware = World.GetOrCreateSystemManaged<TurnChangeLoggingMiddleware>();
-      if (userMiddleware.Enabled)
+      middleware = World.GetOrCreateSystemManaged<TurnChangeLoggingMiddleware>();
+      if (middleware.Enabled)
       {
-        userMiddleware.Enabled = false;
+        middleware.Enabled = false;
       }
     }
 
@@ -44,7 +44,7 @@ namespace ECSReact.Samples.BattleSystem
                  .WithAll<ActionTag>()
                  .WithEntityAccess())
       {
-        userMiddleware.ProcessAction(action.ValueRO, entity);
+        middleware.ProcessAction(action.ValueRO, entity);
       }
     }
   }

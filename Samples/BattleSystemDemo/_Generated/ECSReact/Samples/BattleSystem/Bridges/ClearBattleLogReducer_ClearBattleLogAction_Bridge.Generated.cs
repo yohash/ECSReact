@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: ClearBattleLogReducer
 // System type: StandardReducer
-// Generated at: 2025-09-02 00:09:58
+// Generated at: 2025-09-03 11:00:47
 // </auto-generated>
 
 using Unity.Entities;
@@ -21,7 +21,7 @@ namespace ECSReact.Samples.BattleSystem
   [UpdateInGroup(typeof(ReducerSystemGroup))]
   internal partial class ClearBattleLogReducer_ClearBattleLogAction_Bridge : SystemBase
   {
-    private ClearBattleLogReducer userReducer;
+    private ClearBattleLogReducer reducer;
 
     protected override void OnCreate()
     {
@@ -29,10 +29,10 @@ namespace ECSReact.Samples.BattleSystem
       RequireForUpdate<BattleLogState>();
       RequireForUpdate<ClearBattleLogAction>();
 
-      userReducer = World.GetOrCreateSystemManaged<ClearBattleLogReducer>();
-      if (userReducer.Enabled)
+      reducer = World.GetOrCreateSystemManaged<ClearBattleLogReducer>();
+      if (reducer.Enabled)
       {
-        userReducer.Enabled = false;
+        reducer.Enabled = false;
       }
     }
 
@@ -46,7 +46,7 @@ namespace ECSReact.Samples.BattleSystem
                  .WithAll<ActionTag>()
                  .WithEntityAccess())
       {
-        userReducer.ReduceState(ref state.ValueRW, action.ValueRO);
+        reducer.ReduceState(ref state.ValueRW, action.ValueRO);
       }
     }
   }

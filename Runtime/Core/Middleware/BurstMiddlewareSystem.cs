@@ -54,7 +54,7 @@ namespace ECSReact.Core
       );
     }
 
-    // No methods to override! The logic is in the struct.
+    // No methods to override: the logic is in the struct.
     // Note: No DispatchAction helper - Burst middleware can't create entities.
   }
 }

@@ -483,7 +483,7 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("  [UpdateInGroup(typeof(ReducerSystemGroup))]");
       sb.AppendLine($"  internal partial class {bridgeName} : SystemBase");
       sb.AppendLine("  {");
-      sb.AppendLine($"    private {system.className} userReducer;");
+      sb.AppendLine($"    private {system.className} reducer;");
       sb.AppendLine();
 
       sb.AppendLine("    protected override void OnCreate()");
@@ -492,10 +492,10 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine($"      RequireForUpdate<{system.stateType.Name}>();");
       sb.AppendLine($"      RequireForUpdate<{system.actionType.Name}>();");
       sb.AppendLine();
-      sb.AppendLine($"      userReducer = World.GetOrCreateSystemManaged<{system.className}>();");
-      sb.AppendLine("      if (userReducer.Enabled)");
+      sb.AppendLine($"      reducer = World.GetOrCreateSystemManaged<{system.className}>();");
+      sb.AppendLine("      if (reducer.Enabled)");
       sb.AppendLine("      {");
-      sb.AppendLine("        userReducer.Enabled = false;");
+      sb.AppendLine("        reducer.Enabled = false;");
       sb.AppendLine("      }");
       sb.AppendLine("    }");
       sb.AppendLine();
@@ -510,7 +510,7 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine($"                 .WithAll<ActionTag>()");
       sb.AppendLine($"                 .WithEntityAccess())");
       sb.AppendLine("      {");
-      sb.AppendLine($"        userReducer.ReduceState(ref state.ValueRW, action.ValueRO);");
+      sb.AppendLine($"        reducer.ReduceState(ref state.ValueRW, action.ValueRO);");
       sb.AppendLine("      }");
       sb.AppendLine("    }");
       sb.AppendLine("  }");
@@ -575,7 +575,7 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("  [UpdateBefore(typeof(SimulationSystemGroup))]");
       sb.AppendLine($"  internal partial class {bridgeName} : SystemBase");
       sb.AppendLine("  {");
-      sb.AppendLine($"    private {system.className} userMiddleware;");
+      sb.AppendLine($"    private {system.className} middleware;");
       sb.AppendLine();
 
       sb.AppendLine("    protected override void OnCreate()");
@@ -583,10 +583,10 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("      base.OnCreate();");
       sb.AppendLine($"      RequireForUpdate<{system.actionType.Name}>();");
       sb.AppendLine();
-      sb.AppendLine($"      userMiddleware = World.GetOrCreateSystemManaged<{system.className}>();");
-      sb.AppendLine("      if (userMiddleware.Enabled)");
+      sb.AppendLine($"      middleware = World.GetOrCreateSystemManaged<{system.className}>();");
+      sb.AppendLine("      if (middleware.Enabled)");
       sb.AppendLine("      {");
-      sb.AppendLine("        userMiddleware.Enabled = false;");
+      sb.AppendLine("        middleware.Enabled = false;");
       sb.AppendLine("      }");
       sb.AppendLine("    }");
       sb.AppendLine();
@@ -599,7 +599,7 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine($"                 .WithAll<ActionTag>()");
       sb.AppendLine($"                 .WithEntityAccess())");
       sb.AppendLine("      {");
-      sb.AppendLine($"        userMiddleware.ProcessAction(action.ValueRO, entity);");
+      sb.AppendLine($"        middleware.ProcessAction(action.ValueRO, entity);");
       sb.AppendLine("      }");
       sb.AppendLine("    }");
       sb.AppendLine("  }");

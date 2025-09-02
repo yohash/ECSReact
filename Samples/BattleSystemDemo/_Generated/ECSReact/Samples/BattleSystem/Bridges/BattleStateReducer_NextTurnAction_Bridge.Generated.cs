@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: BattleStateReducer
 // System type: StandardReducer
-// Generated at: 2025-09-02 00:09:58
+// Generated at: 2025-09-03 11:00:47
 // </auto-generated>
 
 using Unity.Entities;
@@ -21,7 +21,7 @@ namespace ECSReact.Samples.BattleSystem
   [UpdateInGroup(typeof(ReducerSystemGroup))]
   internal partial class BattleStateReducer_NextTurnAction_Bridge : SystemBase
   {
-    private BattleStateReducer userReducer;
+    private BattleStateReducer reducer;
 
     protected override void OnCreate()
     {
@@ -29,10 +29,10 @@ namespace ECSReact.Samples.BattleSystem
       RequireForUpdate<BattleState>();
       RequireForUpdate<NextTurnAction>();
 
-      userReducer = World.GetOrCreateSystemManaged<BattleStateReducer>();
-      if (userReducer.Enabled)
+      reducer = World.GetOrCreateSystemManaged<BattleStateReducer>();
+      if (reducer.Enabled)
       {
-        userReducer.Enabled = false;
+        reducer.Enabled = false;
       }
     }
 
@@ -46,7 +46,7 @@ namespace ECSReact.Samples.BattleSystem
                  .WithAll<ActionTag>()
                  .WithEntityAccess())
       {
-        userReducer.ReduceState(ref state.ValueRW, action.ValueRO);
+        reducer.ReduceState(ref state.ValueRW, action.ValueRO);
       }
     }
   }

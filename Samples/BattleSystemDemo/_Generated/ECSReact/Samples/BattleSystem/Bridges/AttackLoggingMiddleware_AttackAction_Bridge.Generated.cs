@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: AttackLoggingMiddleware
 // System type: StandardMiddleware
-// Generated at: 2025-09-02 00:09:58
+// Generated at: 2025-09-03 11:00:47
 // </auto-generated>
 
 using Unity.Entities;
@@ -22,17 +22,17 @@ namespace ECSReact.Samples.BattleSystem
   [UpdateBefore(typeof(SimulationSystemGroup))]
   internal partial class AttackLoggingMiddleware_AttackAction_Bridge : SystemBase
   {
-    private AttackLoggingMiddleware userMiddleware;
+    private AttackLoggingMiddleware middleware;
 
     protected override void OnCreate()
     {
       base.OnCreate();
       RequireForUpdate<AttackAction>();
 
-      userMiddleware = World.GetOrCreateSystemManaged<AttackLoggingMiddleware>();
-      if (userMiddleware.Enabled)
+      middleware = World.GetOrCreateSystemManaged<AttackLoggingMiddleware>();
+      if (middleware.Enabled)
       {
-        userMiddleware.Enabled = false;
+        middleware.Enabled = false;
       }
     }
 
@@ -44,7 +44,7 @@ namespace ECSReact.Samples.BattleSystem
                  .WithAll<ActionTag>()
                  .WithEntityAccess())
       {
-        userMiddleware.ProcessAction(action.ValueRO, entity);
+        middleware.ProcessAction(action.ValueRO, entity);
       }
     }
   }

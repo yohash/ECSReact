@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: UIActionSelectionReducer
 // System type: StandardReducer
-// Generated at: 2025-09-02 00:09:58
+// Generated at: 2025-09-03 11:00:47
 // </auto-generated>
 
 using Unity.Entities;
@@ -21,7 +21,7 @@ namespace ECSReact.Samples.BattleSystem
   [UpdateInGroup(typeof(ReducerSystemGroup))]
   internal partial class UIActionSelectionReducer_SelectActionTypeAction_Bridge : SystemBase
   {
-    private UIActionSelectionReducer userReducer;
+    private UIActionSelectionReducer reducer;
 
     protected override void OnCreate()
     {
@@ -29,10 +29,10 @@ namespace ECSReact.Samples.BattleSystem
       RequireForUpdate<UIBattleState>();
       RequireForUpdate<SelectActionTypeAction>();
 
-      userReducer = World.GetOrCreateSystemManaged<UIActionSelectionReducer>();
-      if (userReducer.Enabled)
+      reducer = World.GetOrCreateSystemManaged<UIActionSelectionReducer>();
+      if (reducer.Enabled)
       {
-        userReducer.Enabled = false;
+        reducer.Enabled = false;
       }
     }
 
@@ -46,7 +46,7 @@ namespace ECSReact.Samples.BattleSystem
                  .WithAll<ActionTag>()
                  .WithEntityAccess())
       {
-        userReducer.ReduceState(ref state.ValueRW, action.ValueRO);
+        reducer.ReduceState(ref state.ValueRW, action.ValueRO);
       }
     }
   }
