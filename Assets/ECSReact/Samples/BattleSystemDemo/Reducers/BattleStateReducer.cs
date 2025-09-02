@@ -10,7 +10,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class TurnOrderReducer : ReducerSystem<BattleState, InitializeTurnOrderAction>
   {
-    protected override void ReduceState(ref BattleState state, InitializeTurnOrderAction action)
+    public override void ReduceState(ref BattleState state, InitializeTurnOrderAction action)
     {
       state.battleActive = true;
       state.turnCount = 1;
@@ -31,7 +31,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class BattleStateReducer : ReducerSystem<BattleState, NextTurnAction>
   {
-    protected override void ReduceState(ref BattleState state, NextTurnAction action)
+    public override void ReduceState(ref BattleState state, NextTurnAction action)
     {
       if (!state.battleActive)
         return;
@@ -54,7 +54,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class AttackExecutionReducer : ReducerSystem<BattleState, AttackAction>
   {
-    protected override void ReduceState(ref BattleState state, AttackAction action)
+    public override void ReduceState(ref BattleState state, AttackAction action)
     {
       // Set phase to executing
       state.currentPhase = BattlePhase.ExecutingAction;

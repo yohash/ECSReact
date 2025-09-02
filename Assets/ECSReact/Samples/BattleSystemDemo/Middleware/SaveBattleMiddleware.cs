@@ -29,7 +29,7 @@ namespace ECSReact.Samples.BattleSystem
       }
     }
 
-    protected override void ProcessAction(SaveBattleAction action, Entity actionEntity)
+    public override void ProcessAction(SaveBattleAction action, Entity actionEntity)
     {
       // Generate filename if not provided
       string fileName = action.fileName.IsEmpty

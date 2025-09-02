@@ -10,7 +10,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class AddCharacterReducer : ReducerSystem<PartyState, AddCharacterAction>
   {
-    protected override void ReduceState(ref PartyState state, AddCharacterAction action)
+    public override void ReduceState(ref PartyState state, AddCharacterAction action)
     {
       // Create new entity for the character
       var newEntity = EntityManager.CreateEntity();
@@ -49,7 +49,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class DamageReducer : ReducerSystem<PartyState, AttackAction>
   {
-    protected override void ReduceState(ref PartyState state, AttackAction action)
+    public override void ReduceState(ref PartyState state, AttackAction action)
     {
       // Find target character in party state
       for (int i = 0; i < state.characters.Length; i++) {
@@ -92,7 +92,7 @@ namespace ECSReact.Samples.BattleSystem
   [ReducerSystem]
   public partial class DefendReducer : ReducerSystem<PartyState, SelectActionTypeAction>
   {
-    protected override void ReduceState(ref PartyState state, SelectActionTypeAction action)
+    public override void ReduceState(ref PartyState state, SelectActionTypeAction action)
     {
       if (action.actionType != ActionType.Defend)
         return;
