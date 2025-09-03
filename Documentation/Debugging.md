@@ -20,7 +20,7 @@ To debug element mounting/unmounting issues, you can add logging to your `Declar
 protected override IEnumerable<UIElement> DeclareElements()
 {
     Debug.Log($"[{GetType().Name}] Declaring elements for state: {currentState}");
-    
+
     foreach (var element in GenerateElements())
     {
         Debug.Log($"[{GetType().Name}] Declaring element: {element.Key}");
@@ -38,7 +38,7 @@ public void UpdateProps(UIProps props)
 {
     var oldProps = this.props;
     this.props = props as MyProps;
-    
+
     Debug.Log($"[{GetType().Name}] Props updated: {oldProps} → {this.props}");
     UpdateDisplay();
 }
@@ -53,13 +53,13 @@ Add this helper to any `ReactiveUIComponent` to debug element structure:
 private void DebugElementHierarchy()
 {
     Debug.Log($"=== Element Hierarchy for {GetType().Name} ===");
-    
+
     var elements = DeclareElements().ToList();
     for (int i = 0; i < elements.Count; i++)
     {
         var element = elements[i];
         Debug.Log($"  [{i}] Key: {element.Key}, Index: {element.Index}, Props: {element.Props?.GetType().Name ?? "null"}");
-        
+
         if (element.Component != null)
         {
             Debug.Log($"      Component: {element.Component.GetType().Name}");
@@ -78,27 +78,27 @@ public class ElementPerformanceTracker : MonoBehaviour
 {
     [SerializeField] private bool enableTracking = true;
     [SerializeField] private float reportInterval = 5f;
-    
+
     private Dictionary<string, int> elementCounts = new();
     private float lastReportTime;
-    
+
     void Update()
     {
         if (!enableTracking) return;
-        
+
         if (Time.time - lastReportTime > reportInterval)
         {
             ReportElementStats();
             lastReportTime = Time.time;
         }
     }
-    
+
     public void TrackElementUpdate(string componentType, int elementCount)
     {
         if (!enableTracking) return;
         elementCounts[componentType] = elementCount;
     }
-    
+
     private void ReportElementStats()
     {
         Debug.Log("=== Element Performance Report ===");
@@ -119,3 +119,4 @@ public class ElementPerformanceTracker : MonoBehaviour
 5. Debugging Tools
 6. [Examples & Patterns](Examples.md)
 7. [Best Practices](BestPractices.md)
+8. [Performance Optimization Guide](Performance.md)

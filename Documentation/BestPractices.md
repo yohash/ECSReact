@@ -90,7 +90,7 @@ The optimal pattern that leverages both React principles and ECS strengths is **
 public struct PartyState : IGameState
 {
     public FixedList512Bytes<CharacterData> characters; // Large embedded structs
-    
+
     // Finding a character requires O(n) iteration
     public CharacterData? GetCharacter(Entity entity)
     {
@@ -125,7 +125,7 @@ public partial class DamageReducer : StateReducerSystem<CharacterHealthState, De
         {
             health.current = math.max(0, health.current - action.damage);
             state.healths[action.target] = health;
-            
+
             // Update categorization if needed
             if (health.current == 0)
                 state.aliveCharacters.Remove(action.target);
@@ -184,7 +184,7 @@ public partial class BattleStateReducer : ReducerSystem<BattleState, NextTurnAct
     protected override void ReduceState(ref BattleState state, NextTurnAction action)
     {
         // Anti-pattern: Reducer reaching out to find information
-        var partyState = SceneStateManager.Instance.GetState<PartyState>(); 
+        var partyState = SceneStateManager.Instance.GetState<PartyState>();
         bool isPlayer = LookupIfPlayer(action.nextEntity, partyState);
         state.currentPhase = isPlayer ? BattlePhase.PlayerTurn : BattlePhase.EnemyTurn;
     }
@@ -203,8 +203,8 @@ public partial class BattleStateReducer : ReducerSystem<BattleState, NextTurnAct
     protected override void ReduceState(ref BattleState state, NextTurnAction action)
     {
         // Pure function: only uses state and action parameters
-        state.currentPhase = action.isPlayerTurn 
-            ? BattlePhase.PlayerTurn 
+        state.currentPhase = action.isPlayerTurn
+            ? BattlePhase.PlayerTurn
             : BattlePhase.EnemyTurn;
         state.currentTurnIndex = action.turnIndex;
     }
@@ -230,3 +230,4 @@ public partial class BattleStateReducer : ReducerSystem<BattleState, NextTurnAct
 5. [Debugging Tools](Debugging.md)
 6. [Examples & Patterns](Examples.md)
 7. Best Practices
+8. [Performance Optimization Guide](Performance.md)

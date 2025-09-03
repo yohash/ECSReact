@@ -82,7 +82,7 @@ public struct GameState : IGameState, IEquatable<GameState>
 {
     public int health;
     public int score;
-    
+
     public bool Equals(GameState other) => health == other.health && score == other.score;
 }
 ```
@@ -117,7 +117,7 @@ public partial class GameReducer : StateReducerSystem<GameState, TakeDamageActio
 public class HealthBar : ReactiveUIComponent<GameState>
 {
     [SerializeField] private Slider healthSlider;
-    
+
     public override void OnStateChanged(GameState newState)
     {
         healthSlider.value = (float)newState.health / 100f;
@@ -130,15 +130,15 @@ public class HealthBar : ReactiveUIComponent<GameState>
 ```csharp
 public class HUD : ReactiveUIComponent<GameState, PlayerState>
 {      
-    public override void OnStateChanged(GameState state) 
-    { 
+    public override void OnStateChanged(GameState state)
+    {
         // Update health, score displays
         UpdateHealthDisplay(state.health);
         UpdateScoreDisplay(state.score);
     }
-    
-    public override void OnStateChanged(PlayerState state) 
-    { 
+
+    public override void OnStateChanged(PlayerState state)
+    {
         // Update level, XP displays
         UpdateLevelDisplay(state.level);
         UpdateXPBar(state.experience);
@@ -152,17 +152,17 @@ public class HUD : ReactiveUIComponent<GameState, PlayerState>
 public class InventoryPanel : ReactiveUIComponent<InventoryState>
 {
     private InventoryState currentState;
-    
+
     public override void OnStateChanged(InventoryState newState)
     {
         currentState = newState;
         UpdateElements(); // Trigger element reconciliation
     }
-    
+
     protected override IEnumerable<UIElement> DeclareElements()
     {
         if (currentState.items == null) yield break;
-        
+
         // Create element for each inventory item
         int index = 0;
         foreach (var item in currentState.items)
@@ -170,14 +170,14 @@ public class InventoryPanel : ReactiveUIComponent<InventoryState>
             yield return UIElement.FromPrefab(
                 key: $"item_{item.id}",
                 prefabPath: "UI/InventoryItemPrefab",
-                props: new ItemProps { 
-                    ItemName = item.name, 
-                    ItemCount = item.count 
+                props: new ItemProps {
+                    ItemName = item.name,
+                    ItemCount = item.count
                 },
                 index: index++
             );
         }
-        
+
         // Show empty message when no items
         if (currentState.items.Count == 0)
         {
@@ -203,30 +203,30 @@ public class InventoryItemDisplay : ReactiveUIComponent<InventoryState>, IElemen
 {
     [SerializeField] private Text nameText;
     [SerializeField] private Text countText;
-    
+
     private ItemProps itemProps;
-    
+
     public void InitializeWithProps(UIProps props)
     {
         itemProps = props as ItemProps;
         UpdateDisplay();
     }
-    
+
     public void UpdateProps(UIProps props)
     {
         itemProps = props as ItemProps;
         UpdateDisplay();
     }
-    
+
     public override void OnStateChanged(InventoryState newState)
     {
         // Can also respond to global state if needed
     }
-    
+
     private void UpdateDisplay()
     {
         if (itemProps == null) return;
-        
+
         nameText.text = itemProps.ItemName;
         countText.text = itemProps.ItemCount.ToString();
     }
@@ -240,7 +240,7 @@ public partial class DamageValidation : MiddlewareSystem<TakeDamageAction>
 {
     protected override void ProcessAction(TakeDamageAction action, Entity entity)
     {
-        if (action.damage < 0) 
+        if (action.damage < 0)
         {
             EntityManager.AddComponent<InvalidActionTag>(entity);
             DispatchAction(new ShowErrorAction { message = "Invalid damage value" });
@@ -258,3 +258,4 @@ public partial class DamageValidation : MiddlewareSystem<TakeDamageAction>
 5. [Debugging Tools](Debugging.md)
 6. [Examples & Patterns](Examples.md)
 7. [Best Practices](BestPractices.md)
+8. [Performance Optimization Guide](Performance.md)

@@ -9,9 +9,9 @@ public struct GameState : IGameState, IEquatable<GameState>
     public int score;
     public bool gameActive;
     public float timeRemaining;
-    
-    public bool Equals(GameState other) => 
-        score == other.score && gameActive == other.gameActive && 
+
+    public bool Equals(GameState other) =>
+        score == other.score && gameActive == other.gameActive &&
         Math.Abs(timeRemaining - other.timeRemaining) < 0.01f;
 }
 
@@ -32,7 +32,7 @@ public partial class GameReducer : StateReducerSystem<GameState, AddScoreAction>
 public class ScoreDisplay : ReactiveUIComponent<GameState>
 {
     [SerializeField] private Text scoreText;
-    
+
     public override void OnStateChanged(GameState newState)
     {
         scoreText.text = $"Score: {newState.score}";
@@ -48,8 +48,8 @@ public struct InventoryState : IGameState, IEquatable<InventoryState>
 {
     public NativeArray<ItemData> items;
     public int selectedSlot;
-    
-    public bool Equals(InventoryState other) => 
+
+    public bool Equals(InventoryState other) =>
         items.SequenceEqual(other.items) && selectedSlot == other.selectedSlot;
 }
 
@@ -66,17 +66,17 @@ public class ItemDisplayProps : UIProps
 public class InventoryPanel : ReactiveUIComponent<InventoryState>
 {
     private InventoryState currentState;
-    
+
     public override void OnStateChanged(InventoryState newState)
     {
         currentState = newState;
         UpdateElements(); // Trigger element reconciliation
     }
-    
+
     protected override IEnumerable<UIElement> DeclareElements()
     {
         if (!currentState.items.IsCreated) yield break;
-        
+
         // Create an element for each inventory item
         for (int i = 0; i < currentState.items.Length; i++)
         {
@@ -94,7 +94,7 @@ public class InventoryPanel : ReactiveUIComponent<InventoryState>
                 index: i
             );
         }
-        
+
         // Show empty message when no items
         if (currentState.items.Length == 0)
         {
@@ -103,7 +103,7 @@ public class InventoryPanel : ReactiveUIComponent<InventoryState>
             );
         }
     }
-    
+
     private Sprite GetItemIcon(int itemId) => Resources.Load<Sprite>($"Icons/Item_{itemId}");
 }
 
@@ -114,37 +114,37 @@ public class InventorySlotDisplay : ReactiveUIComponent<InventoryState>, IElemen
     [SerializeField] private Text countText;
     [SerializeField] private Image iconImage;
     [SerializeField] private GameObject selectedBorder;
-    
+
     private ItemDisplayProps itemProps;
-    
+
     public void InitializeWithProps(UIProps props)
     {
         itemProps = props as ItemDisplayProps;
         UpdateDisplay();
     }
-    
+
     public void UpdateProps(UIProps props)
     {
         itemProps = props as ItemDisplayProps;
         UpdateDisplay();
     }
-    
+
     public override void OnStateChanged(InventoryState newState)
     {
         // Can respond to global inventory changes if needed
         // Props updates are handled separately
     }
-    
+
     private void UpdateDisplay()
     {
         if (itemProps == null) return;
-        
+
         nameText.text = itemProps.ItemName;
         countText.text = itemProps.ItemCount > 1 ? itemProps.ItemCount.ToString() : "";
         iconImage.sprite = itemProps.ItemIcon;
         selectedBorder.SetActive(itemProps.IsSelected);
     }
-    
+
     public void OnSlotClicked()
     {
         // Dispatch action when slot is clicked
@@ -171,13 +171,13 @@ public class PlayerStatusProps : UIProps
 public class PlayerHUD : ReactiveUIComponent<PlayerState>
 {
     private PlayerState currentState;
-    
+
     public override void OnStateChanged(PlayerState newState)
     {
         currentState = newState;
         UpdateElements();
     }
-    
+
     protected override IEnumerable<UIElement> DeclareElements()
     {
         // Main player status display
@@ -193,19 +193,19 @@ public class PlayerHUD : ReactiveUIComponent<PlayerState>
                 ActiveEffects = GetActiveEffects()
             }
         );
-        
+
         // Conditional elements based on state
         if (currentState.isInCombat)
         {
             yield return UIElement.FromComponent<CombatActionBar>("combat_actions");
         }
-        
+
         if (currentState.hasUnreadMessages)
         {
             yield return UIElement.FromComponent<MessageNotification>("messages");
         }
     }
-    
+
     private List<StatusEffect> GetActiveEffects()
     {
         // Convert from native arrays or other data structures
@@ -221,24 +221,24 @@ public class GameMenuSystem : ReactiveUIComponent<GameState, UIState>
 {
     private GameState gameState;
     private UIState uiState;
-    
+
     public override void OnStateChanged(GameState newState)
     {
         gameState = newState;
         UpdateElements();
     }
-    
+
     public override void OnStateChanged(UIState newState)
     {
         uiState = newState;
         UpdateElements();
     }
-    
+
     protected override IEnumerable<UIElement> DeclareElements()
     {
         // Always show main header
         yield return UIElement.FromComponent<GameHeader>("header");
-        
+
         // Show different panels based on game state
         if (gameState.isInMainMenu)
         {
@@ -247,7 +247,7 @@ public class GameMenuSystem : ReactiveUIComponent<GameState, UIState>
         else if (gameState.isInGame)
         {
             yield return UIElement.FromComponent<GameplayHUD>("gameplay_hud");
-            
+
             // Conditional sub-panels
             if (gameState.isInCombat)
             {
@@ -262,23 +262,23 @@ public class GameMenuSystem : ReactiveUIComponent<GameState, UIState>
         {
             yield return UIElement.FromComponent<PauseMenu>("pause_menu");
         }
-        
+
         // UI state driven elements
         if (uiState.showInventory)
         {
             yield return UIElement.FromComponent<InventoryPanel>("inventory");
         }
-        
+
         if (uiState.showSettings)
         {
             yield return UIElement.FromComponent<SettingsPanel>("settings");
         }
-        
+
         // Always show notifications at the top layer
         if (uiState.notifications.Length > 0)
         {
             yield return UIElement.FromComponent<NotificationOverlay>(
-                key: "notifications", 
+                key: "notifications",
                 index: 1000 // Force to top
             );
         }
@@ -302,24 +302,24 @@ public partial class PurchaseValidation : MiddlewareSystem<BuyItemAction>
             EntityManager.AddComponent<InvalidActionTag>(entity);
             return;
         }
-        
+
         // Validate item exists
         var itemExists = SystemAPI.GetSingleton<ItemDatabase>()
             .items.Any(item => item.id == action.itemId);
-            
+
         if (!itemExists)
         {
             DispatchAction(new ShowErrorAction { message = "Item not found" });
             EntityManager.AddComponent<InvalidActionTag>(entity);
             return;
         }
-        
+
         // Validation passed - action will proceed to reducers
-        DispatchAction(new LogTransactionAction 
-        { 
+        DispatchAction(new LogTransactionAction
+        {
             type = "purchase_attempt",
             itemId = action.itemId,
-            cost = action.cost 
+            cost = action.cost
         });
     }
 }
@@ -334,7 +334,7 @@ public partial class SaveGameMiddleware : MiddlewareSystem<SaveGameAction>
     {
         // Immediate feedback
         DispatchAction(new SaveStartedAction { fileName = action.fileName });
-        
+
         // Gather save data on main thread (ECS access required)
         var saveData = new SaveData
         {
@@ -349,12 +349,12 @@ public partial class SaveGameMiddleware : MiddlewareSystem<SaveGameAction>
             try
             {
                 await PerformSaveAsync(action.fileName.ToString(), saveData);
-                
+
                 // Queue completion result for main thread
-                QueueCompletionResult(new SaveCompletedAction 
-                { 
+                QueueCompletionResult(new SaveCompletedAction
+                {
                     fileName = action.fileName,
-                    success = true 
+                    success = true
                 });
             }
             catch (Exception ex)
@@ -368,13 +368,13 @@ public partial class SaveGameMiddleware : MiddlewareSystem<SaveGameAction>
             }
         });
     }
-    
+
     private async Task PerformSaveAsync(string fileName, SaveData data)
     {
         var json = JsonUtility.ToJson(data, prettyPrint: true);
         await File.WriteAllTextAsync($"Saves/{fileName}.json", json);
     }
-    
+
     private void QueueCompletionResult(SaveCompletedAction result)
     {
         // Use a thread-safe queue to communicate back to main thread
@@ -403,35 +403,35 @@ public class GameContentContainer : ReactiveUIComponent<GameState, UIState>
 {
     private GameState gameState;
     private UIState uiState;
-    
+
     public override void OnStateChanged(GameState newState)
     {
         gameState = newState;
         UpdateElements();
     }
-    
+
     public override void OnStateChanged(UIState newState)
     {
         uiState = newState;
         UpdateElements();
     }
-    
+
     protected override IEnumerable<UIElement> DeclareElements()
     {
         // Main game view
         yield return UIElement.FromComponent<GameWorldView>("world_view");
-        
+
         // Overlay panels - each can have their own children
         if (uiState.showCharacterSheet)
         {
             yield return UIElement.FromComponent<CharacterSheetPanel>("character_sheet");
         }
-        
+
         if (uiState.showInventory)
         {
             yield return UIElement.FromComponent<InventoryContainer>("inventory_container");
         }
-        
+
         // Modal dialogs always on top
         if (uiState.activeDialog != DialogType.None)
         {
@@ -451,7 +451,7 @@ public class CharacterSheetPanel : ReactiveUIComponent<PlayerState>
         // Static sections
         yield return UIElement.FromComponent<AttributesSection>("attributes");
         yield return UIElement.FromComponent<SkillsSection>("skills");
-        
+
         // Dynamic equipment slots
         var equipment = GetPlayerEquipment();
         foreach (var slot in equipment.slots)
@@ -474,3 +474,4 @@ public class CharacterSheetPanel : ReactiveUIComponent<PlayerState>
 5. [Debugging Tools](Debugging.md)
 6. Examples & Patterns
 7. [Best Practices](BestPractices.md)
+8. [Performance Optimization Guide](Performance.md)
