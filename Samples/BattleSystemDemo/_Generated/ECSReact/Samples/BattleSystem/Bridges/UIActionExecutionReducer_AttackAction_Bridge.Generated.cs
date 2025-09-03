@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: UIActionExecutionReducer
 // System type: StandardReducer
-// Generated at: 2025-09-03 11:00:47
+// Generated at: 2025-09-03 12:03:19
 // </auto-generated>
 
 using Unity.Entities;
@@ -41,10 +41,9 @@ namespace ECSReact.Samples.BattleSystem
       var state = SystemAPI.GetSingletonRW<UIBattleState>();
 
       // Zero-allocation iteration
-      foreach (var (action, entity) in
-               SystemAPI.Query<RefRO<AttackAction>>()
-                 .WithAll<ActionTag>()
-                 .WithEntityAccess())
+      foreach (var action in
+        SystemAPI.Query<RefRO<AttackAction>>()
+          .WithAll<ActionTag>())
       {
         reducer.ReduceState(ref state.ValueRW, action.ValueRO);
       }
