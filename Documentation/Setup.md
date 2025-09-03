@@ -14,7 +14,7 @@
 * Select your namespaces
 * Generates all required code automatically
 
-### 3. **Initialization Code (2 method calls)**
+### 3. **Initialize Code (2 method calls)**
 
 After running code generation, call these in your startup script:
 
