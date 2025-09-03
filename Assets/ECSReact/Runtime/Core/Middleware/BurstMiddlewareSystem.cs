@@ -30,8 +30,7 @@ namespace ECSReact.Core
   /// 2. Inherit from BurstMiddlewareSystem with your struct as TLogic
   /// 3. That's it! No methods to override, no boilerplate.
   /// </summary>
-  [UpdateInGroup(typeof(MiddlewareSystemGroup))]
-  [UpdateBefore(typeof(SimulationSystemGroup))]
+  [MiddlewareSystem]
   [BurstCompile]
   public abstract partial class BurstMiddlewareSystem<TAction, TLogic> : SystemBase
       where TAction : unmanaged, IGameAction

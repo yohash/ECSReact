@@ -480,7 +480,7 @@ namespace ECSReact.Editor.CodeGeneration
         sb.AppendLine("  /// </summary>");
       }
 
-      sb.AppendLine("  [UpdateInGroup(typeof(ReducerSystemGroup))]");
+      sb.AppendLine("  [ReducerSystem]");
       sb.AppendLine($"  internal partial class {bridgeName} : SystemBase");
       sb.AppendLine("  {");
       sb.AppendLine($"    private {system.className} reducer;");
@@ -527,7 +527,7 @@ namespace ECSReact.Editor.CodeGeneration
         sb.AppendLine("  /// </summary>");
       }
 
-      sb.AppendLine("  [UpdateInGroup(typeof(ReducerSystemGroup))]");
+      sb.AppendLine("  [ReducerSystem]");
       sb.AppendLine("  [BurstCompile]");
       sb.AppendLine($"  internal partial class {bridgeName} : SystemBase");
       sb.AppendLine("  {");
@@ -569,8 +569,7 @@ namespace ECSReact.Editor.CodeGeneration
         sb.AppendLine("  /// </summary>");
       }
 
-      sb.AppendLine("  [UpdateInGroup(typeof(MiddlewareSystemGroup))]");
-      sb.AppendLine("  [UpdateBefore(typeof(SimulationSystemGroup))]");
+      sb.AppendLine("  [MiddlewareSystem]");
       sb.AppendLine($"  internal partial class {bridgeName} : SystemBase");
       sb.AppendLine("  {");
       sb.AppendLine($"    private {system.className} middleware;");
@@ -614,8 +613,7 @@ namespace ECSReact.Editor.CodeGeneration
         sb.AppendLine("  /// </summary>");
       }
 
-      sb.AppendLine("  [UpdateInGroup(typeof(MiddlewareSystemGroup))]");
-      sb.AppendLine("  [UpdateBefore(typeof(SimulationSystemGroup))]");
+      sb.AppendLine("  [MiddlewareSystem]");
       sb.AppendLine("  [BurstCompile]");
       sb.AppendLine($"  internal partial class {bridgeName} : SystemBase");
       sb.AppendLine("  {");

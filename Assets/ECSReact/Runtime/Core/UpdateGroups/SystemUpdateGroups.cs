@@ -13,8 +13,8 @@ namespace ECSReact.Core
   /// Middleware handles cross-cutting concerns like validation, logging, and async operations.
   /// Runs in InitializationSystemGroup to process actions as early as possible.
   /// </summary>
-  [UpdateInGroup(typeof(InitializationSystemGroup))]
-  [UpdateAfter(typeof(BeginInitializationEntityCommandBufferSystem))]
+  [UpdateInGroup(typeof(SimulationSystemGroup))]
+  [UpdateBefore(typeof(ReducerSystemGroup))]
   public partial class MiddlewareSystemGroup : ComponentSystemGroup
   {
     protected override void OnCreate()
@@ -108,6 +108,15 @@ namespace ECSReact.Core
   public class ReducerSystemAttribute : UpdateInGroupAttribute
   {
     public ReducerSystemAttribute() : base(typeof(ReducerSystemGroup)) { }
+  }
+
+  /// <summary>
+  /// Attribute for general middleware systems that process actions before reducers.
+  /// Ensures middleware runs early in the pipeline.
+  /// </summary>
+  public class MiddlewareSystemAttribute : UpdateInGroupAttribute
+  {
+    public MiddlewareSystemAttribute() : base(typeof(MiddlewareSystemGroup)) { }
   }
 
   /// <summary>
