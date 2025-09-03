@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: AttackLoggingMiddleware
 // System type: StandardMiddleware
-// Generated at: 2025-09-03 11:00:47
+// Generated at: 2025-09-03 12:03:19
 // </auto-generated>
 
 using Unity.Entities;
@@ -40,9 +40,9 @@ namespace ECSReact.Samples.BattleSystem
     {
       // Zero-allocation iteration
       foreach (var (action, entity) in
-               SystemAPI.Query<RefRO<AttackAction>>()
-                 .WithAll<ActionTag>()
-                 .WithEntityAccess())
+        SystemAPI.Query<RefRO<AttackAction>>()
+          .WithAll<ActionTag>()
+          .WithEntityAccess())
       {
         middleware.ProcessAction(action.ValueRO, entity);
       }
