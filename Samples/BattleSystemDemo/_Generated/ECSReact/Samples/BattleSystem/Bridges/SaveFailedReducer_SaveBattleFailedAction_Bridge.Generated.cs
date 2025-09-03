@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: SaveFailedReducer
 // System type: StandardReducer
-// Generated at: 2025-09-03 12:03:19
+// Generated at: 2025-09-03 12:43:44
 // </auto-generated>
 
 using Unity.Entities;
@@ -18,7 +18,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated bridge for standard reducer: SaveFailedReducer
   /// Provides zero-allocation iteration using SystemAPI.Query.
   /// </summary>
-  [UpdateInGroup(typeof(ReducerSystemGroup))]
+  [ReducerSystem]
   internal partial class SaveFailedReducer_SaveBattleFailedAction_Bridge : SystemBase
   {
     private SaveFailedReducer reducer;

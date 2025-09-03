@@ -9,8 +9,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Middleware that intercepts all battle actions and creates log entries.
   /// Demonstrates how middleware can handle cross-cutting concerns without modifying reducers.
   /// </summary>
-  [UpdateInGroup(typeof(MiddlewareSystemGroup))]
-  [UpdateBefore(typeof(SimulationSystemGroup))]
+  [MiddlewareSystem]
   public partial class AttackLoggingMiddleware : MiddlewareSystem<AttackAction>
   {
     public override void ProcessAction(AttackAction action, Entity actionEntity)
@@ -61,7 +60,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Logs turn changes
   /// </summary>
-  [UpdateInGroup(typeof(MiddlewareSystemGroup))]
+  [MiddlewareSystem]
   public partial class TurnChangeLoggingMiddleware : MiddlewareSystem<NextTurnAction>
   {
     public override void ProcessAction(NextTurnAction action, Entity actionEntity)
@@ -108,7 +107,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Logs action selections for UI feedback
   /// </summary>
-  [UpdateInGroup(typeof(MiddlewareSystemGroup))]
+  [MiddlewareSystem]
   public partial class ActionSelectionLoggingMiddleware : MiddlewareSystem<SelectActionTypeAction>
   {
     public override void ProcessAction(SelectActionTypeAction action, Entity actionEntity)
@@ -153,7 +152,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Universal action logger for debugging - logs ALL actions
   /// </summary>
-  [UpdateInGroup(typeof(MiddlewareSystemGroup))]
+  [MiddlewareSystem]
   [UpdateAfter(typeof(AttackLoggingMiddleware))] // Run after specific loggers
   public partial class UniversalActionLogger : SystemBase
   {
