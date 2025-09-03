@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: SaveBattleMiddleware
 // System type: StandardMiddleware
-// Generated at: 2025-09-03 12:03:19
+// Generated at: 2025-09-03 12:43:44
 // </auto-generated>
 
 using Unity.Entities;
@@ -18,8 +18,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated bridge for standard middleware: SaveBattleMiddleware
   /// Provides zero-allocation iteration for middleware processing.
   /// </summary>
-  [UpdateInGroup(typeof(MiddlewareSystemGroup))]
-  [UpdateBefore(typeof(SimulationSystemGroup))]
+  [MiddlewareSystem]
   internal partial class SaveBattleMiddleware_SaveBattleAction_Bridge : SystemBase
   {
     private SaveBattleMiddleware middleware;
