@@ -116,12 +116,12 @@ namespace ECSReact.Editor.CodeGeneration
         EditorGUILayout.EndHorizontal();
 
         // Summary of what's in this namespace
-        int totalStates = discoveredNamespaces.Values.Sum(ns => ns.StateCount);
-        int totalActions = discoveredNamespaces.Values.Sum(ns => ns.ActionCount);
-        int totalReducers = discoveredNamespaces.Values.Sum(ns => ns.ReducerCount);
-        int totalBurstReducers = discoveredNamespaces.Values.Sum(ns => ns.BurstReducerCount);
-        int totalMiddleware = discoveredNamespaces.Values.Sum(ns => ns.MiddlewareCount);
-        int totalBurstMiddleware = discoveredNamespaces.Values.Sum(ns => ns.BurstMiddlewareCount);
+        int totalStates = namespaceInfo.StateCount;
+        int totalActions = namespaceInfo.ActionCount;
+        int totalReducers = namespaceInfo.ReducerCount;
+        int totalBurstReducers = namespaceInfo.BurstReducerCount;
+        int totalMiddleware = namespaceInfo.MiddlewareCount;
+        int totalBurstMiddleware = namespaceInfo.BurstMiddlewareCount;
 
         var summaryParts = new List<string>();
 
