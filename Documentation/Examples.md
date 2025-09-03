@@ -1,7 +1,8 @@
 # Examples & Patterns
 
-## Basic Game Loop
-
+<details>
+<summary>Basic Game Loop</summary>
+    
 ```csharp
 // State
 public struct GameState : IGameState, IEquatable<GameState>
@@ -39,8 +40,149 @@ public class ScoreDisplay : ReactiveUIComponent<GameState>
     }
 }
 ```
+</details>
 
-## Dynamic Element Composition
+## Elements and Props
+
+<details>
+<summary>Props-Based Communication</summary>
+
+```csharp
+// Complex props with nested data
+public class PlayerStatusProps : UIProps
+{
+    public string PlayerName { get; set; }
+    public int Health { get; set; }
+    public int MaxHealth { get; set; }
+    public int Level { get; set; }
+    public float Experience { get; set; }
+    public List<StatusEffect> ActiveEffects { get; set; }
+}
+
+// Parent creates child with rich props
+public class PlayerHUD : ReactiveUIComponent<PlayerState>
+{
+    private PlayerState currentState;
+    
+    public override void OnStateChanged(PlayerState newState)
+    {
+        currentState = newState;
+        UpdateElements();
+    }
+    
+    protected override IEnumerable<UIElement> DeclareElements()
+    {
+        // Main player status display
+        yield return UIElement.FromComponent<PlayerStatusDisplay>(
+            key: "player_status",
+            props: new PlayerStatusProps
+            {
+                PlayerName = currentState.playerName.ToString(),
+                Health = currentState.health,
+                MaxHealth = currentState.maxHealth,
+                Level = currentState.level,
+                Experience = currentState.experience,
+                ActiveEffects = GetActiveEffects()
+            }
+        );
+        
+        // Conditional elements based on state
+        if (currentState.isInCombat)
+        {
+            yield return UIElement.FromComponent<CombatActionBar>("combat_actions");
+        }
+        
+        if (currentState.hasUnreadMessages)
+        {
+            yield return UIElement.FromComponent<MessageNotification>("messages");
+        }
+    }
+    
+    private List<StatusEffect> GetActiveEffects()
+    {
+        // Convert from native arrays or other data structures
+        return currentState.statusEffects.ToArray().ToList();
+    }
+}
+```
+</details>
+
+<details>
+<summary>Conditional UI Elements</summary>
+
+```csharp
+public class GameMenuSystem : ReactiveUIComponent<GameState, UIState>
+{
+    private GameState gameState;
+    private UIState uiState;
+    
+    public override void OnStateChanged(GameState newState)
+    {
+        gameState = newState;
+        UpdateElements();
+    }
+    
+    public override void OnStateChanged(UIState newState)
+    {
+        uiState = newState;
+        UpdateElements();
+    }
+    
+    protected override IEnumerable<UIElement> DeclareElements()
+    {
+        // Always show main header
+        yield return UIElement.FromComponent<GameHeader>("header");
+        
+        // Show different panels based on game state
+        if (gameState.isInMainMenu)
+        {
+            yield return UIElement.FromComponent<MainMenuPanel>("main_menu");
+        }
+        else if (gameState.isInGame)
+        {
+            yield return UIElement.FromComponent<GameplayHUD>("gameplay_hud");
+            
+            // Conditional sub-panels
+            if (gameState.isInCombat)
+            {
+                yield return UIElement.FromComponent<CombatInterface>("combat");
+            }
+            else if (gameState.canCraft)
+            {
+                yield return UIElement.FromComponent<CraftingPanel>("crafting");
+            }
+        }
+        else if (gameState.isPaused)
+        {
+            yield return UIElement.FromComponent<PauseMenu>("pause_menu");
+        }
+        
+        // UI state driven elements
+        if (uiState.showInventory)
+        {
+            yield return UIElement.FromComponent<InventoryPanel>("inventory");
+        }
+        
+        if (uiState.showSettings)
+        {
+            yield return UIElement.FromComponent<SettingsPanel>("settings");
+        }
+        
+        // Always show notifications at the top layer
+        if (uiState.notifications.Length > 0)
+        {
+            yield return UIElement.FromComponent<NotificationOverlay>(
+                key: "notifications", 
+                index: 1000 // Force to top
+            );
+        }
+    }
+}
+```
+</details>
+
+<details>
+<summary>Dynamic Element Composition</summary>
 
 ```csharp
 // Inventory state with items
@@ -152,141 +294,155 @@ public class InventorySlotDisplay : ReactiveUIComponent<InventoryState>, IElemen
     }
 }
 ```
+</details>
 
-## Props-Based Communication
+## High-Performance Reducer Patterns
 
-```csharp
-// Complex props with nested data
-public class PlayerStatusProps : UIProps
-{
-    public string PlayerName { get; set; }
-    public int Health { get; set; }
-    public int MaxHealth { get; set; }
-    public int Level { get; set; }
-    public float Experience { get; set; }
-    public List<StatusEffect> ActiveEffects { get; set; }
-}
-
-// Parent creates child with rich props
-public class PlayerHUD : ReactiveUIComponent<PlayerState>
-{
-    private PlayerState currentState;
-
-    public override void OnStateChanged(PlayerState newState)
-    {
-        currentState = newState;
-        UpdateElements();
-    }
-
-    protected override IEnumerable<UIElement> DeclareElements()
-    {
-        // Main player status display
-        yield return UIElement.FromComponent<PlayerStatusDisplay>(
-            key: "player_status",
-            props: new PlayerStatusProps
-            {
-                PlayerName = currentState.playerName.ToString(),
-                Health = currentState.health,
-                MaxHealth = currentState.maxHealth,
-                Level = currentState.level,
-                Experience = currentState.experience,
-                ActiveEffects = GetActiveEffects()
-            }
-        );
-
-        // Conditional elements based on state
-        if (currentState.isInCombat)
-        {
-            yield return UIElement.FromComponent<CombatActionBar>("combat_actions");
-        }
-
-        if (currentState.hasUnreadMessages)
-        {
-            yield return UIElement.FromComponent<MessageNotification>("messages");
-        }
-    }
-
-    private List<StatusEffect> GetActiveEffects()
-    {
-        // Convert from native arrays or other data structures
-        return currentState.statusEffects.ToArray().ToList();
-    }
-}
-```
-
-## Conditional UI Elements
+<details>
+<summary>Particle System with Burst</summary>
 
 ```csharp
-public class GameMenuSystem : ReactiveUIComponent<GameState, UIState>
+// State for thousands of particles
+public struct ParticleSystemState : IGameState
 {
-    private GameState gameState;
-    private UIState uiState;
+    public int activeParticleCount;
+    public FixedList4096Bytes<float3> positions;
+    public FixedList4096Bytes<float3> velocities;
+    public FixedList4096Bytes<float> lifetimes;
+}
 
-    public override void OnStateChanged(GameState newState)
+// Burst-optimized particle update
+[ReducerSystem]
+public partial class ParticleReducer : BurstReducerSystem<ParticleSystemState, UpdateParticlesAction, ParticleReducer.Logic>
+{
+    [BurstCompile]
+    public struct Logic : IBurstReducer<ParticleSystemState, UpdateParticlesAction>
     {
-        gameState = newState;
-        UpdateElements();
-    }
-
-    public override void OnStateChanged(UIState newState)
-    {
-        uiState = newState;
-        UpdateElements();
-    }
-
-    protected override IEnumerable<UIElement> DeclareElements()
-    {
-        // Always show main header
-        yield return UIElement.FromComponent<GameHeader>("header");
-
-        // Show different panels based on game state
-        if (gameState.isInMainMenu)
+        public void Execute(ref ParticleSystemState state, in UpdateParticlesAction action)
         {
-            yield return UIElement.FromComponent<MainMenuPanel>("main_menu");
-        }
-        else if (gameState.isInGame)
-        {
-            yield return UIElement.FromComponent<GameplayHUD>("gameplay_hud");
-
-            // Conditional sub-panels
-            if (gameState.isInCombat)
+            // Process thousands of particles at 60fps!
+            for (int i = 0; i < state.activeParticleCount; i++)
             {
-                yield return UIElement.FromComponent<CombatInterface>("combat");
+                // Update positions (vectorized by Burst)
+                state.positions[i] += state.velocities[i] * action.deltaTime;
+                
+                // Apply gravity
+                state.velocities[i] += new float3(0, -9.8f, 0) * action.deltaTime;
+                
+                // Update lifetime
+                state.lifetimes[i] -= action.deltaTime;
+                
+                // Remove dead particles (swap with last)
+                if (state.lifetimes[i] <= 0)
+                {
+                    int lastIdx = state.activeParticleCount - 1;
+                    state.positions[i] = state.positions[lastIdx];
+                    state.velocities[i] = state.velocities[lastIdx];
+                    state.lifetimes[i] = state.lifetimes[lastIdx];
+                    state.activeParticleCount--;
+                    i--; // Check this position again
+                }
             }
-            else if (gameState.canCraft)
-            {
-                yield return UIElement.FromComponent<CraftingPanel>("crafting");
-            }
-        }
-        else if (gameState.isPaused)
-        {
-            yield return UIElement.FromComponent<PauseMenu>("pause_menu");
-        }
-
-        // UI state driven elements
-        if (uiState.showInventory)
-        {
-            yield return UIElement.FromComponent<InventoryPanel>("inventory");
-        }
-
-        if (uiState.showSettings)
-        {
-            yield return UIElement.FromComponent<SettingsPanel>("settings");
-        }
-
-        // Always show notifications at the top layer
-        if (uiState.notifications.Length > 0)
-        {
-            yield return UIElement.FromComponent<NotificationOverlay>(
-                key: "notifications",
-                index: 1000 // Force to top
-            );
         }
     }
 }
 ```
+</details>
 
-## Validation Middleware
+<details>
+<summary>Combat Damage Calculation with Burst</summary>
+
+```csharp
+// Complex damage calculation that runs thousands of times
+[ReducerSystem]
+public partial class DamageReducer : BurstReducerSystem<CombatState, DamageAction, DamageReducer.Logic>
+{
+    [BurstCompile]
+    public struct Logic : IBurstReducer<CombatState, DamageAction>
+    {
+        public void Execute(ref CombatState state, in DamageAction action)
+        {
+            // All math operations are SIMD optimized by Burst
+            float mitigation = state.armor / (state.armor + 100f);
+            float damage = action.baseDamage * (1f - mitigation);
+            
+            // Elemental resistance calculation
+            float elementMod = CalculateElementalModifier(action.element, state.resistance);
+            damage *= elementMod;
+            
+            // Critical hit
+            if (action.isCritical)
+            {
+                damage *= 2.5f;
+            }
+            
+            // Apply damage
+            state.health = math.max(0, state.health - (int)damage);
+            state.totalDamageTaken += (int)damage;
+        }
+        
+        private float CalculateElementalModifier(ElementType attack, ElementType defense)
+        {
+            // Burst-compatible switch (compiled to jump table)
+            return (attack, defense) switch
+            {
+                (ElementType.Fire, ElementType.Ice) => 2.0f,
+                (ElementType.Ice, ElementType.Fire) => 0.5f,
+                (ElementType.Lightning, ElementType.Earth) => 1.5f,
+                _ => 1.0f
+            };
+        }
+    }
+}
+```
+</details>
+
+<details>
+<summary>Burst Middleware for Input Validation</summary>
+
+```csharp
+// Validate thousands of inputs per second with zero allocations
+[MiddlewareSystem]
+public partial class InputValidationMiddleware : BurstMiddlewareSystem<MoveAction, InputValidationMiddleware.Logic>
+{
+    [BurstCompile]
+    public struct Logic : IBurstMiddleware<MoveAction>
+    {
+        public void Execute(in MoveAction action, Entity actionEntity)
+        {
+            // Validate input ranges
+            float magnitude = math.length(action.direction);
+            
+            // These checks compile to efficient branch-free code
+            bool isValid = magnitude <= 1f && 
+                          math.all(math.isfinite(action.direction)) &&
+                          action.speed >= 0f &&
+                          action.speed <= 10f;
+            
+            // In real implementation, you'd mark invalid actions
+            // (Note: Burst middleware can't dispatch new actions)
+        }
+    }
+}
+```
+</details>
+
+<details>
+<summary>Performance Tips for Burst Systems</summary>
+<br>
+
+1. **Use Unity.Mathematics**: `float3`, `math.max()`, etc. are SIMD optimized
+2. **Avoid Managed Types**: No strings, classes, or reference types
+3. **Use `in` Parameters**: Avoids copies for read-only action data
+4. **Keep Logic Pure**: No Debug.Log, file I/O, or Unity API calls
+5. **Profile the Difference**: Use Unity Profiler to see the 5-10x speedup
+
+</details>
+
+## Middlewares
+
+<details>
+<summary>Validation Middleware</summary>
 
 ```csharp
 public partial class PurchaseValidation : MiddlewareSystem<BuyItemAction>
@@ -324,8 +480,10 @@ public partial class PurchaseValidation : MiddlewareSystem<BuyItemAction>
     }
 }
 ```
+</details>
 
-## Async Operations
+<details>
+<summary>Async Operations</summary>
 
 ```csharp
 public partial class SaveGameMiddleware : MiddlewareSystem<SaveGameAction>
@@ -382,8 +540,10 @@ public partial class SaveGameMiddleware : MiddlewareSystem<SaveGameAction>
     }
 }
 ```
+</details>
 
-## Nested Component Composition
+<details>
+<summary>Nested Component Composition</summary>
 
 ```csharp
 // Top-level game container
@@ -464,6 +624,7 @@ public class CharacterSheetPanel : ReactiveUIComponent<PlayerState>
     }
 }
 ```
+</details>
 
 ## Next
 

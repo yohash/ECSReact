@@ -2,7 +2,7 @@
 
 ## Required Scene Setup
 
-### 1. **MonoBehaviours in Scene (2 required)**
+### 1. **MonoBehaviours in Scene (3 required)**
 
 * `Store` - Action dispatch singleton from UI to ECS
 * `UIEventQueue` - Frame-budgeted UI event processing
@@ -14,7 +14,7 @@
 * Select your namespaces
 * Generates all required code automatically
 
-### 3. **Initialization Code (2 method calls)**
+### 3. **Initialize Code (2 method calls)**
 
 After running code generation, call these in your startup script:
 
@@ -58,7 +58,7 @@ To get your state into the ECS world, there are two options:
 
 ### **Finish**
 
-With these 2 MonoBehaviours in scene + 2 initialization calls + code generation + state bootstrapping, you have:
+With these 3 MonoBehaviours in scene + 2 initialization calls + code generation + state bootstrapping, you have:
 
 * **Action dispatch** from UI to ECS  
 * **State change detection** and UI updates  
@@ -99,15 +99,56 @@ public struct TakeDamageAction : IGameAction
 
 ### 3. Create Reducers
 
+#### Option A: Standard Reducer (Simple, Flexible)
+
+Use for general game logic that doesn't require maximum performance:
+
 ```csharp
-public partial class GameReducer : StateReducerSystem<GameState, TakeDamageAction>
+[ReducerSystem]
+public partial class GameReducer : ReducerSystem<GameState, TakeDamageAction>
 {
-    protected override void ReduceState(ref GameState state, TakeDamageAction action)
+    public override void ReduceState(ref GameState state, TakeDamageAction action)
     {
         state.health = math.max(0, state.health - action.damage);
     }
 }
 ```
+
+#### Option B: Burst Reducer (Maximum Performance)
+
+Use for performance-critical logic (physics, particles, AI):
+
+```csharp
+[ReducerSystem]
+public partial class PhysicsReducer : BurstReducerSystem<PhysicsState, ApplyForceAction, PhysicsReducer.Logic>
+{
+    [BurstCompile]
+    public struct Logic : IBurstReducer<PhysicsState, ApplyForceAction>
+    {
+        public void Execute(ref PhysicsState state, in ApplyForceAction action)
+        {
+            var acceleration = action.force / state.mass;
+            state.velocity += acceleration * action.deltaTime;
+            state.position += state.velocity * action.deltaTime;
+        }
+    }
+}
+```
+
+#### When to Use Which?
+
+| Use **Standard Reducer** when: | Use **Burst Reducer** when: |
+|-------------------------------|----------------------------|
+| • Logic involves Unity APIs | • Processing many entities |
+| • Need debug logging | • Math-heavy calculations |
+| • Complex game rules | • Physics simulations |
+| • String operations | • Particle systems |
+| • File I/O or networking | • Combat damage calculations |
+
+Convert a standard reducer to Burst:
+1. Move logic to a struct implementing `IBurstReducer`
+2. Change base class to `BurstReducerSystem`
+3. Add `[BurstCompile]` attribute
 
 ### 4. Create UI Components
 

@@ -94,16 +94,20 @@ SceneStateManager
 ## System Base Classes
 
 ```csharp
-StateReducerSystem<TState, TAction>
+ReducerSystem<TState, TAction>
 └── ReduceState(ref TState state, TAction action)    // Override: pure state logic
+
+BurstReducerSystem<TState, TAction, TLogic>          // No methods to override
+└── TLogic : struct, IBurstReducer<TState, TAction>  // Logic in struct
+    └── Execute(ref TState state, in TAction action) // Implement: Burst-compiled logic
 
 MiddlewareSystem<T>    
 ├── ProcessAction(T action, Entity entity)           // Override: side effects
 └── DispatchAction<TNew>(TNew newAction)             // Helper: dispatch additional actions
 
-BurstMiddlewareSystem<T>    
-├── ProcessAction(T action, Entity entity)           // Override: burst-compatible side effects
-└── DispatchAction<TNew>(TNew newAction)             // Helper: dispatch additional actions
+BurstMiddlewareSystem<TAction, TLogic>               // No methods to override  
+└── TLogic : struct, IBurstMiddleware<TAction>       // Logic in struct
+    └── Execute(in TAction action, Entity entity)    // Implement: Burst-compiled logic
 
 StateChangeNotificationSystem<T>
 └── CreateStateChangeEvent(T new, T old, bool hasOld) // Override: create UI events

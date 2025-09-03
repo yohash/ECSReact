@@ -34,7 +34,7 @@ State Changes   →   StateSubscriptionHelper   →   UI Components
 **Components:**
 
 * `MiddlewareSystem<T>.cs` - Abstract base processing actions without consuming them
-* `BurstMiddlewareSystem<T>.cs` - High-performance variant for simple operations
+* `BurstMiddlewareSystem<T>.cs` - High-performance burst compatible variant
 
 **Internal Flow:**
 
@@ -59,6 +59,7 @@ Action Created   →   Middleware Pipeline     →   Continue to Reducers
 **Components:**
 
 * `ReducerSystem<TState, TAction>.cs` - State transformation logic with no side effects
+* `BurstReducerSystem<TState, TAction, TLogic>.cs` - High-performance burst compatible variant
 * `StateChangeNotificationSystem<T>.cs` - Detects changes and generates UI events
 
 **Internal Flow:**
