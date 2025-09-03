@@ -13,8 +13,7 @@ namespace ECSReact.Core
   /// Use this for middleware that needs managed code access (file I/O, Unity APIs, etc).
   /// For performance-critical middleware, use BurstMiddlewareSystem instead.
   /// </summary>
-  [UpdateInGroup(typeof(MiddlewareSystemGroup))]
-  [UpdateBefore(typeof(SimulationSystemGroup))]
+  [MiddlewareSystem]
   public abstract partial class MiddlewareSystem<T> : SystemBase
       where T : unmanaged, IGameAction
   {
