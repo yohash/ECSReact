@@ -39,9 +39,6 @@ namespace ECSReact.Core
     {
       base.OnCreate();
 
-      // Only run this system when the state singleton exists
-      RequireForUpdate<TState>();
-
       // CRITICAL: Disable this system - the generated bridge will handle execution
       Enabled = false;
     }
