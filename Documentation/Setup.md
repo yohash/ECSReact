@@ -58,7 +58,7 @@ To get your state into the ECS world, there are two options:
 
 ### **Finish**
 
-With these 2 MonoBehaviours in scene + 2 initialization calls + code generation + state bootstrapping, you have:
+With these 3 MonoBehaviours in scene + 2 initialization calls + code generation + state bootstrapping, you have:
 
 * **Action dispatch** from UI to ECS  
 * **State change detection** and UI updates  
