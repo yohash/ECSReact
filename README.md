@@ -38,3 +38,4 @@ UI Events  →  Actions  →  ECS Systems  →  State  →  UI Updates
 5. [Debugging Tools](Documentation/Debugging.md)
 6. [Examples & Patterns](Documentation/Examples.md)
 7. [Best Practices](Documentation/BestPractices.md)
+8. [Performance Optimization Guide](Documentation/Performance.md)
