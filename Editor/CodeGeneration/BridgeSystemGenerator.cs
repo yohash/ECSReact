@@ -518,11 +518,12 @@ namespace ECSReact.Editor.CodeGeneration
     private void generateBurstReducerBridge(StringBuilder sb, SystemInfo system)
     {
       string bridgeName = system.GetBridgeName();
+      string logicTypeName = GetQualifiedTypeName(system.logicType, system.namespaceName);
 
       if (generateXmlDocs) {
         sb.AppendLine("  /// <summary>");
         sb.AppendLine($"  /// Generated bridge for Burst-optimized reducer: {system.className}");
-        sb.AppendLine($"  /// Uses struct-based logic ({system.logicType.Name}) for maximum performance.");
+        sb.AppendLine($"  /// Uses struct-based logic ({logicTypeName}) for maximum performance.");
         sb.AppendLine("  /// Fully Burst-compiled with zero allocations and SIMD optimizations.");
         sb.AppendLine("  /// </summary>");
       }
@@ -531,8 +532,9 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("  [BurstCompile]");
       sb.AppendLine($"  internal partial class {bridgeName} : SystemBase");
       sb.AppendLine("  {");
-      sb.AppendLine($"    // Static logic instance - zero allocations!");
-      sb.AppendLine($"    private static readonly {system.logicType.Name} logic = default({system.logicType.Name});");
+      sb.AppendLine($"    // Static logic instance for zero allocations");
+      sb.AppendLine($"    private static readonly {logicTypeName} logic");
+      sb.AppendLine($"      = default({logicTypeName});");
       sb.AppendLine();
 
       sb.AppendLine("    protected override void OnCreate()");
@@ -605,11 +607,12 @@ namespace ECSReact.Editor.CodeGeneration
     private void generateBurstMiddlewareBridge(StringBuilder sb, SystemInfo system)
     {
       string bridgeName = system.GetBridgeName();
+      string logicTypeName = GetQualifiedTypeName(system.logicType, system.namespaceName);
 
       if (generateXmlDocs) {
         sb.AppendLine("  /// <summary>");
         sb.AppendLine($"  /// Generated bridge for Burst-optimized middleware: {system.className}");
-        sb.AppendLine($"  /// Uses struct-based logic ({system.logicType.Name}) for maximum performance.");
+        sb.AppendLine($"  /// Uses struct-based logic ({logicTypeName}) for maximum performance.");
         sb.AppendLine("  /// </summary>");
       }
 
@@ -618,7 +621,8 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine($"  internal partial class {bridgeName} : SystemBase");
       sb.AppendLine("  {");
       sb.AppendLine($"    // Static logic instance - zero allocations!");
-      sb.AppendLine($"    private static readonly {system.logicType.Name} logic = default({system.logicType.Name});");
+      sb.AppendLine($"    private static readonly {logicTypeName} logic");
+      sb.AppendLine($"      = default({logicTypeName});");
       sb.AppendLine();
 
       sb.AppendLine("    protected override void OnCreate()");
@@ -737,6 +741,28 @@ namespace ECSReact.Editor.CodeGeneration
       }
 
       return fullPath;
+    }
+
+    private string GetQualifiedTypeName(Type type, string currentNamespace)
+    {
+      if (type == null)
+        return "unknown";
+
+      string fullName = type.FullName ?? type.Name;
+
+      // Handle nested types (they use '+' in FullName, we need '.')
+      fullName = fullName.Replace('+', '.');
+
+      // Remove generic backtick notation
+      fullName = System.Text.RegularExpressions.Regex.Replace(fullName, @"`\d+", "");
+
+      // If the type is in the current namespace, we can use relative naming
+      if (!string.IsNullOrEmpty(currentNamespace) && fullName.StartsWith(currentNamespace + ".")) {
+        // Remove the namespace prefix since it will be in the same namespace
+        return fullName.Substring(currentNamespace.Length + 1);
+      }
+
+      return fullName;
     }
   }
 }

@@ -3,7 +3,7 @@
 // Do not modify this file directly - it will be overwritten
 // Generated from: TurnChangeLoggingMiddleware
 // System type: StandardMiddleware
-// Generated at: 2025-09-03 12:43:44
+// Generated at: 2025-09-03 23:04:11
 // </auto-generated>
 
 using Unity.Entities;
