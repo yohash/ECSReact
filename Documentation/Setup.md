@@ -2,7 +2,7 @@
 
 ## Required Scene Setup
 
-### 1. **MonoBehaviours in Scene (2 required)**
+### 1. **MonoBehaviours in Scene (3 required)**
 
 * `Store` - Action dispatch singleton from UI to ECS
 * `UIEventQueue` - Frame-budgeted UI event processing
