@@ -135,21 +135,6 @@ public partial class PhysicsReducer : BurstReducerSystem<PhysicsState, ApplyForc
 }
 ```
 
-#### When to Use Which?
-
-| Use **Standard Reducer** when: | Use **Burst Reducer** when: |
-|-------------------------------|----------------------------|
-| • Logic involves Unity APIs | • Processing many entities |
-| • Need debug logging | • Math-heavy calculations |
-| • Complex game rules | • Physics simulations |
-| • String operations | • Particle systems |
-| • File I/O or networking | • Combat damage calculations |
-
-Convert a standard reducer to Burst:
-1. Move logic to a struct implementing `IBurstReducer`
-2. Change base class to `BurstReducerSystem`
-3. Add `[BurstCompile]` attribute
-
 ### 4. Create UI Components
 
 **Single State:**
