@@ -18,7 +18,6 @@ namespace ECSReact.Editor.CodeGeneration
     private Dictionary<string, NamespaceGroup> namespaceGroups = new();
     private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
     private bool generateXmlDocs = true;
-    private bool showAdvancedOptions = false;
     private int totalSystemsFound = 0;
     private int totalBridgesGenerated = 0;
 
@@ -59,17 +58,10 @@ namespace ECSReact.Editor.CodeGeneration
       EditorGUILayout.EndHorizontal();
 
       // Options
-      generateXmlDocs = EditorGUILayout.Toggle("Generate XML Documentation", generateXmlDocs);
-
-      showAdvancedOptions = EditorGUILayout.Foldout(showAdvancedOptions, "Advanced Options");
-      if (showAdvancedOptions) {
-        EditorGUI.indentLevel++;
-        EditorGUILayout.HelpBox(
-          "Advanced options for fine-tuning bridge generation.\n" +
-          "Default settings are recommended for most use cases.",
-          MessageType.None);
-        EditorGUI.indentLevel--;
-      }
+      EditorGUILayout.BeginHorizontal();
+      generateXmlDocs = EditorGUILayout.Toggle("", generateXmlDocs, GUILayout.Width(30));
+      EditorGUILayout.LabelField("Generate XML Documentation");
+      EditorGUILayout.EndHorizontal();
 
       EditorGUILayout.Space();
 
@@ -157,70 +149,84 @@ namespace ECSReact.Editor.CodeGeneration
         }
       }
 
-      string summary = $"{group.namespaceName} " +
-                      $"(R:{group.StandardReducerCount}+{group.BurstReducerCount}⚡ " +
-                      $"M:{group.StandardMiddlewareCount}+{group.BurstMiddlewareCount}⚡)";
+      string name = $"  {group.namespaceName}";
+      string summary = $"(Reducers: {group.StandardReducerCount}" +
+        (group.BurstReducerCount > 0 ? $" + {group.BurstReducerCount} burst, " : ", ") +
+        $"Middleware: {group.StandardMiddlewareCount}" +
+        (group.BurstMiddlewareCount > 0 ? $" + {group.BurstMiddlewareCount} burst)" : ")");
 
-      group.isExpanded = EditorGUILayout.Foldout(group.isExpanded, summary, true);
+      group.isExpanded = EditorGUILayout.Foldout(group.isExpanded, name, true);
+      EditorGUILayout.LabelField(summary, EditorStyles.miniLabel, GUILayout.Width(200));
 
       EditorGUILayout.EndHorizontal();
 
       // Systems list
       if (group.isExpanded) {
         EditorGUI.indentLevel++;
-
-        foreach (var system in group.systems.OrderBy(s => s.className)) {
-          EditorGUILayout.BeginHorizontal();
-
-          system.includeInGeneration = EditorGUILayout.Toggle(
-            system.includeInGeneration,
-            GUILayout.Width(20));
-
-          // Icon based on system type
-          string icon = "";
-          switch (system.systemKind) {
-            case SystemType.StandardReducer:
-              icon = "📊";
-              break;
-            case SystemType.BurstReducer:
-              icon = "📊⚡";
-              break;
-            case SystemType.StandardMiddleware:
-              icon = "⚙️";
-              break;
-            case SystemType.BurstMiddleware:
-              icon = "⚙️⚡";
-              break;
-          }
-
-          EditorGUILayout.LabelField(
-            $"{icon} {system.className}",
-            GUILayout.Width(250));
-
-          EditorGUILayout.LabelField(
-            $"→ {system.GetBridgeName()}",
-            EditorStyles.miniLabel);
-
-          EditorGUILayout.EndHorizontal();
-
-          // Show type details
-          EditorGUI.indentLevel++;
-          string details = system.stateType != null
-            ? $"State: {system.stateType.Name}, Action: {system.actionType.Name}"
-            : $"Action: {system.actionType.Name}";
-
-          if (system.logicType != null) {
-            details += $", Logic: {system.logicType.Name}";
-          }
-
-          EditorGUILayout.LabelField(details, EditorStyles.miniLabel);
-          EditorGUI.indentLevel--;
-        }
-
+        drawExpandedNamespace(group);
         EditorGUI.indentLevel--;
       }
 
       EditorGUILayout.EndVertical();
+    }
+
+    private void drawExpandedNamespace(NamespaceGroup group)
+    {
+      foreach (var system in group.systems.OrderBy(s => s.className)) {
+        EditorGUILayout.BeginHorizontal();
+
+        system.includeInGeneration = EditorGUILayout.Toggle(
+          system.includeInGeneration,
+          GUILayout.Width(24));
+
+        // Icon based on system type
+        string icon = "";
+        switch (system.systemKind) {
+          case SystemType.StandardReducer:
+            icon = "📊";
+            break;
+          case SystemType.BurstReducer:
+            icon = "📊⚡";
+            break;
+          case SystemType.StandardMiddleware:
+            icon = "⚙️";
+            break;
+          case SystemType.BurstMiddleware:
+            icon = "⚙️⚡";
+            break;
+        }
+
+        EditorGUILayout.LabelField(
+          icon,
+          GUILayout.Width(60));
+
+        EditorGUILayout.LabelField(
+          $"{system.className}",
+          GUILayout.Width(240));
+
+        EditorGUILayout.LabelField(
+          $"→  {system.GetBridgeName()}",
+          EditorStyles.miniLabel);
+
+        EditorGUILayout.EndHorizontal();
+
+        // Show type details
+        EditorGUI.indentLevel++;
+        string details = $"↳  ";
+        details += system.stateType != null
+          ? $"State: {system.stateType.Name}, Action: {system.actionType.Name}"
+          : $"Action: {system.actionType.Name}";
+
+        if (system.logicType != null) {
+          details += $", Logic: {system.logicType.Name}";
+        }
+
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("", GUILayout.Width(30 + 60));
+        EditorGUILayout.LabelField(details, EditorStyles.miniLabel);
+        EditorGUILayout.EndHorizontal();
+        EditorGUI.indentLevel--;
+      }
     }
 
     private void discoverSystems()
@@ -235,8 +241,9 @@ namespace ECSReact.Editor.CodeGeneration
           // Skip Unity and system assemblies
           if (assembly.FullName.StartsWith("Unity.") ||
               assembly.FullName.StartsWith("System.") ||
-              assembly.FullName.StartsWith("mscorlib"))
+              assembly.FullName.StartsWith("mscorlib")) {
             continue;
+          }
 
           try {
             var types = assembly.GetTypes();
