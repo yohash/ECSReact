@@ -42,6 +42,90 @@ public class ScoreDisplay : ReactiveUIComponent<GameState>
 ```
 </details>
 
+<details>
+<summary>Nested Component Composition</summary>
+
+```csharp
+// Top-level game container
+public class GameContainer : ReactiveUIComponent<GameState>
+{
+    protected override IEnumerable<UIElement> DeclareElements()
+    {
+        // Create major UI sections, each with their own children
+        yield return UIElement.FromComponent<TopBarContainer>("top_bar");
+        yield return UIElement.FromComponent<GameContentContainer>("content");
+        yield return UIElement.FromComponent<BottomBarContainer>("bottom_bar");
+    }
+}
+
+// Content area that itself manages children
+public class GameContentContainer : ReactiveUIComponent<GameState, UIState>
+{
+    private GameState gameState;
+    private UIState uiState;
+
+    public override void OnStateChanged(GameState newState)
+    {
+        gameState = newState;
+        UpdateElements();
+    }
+
+    public override void OnStateChanged(UIState newState)
+    {
+        uiState = newState;
+        UpdateElements();
+    }
+
+    protected override IEnumerable<UIElement> DeclareElements()
+    {
+        // Main game view
+        yield return UIElement.FromComponent<GameWorldView>("world_view");
+
+        // Overlay panels - each can have their own children
+        if (uiState.showCharacterSheet)
+        {
+            yield return UIElement.FromComponent<CharacterSheetPanel>("character_sheet");
+        }
+
+        if (uiState.showInventory)
+        {
+            yield return UIElement.FromComponent<InventoryContainer>("inventory_container");
+        }
+
+        // Modal dialogs always on top
+        if (uiState.activeDialog != DialogType.None)
+        {
+            yield return UIElement.FromComponent<DialogContainer>(
+                key: "dialog",
+                index: 999
+            );
+        }
+    }
+}
+
+// Even leaf components can have dynamic children
+public class CharacterSheetPanel : ReactiveUIComponent<PlayerState>
+{
+    protected override IEnumerable<UIElement> DeclareElements()
+    {
+        // Static sections
+        yield return UIElement.FromComponent<AttributesSection>("attributes");
+        yield return UIElement.FromComponent<SkillsSection>("skills");
+
+        // Dynamic equipment slots
+        var equipment = GetPlayerEquipment();
+        foreach (var slot in equipment.slots)
+        {
+            yield return UIElement.FromComponent<EquipmentSlot>(
+                key: $"equipment_{slot.type}",
+                props: new EquipmentSlotProps { SlotType = slot.type, Item = slot.item }
+            );
+        }
+    }
+}
+```
+</details>
+
 ## Elements and Props
 
 <details>
@@ -537,90 +621,6 @@ public partial class SaveGameMiddleware : MiddlewareSystem<SaveGameAction>
     {
         // Use a thread-safe queue to communicate back to main thread
         MainThreadQueue.Enqueue(() => DispatchAction(result));
-    }
-}
-```
-</details>
-
-<details>
-<summary>Nested Component Composition</summary>
-
-```csharp
-// Top-level game container
-public class GameContainer : ReactiveUIComponent<GameState>
-{
-    protected override IEnumerable<UIElement> DeclareElements()
-    {
-        // Create major UI sections, each with their own children
-        yield return UIElement.FromComponent<TopBarContainer>("top_bar");
-        yield return UIElement.FromComponent<GameContentContainer>("content");
-        yield return UIElement.FromComponent<BottomBarContainer>("bottom_bar");
-    }
-}
-
-// Content area that itself manages children
-public class GameContentContainer : ReactiveUIComponent<GameState, UIState>
-{
-    private GameState gameState;
-    private UIState uiState;
-
-    public override void OnStateChanged(GameState newState)
-    {
-        gameState = newState;
-        UpdateElements();
-    }
-
-    public override void OnStateChanged(UIState newState)
-    {
-        uiState = newState;
-        UpdateElements();
-    }
-
-    protected override IEnumerable<UIElement> DeclareElements()
-    {
-        // Main game view
-        yield return UIElement.FromComponent<GameWorldView>("world_view");
-
-        // Overlay panels - each can have their own children
-        if (uiState.showCharacterSheet)
-        {
-            yield return UIElement.FromComponent<CharacterSheetPanel>("character_sheet");
-        }
-
-        if (uiState.showInventory)
-        {
-            yield return UIElement.FromComponent<InventoryContainer>("inventory_container");
-        }
-
-        // Modal dialogs always on top
-        if (uiState.activeDialog != DialogType.None)
-        {
-            yield return UIElement.FromComponent<DialogContainer>(
-                key: "dialog",
-                index: 999
-            );
-        }
-    }
-}
-
-// Even leaf components can have dynamic children
-public class CharacterSheetPanel : ReactiveUIComponent<PlayerState>
-{
-    protected override IEnumerable<UIElement> DeclareElements()
-    {
-        // Static sections
-        yield return UIElement.FromComponent<AttributesSection>("attributes");
-        yield return UIElement.FromComponent<SkillsSection>("skills");
-
-        // Dynamic equipment slots
-        var equipment = GetPlayerEquipment();
-        foreach (var slot in equipment.slots)
-        {
-            yield return UIElement.FromComponent<EquipmentSlot>(
-                key: $"equipment_{slot.type}",
-                props: new EquipmentSlotProps { SlotType = slot.type, Item = slot.item }
-            );
-        }
     }
 }
 ```
