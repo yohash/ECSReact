@@ -169,40 +169,6 @@ IElement.UpdateProps(newProps)                      // Implement: receive prop u
 element.unmount()                                    // Internal: cleanup and destroy
 ```
 
-## Usage Patterns
-
-```csharp
-// Single State Component
-public class HealthDisplay : ReactiveUIComponent<HealthState>
-{
-    public override void OnStateChanged(HealthState state) { /* update UI */ }
-}
-
-// Multi-State Component  
-public class GameHUD : ReactiveUIComponent<GameState, PlayerState>
-{
-    public override void OnStateChanged(GameState state) { /* update game UI */ }
-    public override void OnStateChanged(PlayerState state) { /* update player UI */ }
-}
-
-// Dynamic Element Composition
-public class InventoryGrid : ReactiveUIComponent<InventoryState>
-{
-    protected override IEnumerable<UIElement> DeclareElements()
-    {
-        foreach (var item in state.items)
-            yield return UIElement.FromPrefab($"item_{item.id}", "UI/Item", itemProps);
-    }
-}
-
-// Props-Based Communication
-public class ItemDisplay : ReactiveUIComponent<InventoryState>, IElement
-{
-    public void InitializeWithProps(UIProps props) { /* setup with initial data */ }
-    public void UpdateProps(UIProps props) { /* handle props changes */ }
-}
-```
-
 ## Next
 
 1. [Overview](Overview.md)
