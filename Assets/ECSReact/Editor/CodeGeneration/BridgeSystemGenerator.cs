@@ -36,13 +36,6 @@ namespace ECSReact.Editor.CodeGeneration
     private void OnGUI()
     {
       GUILayout.Label("Bridge System Generator", EditorStyles.boldLabel);
-
-      EditorGUILayout.HelpBox(
-        "This generator creates optimized bridge systems that eliminate allocations.\n" +
-        "• Standard systems: Zero allocations, good performance\n" +
-        "• Burst systems: Zero allocations, maximum performance (5-10x faster)",
-        MessageType.Info);
-
       EditorGUILayout.Space();
 
       // Output path configuration
@@ -56,6 +49,7 @@ namespace ECSReact.Editor.CodeGeneration
         }
       }
       EditorGUILayout.EndHorizontal();
+      EditorGUILayout.Space();
 
       // Options
       EditorGUILayout.BeginHorizontal();
@@ -131,6 +125,31 @@ namespace ECSReact.Editor.CodeGeneration
       EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
       EditorGUILayout.LabelField($"Total Bridges Generated: {totalBridgesGenerated}", EditorStyles.miniLabel);
       EditorGUILayout.EndHorizontal();
+
+      // Status/Help
+      EditorGUILayout.Space();
+      EditorGUILayout.HelpBox(
+          "This generator creates bridge systems that connect your abstract reducers and middleware to Unity ECS.\n\n" +
+          "The generated bridges:\n" +
+          "• Use SystemAPI.Query for zero-allocation iteration (no ToEntityArray)\n" +
+          "• Automatically disable base systems to prevent double execution\n" +
+          "• Support both standard and Burst-compiled variants\n" +
+          "• Enable up to 10x performance gains with Burst optimization\n\n" +
+          "System Types:\n" +
+          "• ReducerSystem<TState, TAction> - Standard state reduction logic\n" +
+          "• BurstReducerSystem<TState, TAction, TLogic> - Burst-compiled via struct logic\n" +
+          "• MiddlewareSystem<TAction> - Pre-processing with side effects\n" +
+          "• BurstMiddlewareSystem<TAction, TLogic> - High-performance validation\n\n" +
+          "Output Structure:\n" +
+          "• Each system generates a [SystemName]_[ActionName]_Bridge class\n" +
+          "• Files organized in namespace-specific folders\n" +
+          "• Bridges marked as internal partial classes\n\n" +
+          "Requirements:\n" +
+          "• States must implement IGameState and IComponentData\n" +
+          "• Actions must implement IGameAction and IComponentData\n" +
+          "• All types must be unmanaged (no reference fields)\n" +
+          "• Burst logic must be in structs implementing IBurstReducer/IBurstMiddleware",
+          MessageType.Info);
     }
 
     private void drawNamespaceGroup(NamespaceGroup group)

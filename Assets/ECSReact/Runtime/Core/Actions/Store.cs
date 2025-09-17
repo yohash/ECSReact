@@ -11,8 +11,9 @@ namespace ECSReact.Core
   {
     public static Store Instance { get; private set; }
 
-    private EntityCommandBuffer.ParallelWriter commandBuffer;
     private EntityCommandBufferSystem commandBufferSystem;
+    private EntityCommandBuffer currentFrameBuffer;
+    private int lastFrameCreated = -1;
 
     void Awake()
     {
@@ -36,10 +37,16 @@ namespace ECSReact.Core
     /// </summary>
     public void Dispatch<T>(T action) where T : unmanaged, IGameAction
     {
-      commandBuffer = commandBufferSystem.CreateCommandBuffer().AsParallelWriter();
-      var entity = commandBuffer.CreateEntity(0);
-      commandBuffer.AddComponent(0, entity, action);
-      commandBuffer.AddComponent(0, entity, new ActionTag());
+      int currentFrame = Time.frameCount;
+      if (lastFrameCreated != currentFrame) {
+        currentFrameBuffer = commandBufferSystem.CreateCommandBuffer();
+        lastFrameCreated = currentFrame;
+      }
+
+      // Store dispatches are synced with UI, and use non-parallel writer
+      var entity = currentFrameBuffer.CreateEntity();
+      currentFrameBuffer.AddComponent(entity, action);
+      currentFrameBuffer.AddComponent(entity, new ActionTag());
     }
   }
 }

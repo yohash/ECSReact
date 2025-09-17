@@ -32,7 +32,7 @@
       }
     }
 
-    // Clean, unique method names for each state type
+    // Unique method names for each state type
     public abstract void OnStateChanged(T1 newState);
     public abstract void OnStateChanged(T2 newState);
 

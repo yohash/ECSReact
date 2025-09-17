@@ -117,7 +117,7 @@ namespace ECSReact.Core
       await _updateSemaphore.WaitAsync(cancellationToken);
 
       try {
-        await updateElementsInternalAsync(cancellationToken);
+        await updateElementsAsync(cancellationToken);
       } catch (OperationCanceledException) {
         // Expected when component is destroyed
       } catch (Exception ex) {
@@ -130,7 +130,7 @@ namespace ECSReact.Core
     /// <summary>
     /// Internal implementation of element updates
     /// </summary>
-    private async Task updateElementsInternalAsync(CancellationToken cancellationToken)
+    internal async Task updateElementsAsync(CancellationToken cancellationToken)
     {
       var desiredElements = DeclareElements()?.ToList() ?? new List<UIElement>();
       var desiredKeys = new HashSet<string>(desiredElements.Select(e => e.Key));
@@ -138,8 +138,9 @@ namespace ECSReact.Core
       // Remove elements that are no longer desired
       var keysToRemove = _children.Keys.Where(k => !desiredKeys.Contains(k)).ToList();
       foreach (var key in keysToRemove) {
-        if (cancellationToken.IsCancellationRequested)
+        if (cancellationToken.IsCancellationRequested) {
           break;
+        }
 
         var element = _children[key];
         _children.Remove(key);
@@ -150,8 +151,9 @@ namespace ECSReact.Core
       var mountTasks = new List<Task>();
 
       foreach (var element in desiredElements) {
-        if (cancellationToken.IsCancellationRequested)
+        if (cancellationToken.IsCancellationRequested) {
           break;
+        }
 
         if (_children.TryGetValue(element.Key, out var existing)) {
           // Update existing element
