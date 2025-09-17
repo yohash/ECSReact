@@ -231,6 +231,7 @@ public class InventoryItemDisplay : ReactiveUIComponent<InventoryState>, IElemen
     [SerializeField] private Text countText;
 
     private ItemProps itemProps;
+    private InventoryState inventoryState;
 
     public void InitializeWithProps(UIProps props)
     {
@@ -246,7 +247,8 @@ public class InventoryItemDisplay : ReactiveUIComponent<InventoryState>, IElemen
 
     public override void OnStateChanged(InventoryState newState)
     {
-        // Can also respond to global state if needed
+        inventoryState = newState;
+        UpdateDisplay();
     }
 
     private void UpdateDisplay()
