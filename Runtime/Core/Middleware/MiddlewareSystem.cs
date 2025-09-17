@@ -20,7 +20,6 @@ namespace ECSReact.Core
     protected override void OnCreate()
     {
       base.OnCreate();
-
       // CRITICAL: Disable this system - the generated bridge will handle execution
       Enabled = false;
     }
@@ -48,9 +47,7 @@ namespace ECSReact.Core
     protected void DispatchAction<TNewAction>(TNewAction newAction)
         where TNewAction : unmanaged, IGameAction
     {
-      var entity = EntityManager.CreateEntity();
-      EntityManager.AddComponentData(entity, newAction);
-      EntityManager.AddComponentData(entity, new ActionTag());
+      ECSActionDispatcher.Dispatch(newAction);
     }
   }
 }

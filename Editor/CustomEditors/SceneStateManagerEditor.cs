@@ -9,7 +9,7 @@ using ECSReact.Core;
 namespace ECSReact.Editor
 {
   [CustomEditor(typeof(SceneStateManager))]
-  public class StateManagerEditor : UnityEditor.Editor
+  public class SceneStateManagerEditor : UnityEditor.Editor
   {
     private Dictionary<string, bool> namespaceFoldouts = new();
     private Dictionary<string, bool> namespaceIncludeAll = new();

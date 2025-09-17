@@ -119,7 +119,8 @@ namespace ECSReact.Editor
               actionQueue.Dequeue();
             }
           } catch (Exception e) {
-            Debug.LogError($"Failed to capture action data for {actionType.Name}: {e.Message}");
+            Debug.LogError($"Failed to capture action data for {actionType.Name}: {e.Message}\n" +
+              $"{e.StackTrace}");
           }
         }
 

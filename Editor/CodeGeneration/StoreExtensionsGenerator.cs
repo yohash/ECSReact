@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ECSReact.Core;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,7 +16,6 @@ namespace ECSReact.Editor.CodeGeneration
     private Vector2 scrollPosition;
     private Dictionary<string, NamespaceGroup> namespaceGroups = new();
     private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
-    private bool autoRefreshDiscovery = false;
     private bool generateXmlDocs = true;
     private bool useFluentNaming = true; // SpendMatter vs SpendMatterAction
 
@@ -51,9 +51,15 @@ namespace ECSReact.Editor.CodeGeneration
       EditorGUILayout.Space();
 
       // Options
-      autoRefreshDiscovery = EditorGUILayout.Toggle("Auto-refresh Discovery", autoRefreshDiscovery);
-      generateXmlDocs = EditorGUILayout.Toggle("Generate XML Documentation", generateXmlDocs);
-      useFluentNaming = EditorGUILayout.Toggle("Use Fluent Naming (remove 'Action' suffix)", useFluentNaming);
+      EditorGUILayout.BeginHorizontal();
+      generateXmlDocs = EditorGUILayout.Toggle("", generateXmlDocs, GUILayout.Width(30));
+      EditorGUILayout.LabelField("Generate XML Documentation");
+      EditorGUILayout.EndHorizontal();
+
+      EditorGUILayout.BeginHorizontal();
+      useFluentNaming = EditorGUILayout.Toggle("", useFluentNaming, GUILayout.Width(30));
+      EditorGUILayout.LabelField("Use Fluent Naming (remove 'Action' suffix)");
+      EditorGUILayout.EndHorizontal();
 
       // Discovery controls
       EditorGUILayout.BeginHorizontal();
@@ -71,7 +77,7 @@ namespace ECSReact.Editor.CodeGeneration
       int totalActions = namespaceGroups.Values.Sum(g => g.actions.Count);
 
       if (totalActions > 0) {
-        EditorGUILayout.LabelField($"Discovered {totalActions} IGameAction types in {namespaceGroups.Count} namespaces:", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField($"Discovered ({totalActions}) actions in {namespaceGroups.Count} namespaces:", EditorStyles.boldLabel);
 
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
 
@@ -119,11 +125,6 @@ namespace ECSReact.Editor.CodeGeneration
           "• Files organized in namespace-specific folders\n" +
           "• Generated methods are static extensions on the Store class",
           MessageType.Info);
-
-      // Auto-refresh
-      if (autoRefreshDiscovery && Event.current.type == EventType.Layout) {
-        discoverActionTypes();
-      }
     }
 
     private void drawNamespaceGroup(string namespaceName, NamespaceGroup group)
@@ -238,7 +239,7 @@ namespace ECSReact.Editor.CodeGeneration
           var types = assembly.GetTypes()
               .Where(t => t.IsValueType && !t.IsEnum && !t.IsGenericType)
               .Where(t => typeof(IComponentData).IsAssignableFrom(t))
-              .Where(t => t.GetInterfaces().Any(i => i.Name == "IGameAction"))
+              .Where(t => typeof(IGameAction).IsAssignableFrom(t))
               .ToList();
 
           foreach (var type in types) {
