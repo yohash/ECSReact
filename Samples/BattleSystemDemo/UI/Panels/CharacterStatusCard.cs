@@ -114,6 +114,7 @@ namespace ECSReact.Samples.BattleSystem
           }
         }
       }
+      UpdateDisplay();
     }
 
     public override void OnStateChanged(BattleState newState)
@@ -339,6 +340,9 @@ namespace ECSReact.Samples.BattleSystem
       // Update death state
       if (deathOverlay)
         deathOverlay.SetActive(!character.isAlive);
+
+      // Update elements
+      UpdateElements();
 
       // Update targeting visuals
       UpdateTargetingVisuals();

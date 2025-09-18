@@ -11,7 +11,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Monitors battle state and triggers AI decisions when it's an enemy's turn.
   /// </summary>
   [UpdateInGroup(typeof(SimulationSystemGroup))]
-  [UpdateAfter(typeof(BattleStateReducer))]
+  [UpdateAfter(typeof(ReducerSystemGroup))]
   public partial class EnemyAISystem : SystemBase
   {
     protected override void OnCreate()
@@ -115,7 +115,7 @@ namespace ECSReact.Samples.BattleSystem
       EntityManager.SetComponentData(enemy, aiState);
 
       // Dispatch thinking action for UI feedback
-      Store.Instance?.Dispatch(new AIThinkingAction
+      ECSActionDispatcher.Dispatch(new AIThinkingAction
       {
         enemyEntity = enemy,
         thinkDuration = behavior.thinkingDuration
@@ -413,7 +413,7 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Dispatch turn advance
-      Store.Instance?.Dispatch(new NextTurnAction
+      ECSActionDispatcher.Dispatch(new NextTurnAction
       {
         skipAnimation = false,
         isPlayerTurn = isPlayerTurn

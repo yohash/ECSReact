@@ -189,7 +189,7 @@ namespace ECSReact.Samples.BattleSystem
       entityManager.SetComponentData(enemy, behavior);
 
       // Dispatch action for UI feedback
-      Store.Instance?.Dispatch(new ModifyAIBehaviorAction
+      ECSActionDispatcher.Dispatch(new ModifyAIBehaviorAction
       {
         targetEntity = enemy,
         newStrategy = newStrategy,

@@ -51,12 +51,6 @@ namespace ECSReact.Samples.BattleSystem
     {
       base.Start();
 
-      // Subscribe to AI thinking events
-      if (Store.Instance != null) {
-        // In a full implementation, we'd have a proper event system
-        // For now, we'll check state changes
-      }
-
       if (indicatorPanel != null)
         indicatorPanel.SetActive(false);
     }
