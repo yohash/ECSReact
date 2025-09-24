@@ -8,7 +8,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Reducer for handling save state transitions
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class SaveStateReducer : ReducerSystem<SaveState, SaveBattleStartedAction>
   {
     public override void ReduceState(ref SaveState state, SaveBattleStartedAction action)
@@ -20,7 +20,7 @@ namespace ECSReact.Samples.BattleSystem
     }
   }
 
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class SaveCompletedReducer : ReducerSystem<SaveState, SaveBattleCompletedAction>
   {
     public override void ReduceState(ref SaveState state, SaveBattleCompletedAction action)
@@ -34,7 +34,7 @@ namespace ECSReact.Samples.BattleSystem
     }
   }
 
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class SaveFailedReducer : ReducerSystem<SaveState, SaveBattleFailedAction>
   {
     public override void ReduceState(ref SaveState state, SaveBattleFailedAction action)
@@ -49,7 +49,7 @@ namespace ECSReact.Samples.BattleSystem
   /// </summary>
   public struct ClearSaveErrorAction : IGameAction { }
 
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class ClearSaveErrorReducer : ReducerSystem<SaveState, ClearSaveErrorAction>
   {
     public override void ReduceState(ref SaveState state, ClearSaveErrorAction action)

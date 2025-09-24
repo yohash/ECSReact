@@ -28,7 +28,7 @@ namespace ECSReact.Core
   /// 
   /// The generated bridge will use your struct's Execute method with Burst optimization.
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   [BurstCompile]
   public abstract partial class BurstReducerSystem<TState, TAction, TLogic> : SystemBase
       where TState : unmanaged, IGameState

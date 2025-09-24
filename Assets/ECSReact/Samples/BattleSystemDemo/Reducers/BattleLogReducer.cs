@@ -6,7 +6,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Processes battle log actions and updates log state
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class BattleLogReducer : ReducerSystem<BattleLogState, BattleLogAction>
   {
     public override void ReduceState(ref BattleLogState state, BattleLogAction action)
@@ -38,7 +38,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Clears the battle log
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class ClearBattleLogReducer : ReducerSystem<BattleLogState, ClearBattleLogAction>
   {
     public override void ReduceState(ref BattleLogState state, ClearBattleLogAction action)

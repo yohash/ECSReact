@@ -12,7 +12,7 @@ namespace ECSReact.Core
   /// Use this for general game logic that doesn't require maximum performance.
   /// For performance-critical reducers, use BurstReducerSystem instead.
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public abstract partial class ReducerSystem<TState, TAction> : SystemBase
       where TState : unmanaged, IGameState
       where TAction : unmanaged, IGameAction

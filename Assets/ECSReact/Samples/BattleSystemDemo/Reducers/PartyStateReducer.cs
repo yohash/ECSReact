@@ -8,7 +8,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Handles adding new characters to the party state
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class AddCharacterReducer : ReducerSystem<PartyState, AddCharacterAction>
   {
     public override void ReduceState(ref PartyState state, AddCharacterAction action)
@@ -50,7 +50,7 @@ namespace ECSReact.Samples.BattleSystem
   /// This is a hot path that runs for every attack in battle - perfect for Burst!
   /// Handles damage application and health updates
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class DamageReducer : BurstReducerSystem<PartyState, AttackAction, DamageReducer.Logic>
   {
     [BurstCompile]
@@ -103,7 +103,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Handles defend action - sets defending status
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class DefendReducer : ReducerSystem<PartyState, SelectActionTypeAction>
   {
     public override void ReduceState(ref PartyState state, SelectActionTypeAction action)
