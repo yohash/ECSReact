@@ -23,11 +23,10 @@ namespace ECSReact.Editor.CodeGeneration
     private bool verboseLogging = false;
     private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
 
-    [MenuItem("ECS React/ISystem Bridge Generator")]
+    [MenuItem("ECS React/ISystem Bridge Generator", priority = 204)]
     public static void ShowWindow()
     {
       var window = GetWindow<ISystemBridgeGenerator>("ECSReact ISystem Generator");
-      window.minSize = new Vector2(600, 400);
     }
 
     private void OnEnable()
@@ -51,8 +50,7 @@ namespace ECSReact.Editor.CodeGeneration
 
     private void DrawSettings()
     {
-      EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-      EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
+      EditorGUILayout.BeginVertical();
 
       EditorGUILayout.BeginHorizontal();
       EditorGUILayout.LabelField("Output Path:", GUILayout.Width(80));
@@ -65,29 +63,44 @@ namespace ECSReact.Editor.CodeGeneration
       }
       EditorGUILayout.EndHorizontal();
 
-      generateXmlDocs = EditorGUILayout.Toggle("Generate XML Documentation", generateXmlDocs);
-      verboseLogging = EditorGUILayout.Toggle("Verbose Logging", verboseLogging);
+      // Options
+      EditorGUILayout.BeginHorizontal();
+      generateXmlDocs = EditorGUILayout.Toggle("", generateXmlDocs, GUILayout.Width(30));
+      EditorGUILayout.LabelField("Generate XML Documentation");
+      EditorGUILayout.EndHorizontal();
+
+
+      EditorGUILayout.BeginHorizontal();
+      verboseLogging = EditorGUILayout.Toggle("", verboseLogging, GUILayout.Width(30));
+      EditorGUILayout.LabelField("Verbose Logging");
+      EditorGUILayout.EndHorizontal();
 
       EditorGUILayout.EndVertical();
+
+      // Discovery controls
+      EditorGUILayout.BeginHorizontal();
+      if (GUILayout.Button("Discover Action Types")) {
+        RefreshSystemList();
+      }
+      if (GUILayout.Button("Clear Discovery")) {
+        discoveredReducers.Clear();
+        discoveredMiddleware.Clear();
+      }
+      EditorGUILayout.EndHorizontal();
+
       EditorGUILayout.Space();
     }
 
     private void DrawDiscoveredSystems()
     {
-      EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-
-      EditorGUILayout.BeginHorizontal();
-      EditorGUILayout.LabelField("Discovered Systems", EditorStyles.boldLabel);
-      if (GUILayout.Button("Refresh", GUILayout.Width(80))) {
-        RefreshSystemList();
-      }
-      EditorGUILayout.EndHorizontal();
-
       scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Height(200));
 
-      // Draw Reducers
       if (discoveredReducers.Count > 0) {
         EditorGUILayout.LabelField($"Reducers ({discoveredReducers.Count})", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+        // Draw Reducers
         foreach (var reducer in discoveredReducers) {
           EditorGUILayout.BeginHorizontal();
           reducer.shouldGenerate = EditorGUILayout.Toggle(reducer.shouldGenerate, GUILayout.Width(20));
@@ -98,6 +111,8 @@ namespace ECSReact.Editor.CodeGeneration
           EditorGUILayout.LabelField($"→ {reducer.stateType} × {reducer.actionType}", EditorStyles.miniLabel);
           EditorGUILayout.EndHorizontal();
         }
+
+        EditorGUILayout.EndVertical();
       }
 
       EditorGUILayout.Space();
@@ -105,6 +120,9 @@ namespace ECSReact.Editor.CodeGeneration
       // Draw Middleware
       if (discoveredMiddleware.Count > 0) {
         EditorGUILayout.LabelField($"Middleware ({discoveredMiddleware.Count})", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
         foreach (var middleware in discoveredMiddleware) {
           EditorGUILayout.BeginHorizontal();
           middleware.shouldGenerate = EditorGUILayout.Toggle(middleware.shouldGenerate, GUILayout.Width(20));
@@ -115,10 +133,12 @@ namespace ECSReact.Editor.CodeGeneration
           EditorGUILayout.LabelField($"→ {middleware.actionType}", EditorStyles.miniLabel);
           EditorGUILayout.EndHorizontal();
         }
+
+        EditorGUILayout.EndVertical();
       }
 
       EditorGUILayout.EndScrollView();
-      EditorGUILayout.EndVertical();
+
       EditorGUILayout.Space();
     }
 
@@ -541,7 +561,7 @@ namespace ECSReact.Editor.CodeGeneration
     {
       // Create directory structure
       string namespacePath = namespaceName.Replace('.', '/');
-      string fullPath = Path.Combine(outputPath, namespacePath, "Generated");
+      string fullPath = Path.Combine(outputPath, namespacePath, "Bridges");
 
       if (!Directory.Exists(fullPath)) {
         Directory.CreateDirectory(fullPath);
