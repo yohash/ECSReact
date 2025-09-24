@@ -27,7 +27,7 @@ namespace ECSReact.Editor.CodeGeneration
 
     private void OnEnable()
     {
-      discoverActionTypes();
+      DiscoverActionTypes();
     }
 
     private void OnGUI()
@@ -64,7 +64,7 @@ namespace ECSReact.Editor.CodeGeneration
       // Discovery controls
       EditorGUILayout.BeginHorizontal();
       if (GUILayout.Button("Discover Action Types")) {
-        discoverActionTypes();
+        DiscoverActionTypes();
       }
       if (GUILayout.Button("Clear Discovery")) {
         namespaceGroups.Clear();
@@ -226,7 +226,7 @@ namespace ECSReact.Editor.CodeGeneration
       return actionTypeName;
     }
 
-    private void discoverActionTypes()
+    private void DiscoverActionTypes()
     {
       var previousGroups = namespaceGroups.ToDictionary(a => a.Key, a => a.Value);
       namespaceGroups.Clear();
