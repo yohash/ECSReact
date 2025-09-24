@@ -13,10 +13,10 @@ namespace ECSReact.Editor.CodeGeneration
   public class StateSubscriptionHelperGenerator : EditorWindow
   {
     private Vector2 scrollPosition;
-    private Dictionary<string, NamespaceGroup> namespaceGroups = new Dictionary<string, NamespaceGroup>();
-    private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
+    private Dictionary<string, NamespaceGroup> namespaceGroups = new();
     private bool autoRefreshDiscovery = false;
     private bool generateDebugLogs = false;
+    private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
 
     [MenuItem("ECS React/Generate StateSubscriptionHelper", priority = 202)]
     public static void ShowWindow()

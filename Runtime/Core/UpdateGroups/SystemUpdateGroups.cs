@@ -105,18 +105,18 @@ namespace ECSReact.Core
   /// Attribute for reducer systems that process actions and update state.
   /// Ensures reducers run in SimulationSystemGroup after middleware but before cleanup.
   /// </summary>
-  public class ReducerSystemAttribute : UpdateInGroupAttribute
+  public class ReducerUpdateGroupAttribute : UpdateInGroupAttribute
   {
-    public ReducerSystemAttribute() : base(typeof(ReducerSystemGroup)) { }
+    public ReducerUpdateGroupAttribute() : base(typeof(ReducerSystemGroup)) { }
   }
 
   /// <summary>
   /// Attribute for general middleware systems that process actions before reducers.
   /// Ensures middleware runs early in the pipeline.
   /// </summary>
-  public class MiddlewareSystemAttribute : UpdateInGroupAttribute
+  public class MiddlewareUpdateGroupAttribute : UpdateInGroupAttribute
   {
-    public MiddlewareSystemAttribute() : base(typeof(MiddlewareSystemGroup)) { }
+    public MiddlewareUpdateGroupAttribute() : base(typeof(MiddlewareSystemGroup)) { }
   }
 
   /// <summary>

@@ -12,7 +12,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Middleware that handles async file I/O for battle saves.
   /// Demonstrates fire-and-forget async operations with proper error handling.
   /// </summary>
-  [MiddlewareSystem]
+  [MiddlewareUpdateGroup]
   public partial class SaveBattleMiddleware : MiddlewareSystem<SaveBattleAction>
   {
     private string saveDirectory;

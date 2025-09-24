@@ -7,10 +7,10 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Handles turn progression and battle phase transitions
   /// </summary>
-  [ReducerSystem]
-  public partial class TurnOrderReducer : ReducerSystem<BattleState, InitializeTurnOrderAction>
+  [Reducer]
+  public struct TurnOrderReducer : IReducer<BattleState, InitializeTurnOrderAction>
   {
-    public override void ReduceState(ref BattleState state, InitializeTurnOrderAction action)
+    public void Execute(ref BattleState state, in InitializeTurnOrderAction action, ref SystemState systemState)
     {
       state.battleActive = true;
       state.turnCount = 1;
@@ -28,10 +28,10 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Handles turn progression and battle phase transitions
   /// </summary>
-  [ReducerSystem]
-  public partial class BattleStateReducer : ReducerSystem<BattleState, NextTurnAction>
+  [Reducer]
+  public struct BattleStateReducer : IReducer<BattleState, NextTurnAction>
   {
-    public override void ReduceState(ref BattleState state, NextTurnAction action)
+    public void Execute(ref BattleState state, in NextTurnAction action, ref SystemState systemState)
     {
       if (!state.battleActive)
         return;
@@ -51,10 +51,10 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Handles attack execution and damage application
   /// </summary>
-  [ReducerSystem]
-  public partial class AttackExecutionReducer : ReducerSystem<BattleState, AttackAction>
+  [Reducer]
+  public struct AttackExecutionReducer : IReducer<BattleState, AttackAction>
   {
-    public override void ReduceState(ref BattleState state, AttackAction action)
+    public void Execute(ref BattleState state, in AttackAction action, ref SystemState systemState)
     {
       // Set phase to executing
       state.currentPhase = BattlePhase.ExecutingAction;

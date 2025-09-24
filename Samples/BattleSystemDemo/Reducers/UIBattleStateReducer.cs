@@ -8,7 +8,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Manages UI state transitions for action selection and targeting.
   /// Handles the flow from action selection → target selection → execution.
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class UIActionSelectionReducer : ReducerSystem<UIBattleState, SelectActionTypeAction>
   {
     public override void ReduceState(ref UIBattleState state, SelectActionTypeAction action)
@@ -82,7 +82,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Handles target selection for attacks and skills.
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class UITargetSelectionReducer : ReducerSystem<UIBattleState, SelectTargetAction>
   {
     public override void ReduceState(ref UIBattleState state, SelectTargetAction action)
@@ -116,7 +116,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Clears UI state when actions are executed.
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class UIActionExecutionReducer : ReducerSystem<UIBattleState, AttackAction>
   {
     public override void ReduceState(ref UIBattleState state, AttackAction action)
@@ -134,7 +134,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Handles skill selection from the skill panel.
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class UISkillSelectionReducer : ReducerSystem<UIBattleState, SelectSkillAction>
   {
     public override void ReduceState(ref UIBattleState state, SelectSkillAction action)
@@ -158,7 +158,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Resets UI state when turn changes.
   /// </summary>
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class UITurnChangeReducer : ReducerSystem<UIBattleState, NextTurnAction>
   {
     public override void ReduceState(ref UIBattleState state, NextTurnAction action)
@@ -183,7 +183,7 @@ namespace ECSReact.Samples.BattleSystem
     public Entity actingCharacter;
   }
 
-  [ReducerSystem]
+  [ReducerUpdateGroup]
   public partial class UICancelActionReducer : ReducerSystem<UIBattleState, CancelActionAction>
   {
     public override void ReduceState(ref UIBattleState state, CancelActionAction action)

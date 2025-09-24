@@ -124,7 +124,7 @@ namespace ECSReact.Core
     /// Get the parallel writer for job dispatching.
     /// Call this before scheduling jobs that need to dispatch actions.
     /// </summary>
-    public static EntityCommandBuffer.ParallelWriter GetJobDispatchBuffer(World world = null)
+    public static EntityCommandBuffer.ParallelWriter GetJobCommandBuffer(World world = null)
     {
       world ??= currentWorld ?? World.DefaultGameObjectInjectionWorld;
 
