@@ -2,7 +2,6 @@ using ECSReact.Core;
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
@@ -12,23 +11,10 @@ namespace ECSReact.Samples.BattleSystem
   /// Middleware that handles async file I/O for battle saves.
   /// Demonstrates fire-and-forget async operations with proper error handling.
   /// </summary>
-  [MiddlewareUpdateGroup]
-  public partial class SaveBattleMiddleware : MiddlewareSystem<SaveBattleAction>
+  [Middleware(DisableBurst = true)]
+  public struct SaveBattleMiddleware : IMiddleware<SaveBattleAction>
   {
-    private string saveDirectory;
-
-    protected override void OnCreate()
-    {
-      base.OnCreate();
-      saveDirectory = Path.Combine(Application.persistentDataPath, "BattleSaves");
-
-      // Ensure save directory exists
-      if (!Directory.Exists(saveDirectory)) {
-        Directory.CreateDirectory(saveDirectory);
-      }
-    }
-
-    public override void ProcessAction(SaveBattleAction action, Entity actionEntity)
+    public bool Process(ref SaveBattleAction action, ref SystemState systemState)
     {
       // Generate filename if not provided
       string fileName = action.fileName.IsEmpty
@@ -36,24 +22,34 @@ namespace ECSReact.Samples.BattleSystem
           : action.fileName.ToString();
 
       // Immediately dispatch "save started" action
-      DispatchAction(new SaveBattleStartedAction
+      ECSActionDispatcher.Dispatch(new SaveBattleStartedAction
       {
         fileName = fileName,
-        timestamp = (float)SystemAPI.Time.ElapsedTime
+        timestamp = (float)systemState.GetElapsedTime()
       });
 
       // Start async save operation (fire-and-forget)
-      _ = PerformSaveAsync(fileName, action.format);
+      var elapsedTime = (float)systemState.GetElapsedTime();
+      // Collect current game state
+      var saveData = CollectSaveData(ref systemState);
+      _ = PerformSaveAsync(fileName, action.format, saveData, elapsedTime);
+
+      return true; // Continue processing the action
     }
 
-    private async Task PerformSaveAsync(string fileName, SaveFormat format)
+    private async Task PerformSaveAsync(string fileName, SaveFormat format, BattleSaveData saveData, float elapsedTime)
     {
-      float startTime = (float)SystemAPI.Time.ElapsedTime;
+      string saveDirectory = Path.Combine(Application.persistentDataPath, "BattleSaves");
+
+      // Ensure save directory exists
+      if (!Directory.Exists(saveDirectory)) {
+        Directory.CreateDirectory(saveDirectory);
+      }
+
+      var startTime = DateTime.Now;
       string filePath = Path.Combine(saveDirectory, fileName);
 
       try {
-        // Collect current game state
-        var saveData = CollectSaveData();
 
         // Simulate some processing time for demo purposes
         await Task.Delay(UnityEngine.Random.Range(500, 1500));
@@ -63,29 +59,31 @@ namespace ECSReact.Samples.BattleSystem
 
         // Get file info
         var fileInfo = new FileInfo(filePath);
-        float duration = (float)SystemAPI.Time.ElapsedTime - startTime;
+        var duration = DateTime.Now - startTime;
 
         // Dispatch success action
-        DispatchAction(new SaveBattleCompletedAction
+        ECSActionDispatcher.Dispatch(new SaveBattleCompletedAction
         {
           fileName = fileName,
           filePath = filePath,
           fileSizeBytes = fileInfo.Length,
-          duration = duration
+          duration = (float)duration.TotalSeconds
         });
 
         // Log the successful save
-        DispatchAction(new BattleLogAction
+        var worldTime = duration.TotalSeconds + elapsedTime;
+        ECSActionDispatcher.Dispatch(new BattleLogAction
         {
           logType = LogType.System,
           message = $"Battle saved to {fileName} ({fileInfo.Length} bytes)",
           sourceEntity = Entity.Null,
           targetEntity = Entity.Null,
           numericValue = (int)fileInfo.Length,
-          timestamp = (float)SystemAPI.Time.ElapsedTime
+          // Adjusted timestamp basing off world elapsed time
+          timestamp = (float)worldTime
         });
 
-      } catch (System.Exception ex) {
+      } catch (Exception ex) {
         // Determine error type
         SaveErrorType errorType = ex switch
         {
@@ -96,7 +94,7 @@ namespace ECSReact.Samples.BattleSystem
         };
 
         // Dispatch failure action
-        DispatchAction(new SaveBattleFailedAction
+        ECSActionDispatcher.Dispatch(new SaveBattleFailedAction
         {
           fileName = fileName,
           errorMessage = ex.Message,
@@ -104,35 +102,37 @@ namespace ECSReact.Samples.BattleSystem
         });
 
         // Log the error
-        DispatchAction(new BattleLogAction
+        var duration = DateTime.Now - startTime;
+        var worldTime = duration.TotalSeconds + elapsedTime;
+        ECSActionDispatcher.Dispatch(new BattleLogAction
         {
           logType = LogType.System,
           message = $"Save failed: {ex.Message}",
           sourceEntity = Entity.Null,
           targetEntity = Entity.Null,
           numericValue = 0,
-          timestamp = (float)SystemAPI.Time.ElapsedTime
+          timestamp = (float)worldTime
         });
 
         Debug.LogError($"Save operation failed: {ex}");
       }
     }
 
-    private BattleSaveData CollectSaveData()
+    private BattleSaveData CollectSaveData(ref SystemState systemState)
     {
       var saveData = new BattleSaveData
       {
         metadata = new SaveMetadata
         {
           saveVersion = "1.0",
-          gameTime = (float)SystemAPI.Time.ElapsedTime,
-          realTime = (float)SystemAPI.Time.ElapsedTime,
+          gameTime = (float)systemState.GetElapsedTime(),
+          realTime = DateTime.Now,
           sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
         }
       };
 
       // Collect battle state
-      if (SystemAPI.TryGetSingleton<BattleState>(out var battleState)) {
+      if (systemState.TryGetSingleton<BattleState>(out var battleState)) {
         saveData.battleState = new SerializableBattleState
         {
           currentPhase = battleState.currentPhase,
@@ -145,7 +145,7 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Collect party state
-      if (SystemAPI.TryGetSingleton<PartyState>(out var partyState)) {
+      if (systemState.TryGetSingleton<PartyState>(out var partyState)) {
         var characters = new SerializableCharacterData[partyState.characters.Length];
         for (int i = 0; i < characters.Length; i++) {
           var character = partyState.characters[i];
@@ -163,7 +163,7 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Collect UI state
-      if (SystemAPI.TryGetSingleton<UIBattleState>(out var uiState)) {
+      if (systemState.TryGetSingleton<UIBattleState>(out var uiState)) {
         saveData.uiState = new SerializableUIBattleState
         {
           activePanel = uiState.activePanel,

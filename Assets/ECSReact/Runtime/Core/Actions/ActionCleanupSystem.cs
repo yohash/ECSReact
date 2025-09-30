@@ -1,26 +1,45 @@
-using Unity.Entities;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Entities;
 
 namespace ECSReact.Core
 {
   /// <summary>
-  /// System that cleans up all processed action entities at the end of each frame.
+  /// High-performance system that cleans up all processed action entities at the end of each frame.
+  /// Uses zero-allocation patterns for optimal performance in high-volume action scenarios.
   /// Runs after all other systems to ensure actions can be processed by multiple reducers.
   /// </summary>
   [BurstCompile]
   [UpdateInGroup(typeof(ActionCleanupSystemGroup))]
-  public partial class ActionCleanupSystem : SystemBase
+  public partial struct ActionCleanupSystem : ISystem
   {
-    protected override void OnUpdate()
-    {
-      var actionEntities = SystemAPI.QueryBuilder()
-        .WithAll<ActionTag>()
-        .Build()
-        .ToEntityArray(Allocator.Temp);
+    private EntityQuery actionQuery;
 
-      EntityManager.DestroyEntity(actionEntities);
-      actionEntities.Dispose();
+    [BurstCompile]
+    public void OnCreate(ref SystemState state)
+    {
+      // Cache the query for all entities with ActionTag
+      actionQuery = state.GetEntityQuery(
+        ComponentType.ReadOnly<ActionTag>()
+      );
+      state.RequireForUpdate(actionQuery);
+    }
+
+    [BurstCompile]
+    public void OnUpdate(ref SystemState state)
+    {
+      // Early exit if no actions to clean up
+      if (actionQuery.IsEmpty)
+        return;
+
+      // Zero-allocation destruction using direct iteration
+      var ecb = new EntityCommandBuffer(Allocator.TempJob);
+      foreach (var (tag, entity) in SystemAPI.Query<RefRO<ActionTag>>().WithEntityAccess()) {
+        ecb.DestroyEntity(entity);
+      }
+
+      ecb.Playback(state.EntityManager);
+      ecb.Dispose();
     }
   }
 }

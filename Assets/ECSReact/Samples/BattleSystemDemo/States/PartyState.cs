@@ -10,7 +10,7 @@ namespace ECSReact.Samples.BattleSystem
   /// </summary>
   public struct PartyState : IGameState, IEquatable<PartyState>
   {
-    public FixedList512Bytes<CharacterData> characters; // Max 8 characters
+    public FixedList4096Bytes<CharacterData> characters; // Max 8 characters
     public int activePartySize;
     public int aliveCount;
     public int enemyCount;
