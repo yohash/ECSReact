@@ -1,20 +1,22 @@
 using Unity.Entities;
 using Unity.Mathematics;
 using ECSReact.Core;
-using Unity.Burst;
 
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
   /// Handles adding new characters to the party state
   /// </summary>
-  [ReducerUpdateGroup]
-  public partial class AddCharacterReducer : ReducerSystem<PartyState, AddCharacterAction>
+  [Reducer(DisableBurst = true)]  // Allows EntityManager access
+  public struct AddCharacterReducer : IReducer<PartyState, AddCharacterAction>
   {
-    public override void ReduceState(ref PartyState state, AddCharacterAction action)
+    public void Execute(ref PartyState state, in AddCharacterAction action, ref SystemState systemState)
     {
+      // With DisableBurst = true, we can access EntityManager
+      var entityManager = systemState.EntityManager;
+
       // Create new entity for the character
-      var newEntity = EntityManager.CreateEntity();
+      var newEntity = entityManager.CreateEntity();
 
       // Create character data with full health/mana
       var newCharacter = new CharacterData
@@ -36,77 +38,82 @@ namespace ECSReact.Samples.BattleSystem
       // Update party counters
       if (action.isEnemy) {
         state.enemyCount++;
-        state.aliveEnemyCount++; // New enemies start alive
+        state.aliveEnemyCount++;  // New enemies start alive
       } else {
         state.activePartySize++;
-        state.aliveCount++; // New party members start alive
+        state.aliveCount++;       // New party members start alive
       }
     }
   }
 
-
   /// <summary>
-  /// HIGH-PERFORMANCE damage application and health updates.
   /// This is a hot path that runs for every attack in battle - perfect for Burst!
   /// Handles damage application and health updates
   /// </summary>
-  [ReducerUpdateGroup]
-  public partial class DamageReducer : BurstReducerSystem<PartyState, AttackAction, DamageReducer.Logic>
+  [Reducer]
+  public struct DamageReducer : IParallelReducer<PartyState, AttackAction, DamageReducer.Data>
   {
-    [BurstCompile]
-    public struct Logic : IBurstReducer<PartyState, AttackAction>
+    public void Execute(ref PartyState state, in AttackAction action, in Data data)
     {
-      public void Execute(ref PartyState state, in AttackAction action)
-      {
-        // Find target character in party state
-        for (int i = 0; i < state.characters.Length; i++) {
-          if (state.characters[i].entity == action.targetEntity) {
-            var character = state.characters[i];
+      // Find target character in party state
+      for (int i = 0; i < state.characters.Length; i++) {
+        if (state.characters[i].entity == action.targetEntity) {
+          var character = state.characters[i];
 
-            // BURST-OPTIMIZED damage calculation
-            // These operations are now SIMD-optimized
-            int finalDamage = action.baseDamage;
+          // BURST-OPTIMIZED damage calculation
+          // These operations are now SIMD-optimized
+          int finalDamage = action.baseDamage;
 
-            // Burst compiles this to efficient branch-free code
-            finalDamage = action.isCritical ? finalDamage * 2 : finalDamage;
+          // Burst compiles this to efficient branch-free code
+          finalDamage = action.isCritical ? finalDamage * 2 : finalDamage;
 
-            // Check defending status (bit operations are fast in Burst)
-            bool isDefending = (character.status & CharacterStatus.Defending) != 0;
-            finalDamage = isDefending ? finalDamage / 2 : finalDamage;
+          // Check defending status (bit operations are fast in Burst)
+          bool isDefending = (character.status & CharacterStatus.Defending) != 0;
+          finalDamage = isDefending ? finalDamage / 2 : finalDamage;
 
-            // Apply damage with math.max (SIMD optimized)
-            character.currentHealth = math.max(0, character.currentHealth - finalDamage);
+          // Apply damage with math.max (SIMD optimized)
+          character.currentHealth = math.max(0, character.currentHealth - finalDamage);
 
-            // Update alive status
-            if (character.currentHealth <= 0 && character.isAlive) {
-              character.isAlive = false;
+          // Update alive status
+          if (character.currentHealth <= 0 && character.isAlive) {
+            character.isAlive = false;
 
-              // Update counters (branch-predicted by CPU)
-              if (character.isEnemy)
-                state.aliveEnemyCount--;
-              else
-                state.aliveCount--;
-            }
-
-            // Clear defending status after being attacked (bit operation)
-            character.status &= ~CharacterStatus.Defending;
-
-            // Update the character back in the array
-            state.characters[i] = character;
-            break;
+            // Update counters (branch-predicted by CPU)
+            if (character.isEnemy)
+              state.aliveEnemyCount--;
+            else
+              state.aliveCount--;
           }
+
+          // Clear defending status after being attacked (bit operation)
+          character.status &= ~CharacterStatus.Defending;
+
+          // Update the character back in the array
+          state.characters[i] = character;
+          break;
         }
       }
+    }
+
+    public struct Data
+    {
+      // No extra data needed for this example, but could add config or lookups here
+    }
+
+    public Data PrepareData(ref SystemState systemState)
+    {
+      // No extra data needed for this example, but we could fetch config or time here
+      return new Data();
     }
   }
 
   /// <summary>
   /// Handles defend action - sets defending status
   /// </summary>
-  [ReducerUpdateGroup]
-  public partial class DefendReducer : ReducerSystem<PartyState, SelectActionTypeAction>
+  [Reducer]
+  public struct DefendReducer : IReducer<PartyState, SelectActionTypeAction>
   {
-    public override void ReduceState(ref PartyState state, SelectActionTypeAction action)
+    public void Execute(ref PartyState state, in SelectActionTypeAction action, ref SystemState systemState)
     {
       if (action.actionType != ActionType.Defend)
         return;

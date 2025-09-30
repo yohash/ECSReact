@@ -49,7 +49,7 @@ namespace ECSReact.Core
   /// Runs after simulation systems to ensure actions can be processed by multiple reducers.
   /// This is where ActionCleanupSystem runs to destroy all ActionTag entities.
   /// </summary>
-  [UpdateAfter(typeof(SimulationSystemGroup))]
+  [UpdateAfter(typeof(ReducerSystemGroup))]
   public partial class ActionCleanupSystemGroup : ComponentSystemGroup
   {
     protected override void OnCreate()

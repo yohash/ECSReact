@@ -1,5 +1,6 @@
 using Unity.Collections;
 using ECSReact.Core;
+using System;
 
 namespace ECSReact.Samples.BattleSystem
 {
@@ -58,7 +59,7 @@ namespace ECSReact.Samples.BattleSystem
   {
     public string saveVersion;
     public float gameTime;
-    public float realTime;
+    public DateTime realTime;
     public int turnCount;
     public string sceneName;
   }

@@ -1,6 +1,4 @@
 using Unity.Entities;
-using Unity.Collections;
-using UnityEngine;
 using ECSReact.Core;
 
 namespace ECSReact.Samples.BattleSystem
@@ -8,10 +6,10 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Reducer for handling save state transitions
   /// </summary>
-  [ReducerUpdateGroup]
-  public partial class SaveStateReducer : ReducerSystem<SaveState, SaveBattleStartedAction>
+  [Reducer]
+  public struct SaveStateReducer : IReducer<SaveState, SaveBattleStartedAction>
   {
-    public override void ReduceState(ref SaveState state, SaveBattleStartedAction action)
+    public void Execute(ref SaveState state, in SaveBattleStartedAction action, ref SystemState systemState)
     {
       state.currentStatus = SaveStatus.InProgress;
       state.currentFileName = action.fileName;
@@ -20,13 +18,14 @@ namespace ECSReact.Samples.BattleSystem
     }
   }
 
-  [ReducerUpdateGroup]
-  public partial class SaveCompletedReducer : ReducerSystem<SaveState, SaveBattleCompletedAction>
+  [Reducer]
+  public struct SaveCompletedReducer : IReducer<SaveState, SaveBattleCompletedAction>
   {
-    public override void ReduceState(ref SaveState state, SaveBattleCompletedAction action)
+    public void Execute(ref SaveState state, in SaveBattleCompletedAction action, ref SystemState systemState)
     {
       state.currentStatus = SaveStatus.Completed;
-      state.lastSaveCompletedTime = (float)SystemAPI.Time.ElapsedTime;
+
+      state.lastSaveCompletedTime = (float)systemState.WorldUnmanaged.Time.ElapsedTime;
       state.totalSavesCompleted++;
 
       // Clear any previous error
@@ -34,10 +33,10 @@ namespace ECSReact.Samples.BattleSystem
     }
   }
 
-  [ReducerUpdateGroup]
-  public partial class SaveFailedReducer : ReducerSystem<SaveState, SaveBattleFailedAction>
+  [Reducer]
+  public struct SaveFailedReducer : IReducer<SaveState, SaveBattleFailedAction>
   {
-    public override void ReduceState(ref SaveState state, SaveBattleFailedAction action)
+    public void Execute(ref SaveState state, in SaveBattleFailedAction action, ref SystemState systemState)
     {
       state.currentStatus = SaveStatus.Failed;
       state.lastErrorMessage = action.errorMessage;
@@ -49,10 +48,10 @@ namespace ECSReact.Samples.BattleSystem
   /// </summary>
   public struct ClearSaveErrorAction : IGameAction { }
 
-  [ReducerUpdateGroup]
-  public partial class ClearSaveErrorReducer : ReducerSystem<SaveState, ClearSaveErrorAction>
+  [Reducer]
+  public struct ClearSaveErrorReducer : IReducer<SaveState, ClearSaveErrorAction>
   {
-    public override void ReduceState(ref SaveState state, ClearSaveErrorAction action)
+    public void Execute(ref SaveState state, in ClearSaveErrorAction action, ref SystemState systemState)
     {
       if (state.currentStatus == SaveStatus.Failed) {
         state.currentStatus = SaveStatus.Idle;
