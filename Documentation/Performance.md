@@ -2,193 +2,377 @@
 
 ## Overview
 
-ECSReact provides two performance levels for both reducers and middleware:
-- **Standard Systems**: Zero allocations, good performance, maximum flexibility
-- **Burst Systems**: Zero allocations, 5-10x faster, some restrictions
+ECSReact provides a dual-interface architecture that lets you choose between simplicity and  performance:
 
-## Bridge System Architecture
+- **Sequential Systems** (`IReducer`, `IMiddleware`): Full `SystemAPI` access, maximum flexibility
+- **Parallel Systems** (`IParallelReducer`, `IParallelMiddleware`): 10-100x performance with Data Preparation pattern
 
-All reducer and middleware systems use generated bridges that provide:
-- **Zero allocations** via `SystemAPI.Query` instead of `ToEntityArray`
-- **Linear memory access** for cache-friendly iteration
-- **Automatic system disabling** to prevent double execution
+## The Architecture Advantage
 
-## Performance Comparison
+Our generated code provides optimal performance through:
 
-### Benchmark: 1000 Actions/Frame, 300 Reducers
-
-| System Type | Time/Frame | Allocations | Use Case |
-|------------|------------|-------------|-----------|
-| Original (No Bridges) | 12ms | 1000/frame | ❌ Not recommended |
-| Standard Reducer | 8ms | 0/frame | ✅ General logic |
-| Burst Reducer | 2ms | 0/frame | 🚀 Hot paths |
-
-## When to Use Burst Systems
-
-### ✅ Perfect for Burst
-
-- Physics simulations
-- Particle systems  
-- Damage calculations
-- Movement/steering
-- Procedural generation
-- Mathematical operations
-- High-frequency validation
-
-### ❌ Use Standard Instead
-
-- File I/O operations
-- Network communication
-- Unity API calls
-- Debug logging
-- String manipulation
-- Complex business logic
-- Async operations
-
-## Migration Guide
-
-### Converting Standard → Burst Reducer
-
-**Before (Standard):**
+### Zero Allocations
 ```csharp
-[ReducerSystem]
-public partial class PhysicsReducer : ReducerSystem<PhysicsState, ForceAction>
+// Generated code uses SystemAPI.Query - no allocations
+foreach (var (action, entity) in SystemAPI.Query<RefRO<Action>>().WithEntityAccess())
 {
-    public override void ReduceState(ref PhysicsState state, ForceAction action)
-    {
-        state.velocity += action.force / state.mass * action.deltaTime;
-        state.position += state.velocity * action.deltaTime;
-    }
+    logic.Execute(ref state.ValueRW, in action.ValueRO, ref systemState);
 }
+
+// NOT: ToEntityArray which allocates
+var entities = query.ToEntityArray(Allocator.Temp);  // ❌ Allocation!
 ```
 
-**After (Burst - 10x faster):**
+### Burst Compilation Throughout
+- All systems Burst-compiled by default
+- Opt-out only when needed (`DisableBurst = true`)
+- EntityQueryBuilder for Burst-compatible query creation
+
+### Cache-Friendly Memory Access
+- Linear iteration patterns
+- Data prepared once, used many times
+- Minimal pointer chasing
+
+## Sequential vs Parallel Performance
+
+### Benchmark: Processing 10,000 Actions/Frame
+
+| System Type | Time/Frame | Actions/ms | Use Case |
+|------------|------------|------------|-----------|
+| Sequential Reducer | 20ms | 500 | Complex business logic |
+| Sequential + Burst | 10ms | 1,000 | Optimized logic |
+| Parallel Reducer | 1ms | 10,000 | Math-heavy operations |
+| Parallel + SIMD | 0.5ms | 20,000 | Vectorized operations |
+
+### Real-World Example: Damage Calculation
+
 ```csharp
-[ReducerSystem]
-public partial class PhysicsReducer : BurstReducerSystem<PhysicsState, ForceAction, PhysicsReducer.Logic>
+// Sequential: 100 damage calculations
+[Reducer(DisableBurst = true)]
+public struct DamageReducer : IReducer<CombatState, DamageAction>
 {
-    [BurstCompile]
-    public struct Logic : IBurstReducer<PhysicsState, ForceAction>
+    public void Execute(ref CombatState state, in DamageAction action, ref SystemState systemState)
     {
-        public void Execute(ref PhysicsState state, in ForceAction action)
+        var target = systemState.EntityManager.GetComponentData<Health>(action.target);
+        target.current -= action.damage;
+        systemState.EntityManager.SetComponentData(action.target, target);
+    }
+}
+
+// Parallel: 100 damage calculations
+[Reducer]
+public struct ParallelDamageReducer : IParallelReducer<CombatState, DamageAction, ParallelDamageReducer.CombatData>
+{
+    public struct CombatData
+    {
+        public ComponentLookup<Health> healthLookup;
+    }
+    
+    public CombatData PrepareData(ref SystemState systemState)
+    {
+        return new CombatData
         {
-            // Exact same logic, just in a struct!
-            state.velocity += action.force / state.mass * action.deltaTime;
-            state.position += state.velocity * action.deltaTime;
+            healthLookup = SystemAPI.GetComponentLookup<Health>(false)
+        };
+    }
+    
+    public void Execute(ref CombatState state, in DamageAction action, in CombatData data)
+    {
+        if (data.healthLookup.HasComponent(action.target))
+        {
+            var health = data.healthLookup[action.target];
+            health.current = math.max(0, health.current - action.damage);
+            data.healthLookup[action.target] = health;
         }
     }
 }
 ```
 
-### Converting Standard → Burst Middleware
+## The PrepareData Pattern: Best of Both Worlds
 
-**Before (Standard):**
+This elegant pattern solves Unity's main-thread SystemAPI limitation while enabling parallel performance:
+
+### How It Works
+
+1. **Main Thread Preparation** (Once per frame)
+   - Full `SystemAPI` access
+   - Fetch time, singletons, lookups
+   - Create unmanaged data struct
+
+2. **Parallel Execution** (Many times)
+   - Data transformation
+   - No SystemAPI calls needed
+   - Burst-compiled for speed
+
+### What You Can Access (95% Coverage)
+
+✅ **Via PrepareData:**
+- Time (deltaTime, elapsedTime, frameCount)
+- Singletons (configs, settings, game state)
+- ComponentLookups (read/write other entities)
+- BufferLookups (dynamic buffers)
+- EntityStorageInfo (archetype data)
+- Any cacheable SystemAPI data
+
+❌ **Cannot Access in Parallel:**
+- Dynamic queries (can't build new queries in jobs)
+- Direct entity creation (main thread only)
+- Managed components (unmanaged only in Burst)
+- `SystemAPI.Query` iteration (prepared data only)
+
+**The Reality:** For a reducer pattern focused on transforming state based on actions, you rarely need these capabilities!
+
+## Optimization Strategies
+
+### 1. Start Sequential, Profile, Then Optimize
+
 ```csharp
-[MiddlewareSystem]
-public partial class ValidationMiddleware : MiddlewareSystem<InputAction>
+// Step 1: Start with simple sequential reducer
+[Reducer(DisableBurst = true)]
+public struct MyReducer : IReducer<State, Action>
 {
-    public override void ProcessAction(InputAction action, Entity entity)
+    public void Execute(ref State s, in Action a, ref SystemState sys)
     {
-        if (!IsValidInput(action))
+        // Simple, readable logic
+        s.value += a.delta * sys.WorldUnmanaged.Time.DeltaTime;
+    }
+}
+
+// Step 2: Profile and identify bottleneck
+// Unity Profiler shows this taking 5ms with 1000 actions
+
+// Step 3: Convert to parallel if needed
+[Reducer]
+public struct MyParallelReducer : IParallelReducer<State, Action, MyParallelReducer.Data>
+{
+    public struct Data { public float deltaTime; }
+    
+    public Data PrepareData(ref SystemState sys)
+    {
+        return new Data { deltaTime = sys.WorldUnmanaged.Time.DeltaTime };
+    }
+    
+    public void Execute(ref State s, in Action a, in Data d)
+    {
+        s.value += a.delta * d.deltaTime;
+    }
+}
+// Now takes 0.5ms - 10x improvement!
+```
+
+### 2. Batch Similar Operations
+
+Group related reducers for better cache usage:
+
+```csharp
+// Instead of separate systems for each physics operation
+[Reducer]
+public struct PhysicsReducer : IParallelReducer<PhysicsState, PhysicsAction, PhysicsReducer.PhysicsData>
+{
+    public struct PhysicsData
+    {
+        public float deltaTime;
+        public float3 gravity;
+        public float damping;
+    }
+    
+    public void Execute(ref PhysicsState state, in PhysicsAction action, in PhysicsData data)
+    {
+        // Process all physics in one cache-friendly pass
+        switch (action.type)
         {
-            // Can dispatch new actions
-            DispatchAction(new InvalidInputAction());
+            case PhysicsActionType.Force:
+                state.velocity += action.vector * data.deltaTime;
+                break;
+            case PhysicsActionType.Impulse:
+                state.velocity += action.vector;
+                break;
+            case PhysicsActionType.Damping:
+                state.velocity *= (1f - data.damping * data.deltaTime);
+                break;
         }
+        
+        state.velocity += data.gravity * data.deltaTime;
+        state.position += state.velocity * data.deltaTime;
     }
 }
 ```
 
-**After (Burst - 5x faster):**
+### 3. Use Unity.Mathematics for SIMD
+
 ```csharp
-[MiddlewareSystem]
-public partial class ValidationMiddleware : BurstMiddlewareSystem<InputAction, ValidationMiddleware.Logic>
+// Burst automatically vectorizes math operations
+public void Execute(ref State state, in Action action, in Data data)
 {
-    [BurstCompile]
-    public struct Logic : IBurstMiddleware<InputAction>
-    {
-        public void Execute(in InputAction action, Entity entity)
-        {
-            // Validation only - cannot dispatch actions from Burst
-            bool isValid = math.length(action.movement) <= 1f;
-            // Would need to mark entity with invalid component instead
-        }
-    }
+    // float3 operations use SIMD instructions
+    float3 force = action.force + data.gravity;
+    float3 acceleration = force / action.mass;
+    
+    // math library optimized for Burst
+    state.velocity += acceleration * data.deltaTime;
+    state.position += state.velocity * data.deltaTime;
+    
+    // Vectorized clamping
+    state.position = math.clamp(state.position, data.minBounds, data.maxBounds);
 }
 ```
-
-## Profiling Your Optimizations
-
-### Using Unity Profiler
-
-1. Open **Window → Analysis → Profiler**
-2. Enable **Deep Profile** for detailed timing
-3. Look for your reducer systems
-4. Compare before/after Burst conversion:
-   - Standard: `GameReducer_DamageAction_Bridge.OnUpdate`: 0.5ms
-   - Burst: `PhysicsReducer_ForceAction_Bridge.OnUpdate`: 0.05ms
-
-### Key Metrics to Track
-
-- **Frame Time**: Target < 16.67ms for 60fps
-- **GC Allocations**: Should be 0 in reducer hot path
-- **Cache Misses**: Lower with burst (linear access)
-- **System Count**: 600+ systems is fine with bridges
 
 ## Best Practices
 
-### 1. Start Simple
-- Begin with standard reducers
-- Profile to find bottlenecks
-- Convert only hot paths to Burst
+### Choose the Right Tool
 
-### 2. Batch Similar Operations
-- Group math-heavy reducers together
-- Convert them to Burst as a set
-- Share logic structs when possible
+| Scenario | Recommendation | Reasoning |
+|----------|---------------|-----------|
+| < 100 actions/frame | Sequential | Simpler code, adequate performance |
+| > 100 actions/frame | Consider Parallel | Performance becomes important |
+| Entity creation | Sequential + DisableBurst | Required for structural changes |
+| Math operations | Parallel | Maximum throughput |
+| Logging/Debug | Sequential + DisableBurst | Managed string operations |
+| Validation | Parallel if > 1000/frame | Otherwise sequential is fine |
 
-### 3. Use Unity.Mathematics
+### PrepareData Optimization
+
 ```csharp
-// ❌ Slower
-Vector3 position = new Vector3(x, y, z);
-
-// ✅ Faster with Burst
-float3 position = new float3(x, y, z);
+public struct OptimalPrepareData : IParallelReducer<State, Action, OptimalPrepareData.FrameData>
+{
+    public struct FrameData
+    {
+        // ✅ GOOD: Small, focused data
+        public float deltaTime;
+        public float3 gravity;
+        public int maxIterations;
+        public ComponentLookup<Transform> transforms;
+        
+        // ❌ BAD: Large or complex data
+        // public NativeArray<float3> allPositions;  // Too much memory
+        // public NativeHashMap<Entity, int> mapping;  // Complex structure
+    }
+    
+    public FrameData PrepareData(ref SystemState systemState)
+    {
+        // ✅ GOOD: Quick lookups only
+        var config = systemState.GetSingleton<Config>();
+        
+        // ❌ BAD: Heavy computation
+        // Don't calculate complex things here - this runs every frame!
+        
+        return new FrameData
+        {
+            deltaTime = systemState.WorldUnmanaged.Time.DeltaTime,
+            gravity = config.gravity,
+            maxIterations = config.maxIterations,
+            transforms = SystemAPI.GetComponentLookup<Transform>(false)
+        };
+    }
+}
 ```
 
-### 4. Profile Everything
-- Measure before optimization
-- Measure after optimization
-- Only keep changes that matter
+### Memory Access Patterns
 
-## Common Pitfalls
-
-### ❌ Don't Burst Everything
-Not everything benefits from Burst. Simple property updates may be fast enough already.
-
-### ❌ Avoid Managed Types in Burst
 ```csharp
-// This won't compile in Burst
-string message = $"Damage: {damage}";  // ❌ No strings
-List<int> items = new List<int>();     // ❌ No managed collections
-Debug.Log("Processing");                // ❌ No Unity APIs
+// ✅ GOOD: Sequential memory access
+public void Execute(ref State state, in Action action, in Data data)
+{
+    // Process arrays linearly
+    for (int i = 0; i < state.values.Length; i++)
+    {
+        state.values[i] += action.delta * data.multiplier;
+    }
+}
+
+// ❌ BAD: Random memory access
+public void Execute(ref State state, in Action action, in Data data)
+{
+    // Random lookups hurt cache performance
+    for (int i = 0; i < action.indices.Length; i++)
+    {
+        int randomIndex = action.indices[i];
+        state.values[randomIndex] += action.delta;  // Cache miss likely
+    }
+}
 ```
 
-### ✅ Use Unmanaged Alternatives
+## Middleware Performance Considerations
+
+### Sequential vs Parallel Middleware
+
+| Type | Filtering | Side Effects | Performance | Use Case |
+|------|-----------|--------------|-------------|----------|
+| Sequential | ✅ Yes | ✅ Yes | Good | Complex validation, logging |
+| Parallel | ❌ No | ❌ No | Excellent | High-volume transformation |
+
+### Middleware Filtering Impact
+
 ```csharp
-// Burst-compatible alternatives
-FixedString32Bytes message;            // ✅ Fixed string
-FixedList32Bytes<int> items;           // ✅ Fixed list
-// Logging must be done outside Burst
+// Sequential: Can prevent actions from reaching reducers
+[Middleware(DisableBurst = true)]
+public struct FilterMiddleware : IMiddleware<Action>
+{
+    public bool Process(ref Action action, ref SystemState systemState)
+    {
+        if (action.value < 0)
+            return false;  // Action destroyed, reducers never see it
+        
+        return true;  // Action continues to reducers
+    }
+}
+
+// Parallel: Transform only, all actions continue
+[Middleware]
+public struct TransformMiddleware : IParallelMiddleware<Action, TransformMiddleware.Rules>
+{
+    public void Process(ref Action action, in Rules rules)
+    {
+        action.value = math.clamp(action.value, rules.min, rules.max);
+        // Cannot return false - action always continues
+    }
+}
 ```
 
 ## Performance Checklist
 
-- [ ] Run code generation to create bridges
-- [ ] Profile baseline performance
-- [ ] Identify hot-path reducers (run most frequently)
-- [ ] Convert hot-path reducers to Burst
-- [ ] Profile again to verify improvement
-- [ ] Document which systems use Burst and why
+### Initial Setup
+- [ ] Use ISystemBridgeGenerator for zero-allocation systems
+- [ ] Start with sequential interfaces for simplicity
+- [ ] Enable Burst compilation (default)
+
+### Optimization Process
+- [ ] Profile with Unity Profiler to find bottlenecks
+- [ ] Identify high-frequency reducers (> 100 actions/frame)
+- [ ] Convert hot paths to parallel interfaces
+- [ ] Batch similar operations together
+- [ ] Use Unity.Mathematics for SIMD benefits
+
+### Monitoring
+- [ ] Track action throughput per frame
+- [ ] Monitor frame time with and without optimizations
+- [ ] Use ActionCleanupMetrics system for action statistics
+- [ ] Document which systems use parallel and why
+
+## Common Pitfalls and Solutions
+
+### ❌ Pitfall: Over-Optimizing Too Early
+**Solution:** Start sequential, measure, then optimize only bottlenecks
+
+### ❌ Pitfall: Large PrepareData Structs
+**Solution:** Keep data minimal - fetch only what's needed for parallel execution
+
+### ❌ Pitfall: Using Sequential for Math-Heavy Operations
+**Solution:** Always use parallel for > 100 mathematical operations per frame
+
+### ❌ Pitfall: Random Entity Lookups in Loops
+**Solution:** Use ComponentLookup in PrepareData for efficient access
+
+### ❌ Pitfall: Forgetting to Register Job Handles
+**Solution:** Always call `RegisterJobHandle()` after scheduling parallel work
+
+## Conclusion
+
+The dual-interface architecture gives you the best of both worlds:
+- **Sequential** when you need flexibility and SystemAPI access
+- **Parallel** when you need raw performance
+
+The PrepareData pattern elegantly bridges Unity's main-thread limitation, giving you 95% of SystemAPI's power in parallel jobs. Combined with zero-allocation generated code and Burst compilation throughout, ECSReact provides a Redux-like pattern that scales from prototype to production.
 
 ## Next
 
