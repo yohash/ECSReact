@@ -380,247 +380,155 @@ public class InventorySlotDisplay : ReactiveUIComponent<InventoryState>, IElemen
 ```
 </details>
 
-## High-Performance Reducer Patterns
+## Reducer Patterns
 
 <details>
-<summary>Particle System with Burst</summary>
+<summary>Sequential Reducer with Entity Creation</summary>
 
 ```csharp
-// State for thousands of particles
-public struct ParticleSystemState : IGameState
+[Reducer(DisableBurst = true)]  // Required for EntityManager access
+public struct AddCharacterReducer : IReducer<PartyState, AddCharacterAction>
 {
-    public int activeParticleCount;
-    public FixedList4096Bytes<float3> positions;
-    public FixedList4096Bytes<float3> velocities;
-    public FixedList4096Bytes<float> lifetimes;
-}
-
-// Burst-optimized particle update
-[ReducerSystem]
-public partial class ParticleReducer : BurstReducerSystem<ParticleSystemState, UpdateParticlesAction, ParticleReducer.Logic>
-{
-    [BurstCompile]
-    public struct Logic : IBurstReducer<ParticleSystemState, UpdateParticlesAction>
+    public void Execute(ref PartyState state, in AddCharacterAction action, ref SystemState systemState)
     {
-        public void Execute(ref ParticleSystemState state, in UpdateParticlesAction action)
-        {
-            // Process thousands of particles at 60fps!
-            for (int i = 0; i < state.activeParticleCount; i++)
-            {
-                // Update positions (vectorized by Burst)
-                state.positions[i] += state.velocities[i] * action.deltaTime;
-                
-                // Apply gravity
-                state.velocities[i] += new float3(0, -9.8f, 0) * action.deltaTime;
-                
-                // Update lifetime
-                state.lifetimes[i] -= action.deltaTime;
-                
-                // Remove dead particles (swap with last)
-                if (state.lifetimes[i] <= 0)
-                {
-                    int lastIdx = state.activeParticleCount - 1;
-                    state.positions[i] = state.positions[lastIdx];
-                    state.velocities[i] = state.velocities[lastIdx];
-                    state.lifetimes[i] = state.lifetimes[lastIdx];
-                    state.activeParticleCount--;
-                    i--; // Check this position again
-                }
-            }
-        }
-    }
-}
-```
-</details>
-
-<details>
-<summary>Combat Damage Calculation with Burst</summary>
-
-```csharp
-// Complex damage calculation that runs thousands of times
-[ReducerSystem]
-public partial class DamageReducer : BurstReducerSystem<CombatState, DamageAction, DamageReducer.Logic>
-{
-    [BurstCompile]
-    public struct Logic : IBurstReducer<CombatState, DamageAction>
-    {
-        public void Execute(ref CombatState state, in DamageAction action)
-        {
-            // All math operations are SIMD optimized by Burst
-            float mitigation = state.armor / (state.armor + 100f);
-            float damage = action.baseDamage * (1f - mitigation);
-            
-            // Elemental resistance calculation
-            float elementMod = CalculateElementalModifier(action.element, state.resistance);
-            damage *= elementMod;
-            
-            // Critical hit
-            if (action.isCritical)
-            {
-                damage *= 2.5f;
-            }
-            
-            // Apply damage
-            state.health = math.max(0, state.health - (int)damage);
-            state.totalDamageTaken += (int)damage;
-        }
+        // Create entity (requires DisableBurst = true)
+        var entity = systemState.EntityManager.CreateEntity();
         
-        private float CalculateElementalModifier(ElementType attack, ElementType defense)
+        // Create character data
+        var character = new CharacterData
         {
-            // Burst-compatible switch (compiled to jump table)
-            return (attack, defense) switch
-            {
-                (ElementType.Fire, ElementType.Ice) => 2.0f,
-                (ElementType.Ice, ElementType.Fire) => 0.5f,
-                (ElementType.Lightning, ElementType.Earth) => 1.5f,
-                _ => 1.0f
-            };
-        }
-    }
-}
-```
-</details>
-
-<details>
-<summary>Burst Middleware for Input Validation</summary>
-
-```csharp
-// Validate thousands of inputs per second with zero allocations
-[MiddlewareSystem]
-public partial class InputValidationMiddleware : BurstMiddlewareSystem<MoveAction, InputValidationMiddleware.Logic>
-{
-    [BurstCompile]
-    public struct Logic : IBurstMiddleware<MoveAction>
-    {
-        public void Execute(in MoveAction action, Entity actionEntity)
-        {
-            // Validate input ranges
-            float magnitude = math.length(action.direction);
-            
-            // These checks compile to efficient branch-free code
-            bool isValid = magnitude <= 1f && 
-                          math.all(math.isfinite(action.direction)) &&
-                          action.speed >= 0f &&
-                          action.speed <= 10f;
-            
-            // In real implementation, you'd mark invalid actions
-            // (Note: Burst middleware can't dispatch new actions)
-        }
-    }
-}
-```
-</details>
-
-<details>
-<summary>Performance Tips for Burst Systems</summary>
-<br>
-
-1. **Use Unity.Mathematics**: `float3`, `math.max()`, etc. are SIMD optimized
-2. **Avoid Managed Types**: No strings, classes, or reference types
-3. **Use `in` Parameters**: Avoids copies for read-only action data
-4. **Keep Logic Pure**: No Debug.Log, file I/O, or Unity API calls
-5. **Profile the Difference**: Use Unity Profiler to see the 5-10x speedup
-
-</details>
-
-## Middlewares
-
-<details>
-<summary>Validation Middleware</summary>
-
-```csharp
-public partial class PurchaseValidation : MiddlewareSystem<BuyItemAction>
-{
-    protected override void ProcessAction(BuyItemAction action, Entity entity)
-    {
-        var gameState = SystemAPI.GetSingleton<GameState>();
-
-        // Validate sufficient currency
-        if (gameState.currency < action.cost)
-        {
-            DispatchAction(new ShowErrorAction { message = "Insufficient funds" });
-            EntityManager.AddComponent<InvalidActionTag>(entity);
-            return;
-        }
-
-        // Validate item exists
-        var itemExists = SystemAPI.GetSingleton<ItemDatabase>()
-            .items.Any(item => item.id == action.itemId);
-
-        if (!itemExists)
-        {
-            DispatchAction(new ShowErrorAction { message = "Item not found" });
-            EntityManager.AddComponent<InvalidActionTag>(entity);
-            return;
-        }
-
-        // Validation passed - action will proceed to reducers
-        DispatchAction(new LogTransactionAction
-        {
-            type = "purchase_attempt",
-            itemId = action.itemId,
-            cost = action.cost
-        });
-    }
-}
-```
-</details>
-
-<details>
-<summary>Async Operations</summary>
-
-```csharp
-public partial class SaveGameMiddleware : MiddlewareSystem<SaveGameAction>
-{
-    protected override void ProcessAction(SaveGameAction action, Entity entity)
-    {
-        // Immediate feedback
-        DispatchAction(new SaveStartedAction { fileName = action.fileName });
-
-        // Gather save data on main thread (ECS access required)
-        var saveData = new SaveData
-        {
-            gameState = SystemAPI.GetSingleton<GameState>(),
-            playerState = SystemAPI.GetSingleton<PlayerState>(),
-            timestamp = DateTime.UtcNow
+            entity = entity,
+            name = action.name,
+            maxHealth = action.maxHealth,
+            currentHealth = action.maxHealth,
+            isEnemy = action.isEnemy,
+            isAlive = true
         };
-
-        // Fire-and-forget async operation
-        _ = Task.Run(async () =>
+        
+        state.characters.Add(character);
+        
+        // Update counters
+        if (action.isEnemy)
         {
-            try
-            {
-                await PerformSaveAsync(action.fileName.ToString(), saveData);
-
-                // Queue completion result for main thread
-                QueueCompletionResult(new SaveCompletedAction
-                {
-                    fileName = action.fileName,
-                    success = true
-                });
-            }
-            catch (Exception ex)
-            {
-                QueueCompletionResult(new SaveCompletedAction
-                {
-                    fileName = action.fileName,
-                    success = false,
-                    errorMessage = ex.Message
-                });
-            }
-        });
+            state.enemyCount++;
+            state.aliveEnemyCount++;
+        }
+        else
+        {
+            state.activePartySize++;
+            state.aliveCount++;
+        }
     }
+}
+```
+</details>
 
-    private async Task PerformSaveAsync(string fileName, SaveData data)
+<details>
+<summary>Parallel Reducer for Physics Calculations</summary>
+
+```csharp
+[Reducer]  // Burst-compiled for maximum performance
+public struct PhysicsReducer : IParallelReducer<PhysicsState, ForceAction, PhysicsReducer.FrameData>
+{
+    public struct FrameData
     {
-        var json = JsonUtility.ToJson(data, prettyPrint: true);
-        await File.WriteAllTextAsync($"Saves/{fileName}.json", json);
+        public float deltaTime;
+        public float3 gravity;
+        public float airResistance;
+        public ComponentLookup<Mass> massLookup;
+        public ComponentLookup<Drag> dragLookup;
     }
-
-    private void QueueCompletionResult(SaveCompletedAction result)
+    
+    public FrameData PrepareData(ref SystemState systemState)
     {
-        // Use a thread-safe queue to communicate back to main thread
-        MainThreadQueue.Enqueue(() => DispatchAction(result));
+        // Fetch all needed data ONCE per frame
+        var config = systemState.GetSingleton<PhysicsConfig>();
+        
+        return new FrameData
+        {
+            deltaTime = systemState.WorldUnmanaged.Time.DeltaTime,
+            gravity = config.gravity,
+            airResistance = config.airResistance,
+            massLookup = SystemAPI.GetComponentLookup<Mass>(true),
+            dragLookup = SystemAPI.GetComponentLookup<Drag>(true)
+        };
+    }
+    
+    public void Execute(ref PhysicsState state, in ForceAction action, in FrameData data)
+    {
+        // Pure parallel computation - 10-100x faster than sequential
+        var mass = data.massLookup[action.targetEntity];
+        var drag = data.dragLookup.HasComponent(action.targetEntity) 
+            ? data.dragLookup[action.targetEntity].value 
+            : 0f;
+        
+        // Apply forces
+        var acceleration = action.force / mass.value;
+        acceleration += data.gravity;
+        
+        // Apply drag
+        state.velocity *= (1f - drag * data.airResistance * data.deltaTime);
+        
+        // Update state
+        state.velocity += acceleration * data.deltaTime;
+        state.position += state.velocity * data.deltaTime;
+    }
+}
+```
+</details>
+
+<details>
+<summary>Batch Processing Pattern</summary>
+
+```csharp    
+[Reducer]
+public struct BulletReducer : IParallelReducer<BulletState, UpdateBulletsAction, BulletReducer.FrameData>
+{
+    public struct FrameData
+    {
+        public float deltaTime;
+        public float3 worldBounds;
+        public ComponentLookup<Transform> transformLookup;
+    }
+    
+    public FrameData PrepareData(ref SystemState systemState)
+    {
+        var config = systemState.GetSingleton<WorldConfig>();
+        return new FrameData
+        {
+            deltaTime = systemState.WorldUnmanaged.Time.DeltaTime,
+            worldBounds = config.bounds,
+            transformLookup = SystemAPI.GetComponentLookup<Transform>(false) // writable
+        };
+    }
+    
+    public void Execute(ref BulletState state, in UpdateBulletsAction action, in FrameData data)
+    {
+        // Process hundreds of bullets in parallel
+        for (int i = 0; i < state.activeBullets.Length; i++)
+        {
+            ref var bullet = ref state.activeBullets[i];
+            
+            // Update position
+            bullet.position += bullet.velocity * data.deltaTime;
+            
+            // Check bounds
+            if (math.any(math.abs(bullet.position) > data.worldBounds))
+            {
+                bullet.isActive = false;
+                state.activeCount--;
+            }
+            
+            // Update visual transform if entity exists
+            if (data.transformLookup.HasComponent(bullet.entity))
+            {
+                data.transformLookup[bullet.entity] = new Transform
+                {
+                    position = bullet.position,
+                    rotation = quaternion.LookRotation(bullet.velocity, math.up())
+                };
+            }
+        }
     }
 }
 ```
