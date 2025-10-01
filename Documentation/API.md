@@ -94,23 +94,44 @@ SceneStateManager
 ## System Base Classes
 
 ```csharp
-ReducerSystem<TState, TAction>
-└── ReduceState(ref TState state, TAction action)    // Override: pure state logic
+IReducer<TState, TAction>
+└── Execute(ref TState state, in TAction action, ref SystemState systemState)
+                                                     // Implement: mutate state with SystemAPI access via SystemState
 
-BurstReducerSystem<TState, TAction, TLogic>          // No methods to override
-└── TLogic : struct, IBurstReducer<TState, TAction>  // Logic in struct
-    └── Execute(ref TState state, in TAction action) // Implement: Burst-compiled logic
+IParallelReducer<TState, TAction, TData>
+├── PrepareData(ref SystemState systemState)         // Main thread: prepare lookup data
+│   └── Returns struct TData
+└── Execute(ref TState state, in TAction action, in TData data)
+                                                     // Implement: Burst-compiled mutate state logic using prepared data
 
-MiddlewareSystem<T>    
-├── ProcessAction(T action, Entity entity)           // Override: side effects
-└── DispatchAction<TNew>(TNew newAction)             // Helper: dispatch additional actions
+IMiddleware<TAction>
+└── bool Process(ref TAction action, ref SystemState systemState)
+                                                     // Implement: Sequential processing, validate, transform, or filter actions
+                                                     // Return false to prevent action from reaching reducers
 
-BurstMiddlewareSystem<TAction, TLogic>               // No methods to override  
-└── TLogic : struct, IBurstMiddleware<TAction>       // Logic in struct
-    └── Execute(in TAction action, Entity entity)    // Implement: Burst-compiled logic
-
+IParallelMiddleware<TAction, TData>
+├── PrepareData(ref SystemState systemState)         // Main thread: prepare lookup data
+│   └── Returns TData struct
+└── Process(ref TAction action, in TData data)       // Implement: Parallel processing, transform action data only
+   
 StateChangeNotificationSystem<T>
 └── CreateStateChangeEvent(T new, T old, bool hasOld) // Override: create UI events
+```
+
+## Attributes
+
+```csharp
+[Reducer(
+    Order = 100,                                      // Execution order (lower runs first)
+    SystemName = "CustomName",                        // Optional: override generated system name
+    DisableBurst = false                              // Optional: disable Burst compilation
+)]
+
+[Middleware(
+    Order = 50,                                       // Execution order (lower runs first)
+    SystemName = "CustomName",                        // Optional: override generated system name  
+    DisableBurst = false                              // Optional: disable Burst compilation
+)]
 ```
 
 ## UI Events
