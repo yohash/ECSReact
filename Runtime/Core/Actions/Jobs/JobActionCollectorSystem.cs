@@ -8,8 +8,8 @@ namespace ECSReact.Core
   /// by the ECSActionDispatcher.DispatchFromJob, which will be processed
   /// by reducers 
   /// </summary>
-  [UpdateInGroup(typeof(InitializationSystemGroup), OrderLast = true)]
-  [UpdateBefore(typeof(BeginSimulationEntityCommandBufferSystem))]
+  [UpdateInGroup(typeof(InitializationSystemGroup))]
+  [UpdateAfter(typeof(BeginInitializationEntityCommandBufferSystem))]
   public partial class JobActionCollectorSystem : EntityCommandBufferSystem
   {
     protected override void OnUpdate()
@@ -20,6 +20,12 @@ namespace ECSReact.Core
       // JobCommandBuffer that is generated from this system.
       // After playing back job actions, create new buffer for next frame's jobs
       ECSActionDispatcher.RefreshJobBuffers(World);
+    }
+
+    protected override void OnDestroy()
+    {
+      ECSActionDispatcher.Cleanup(World);
+      base.OnDestroy();
     }
   }
 }
