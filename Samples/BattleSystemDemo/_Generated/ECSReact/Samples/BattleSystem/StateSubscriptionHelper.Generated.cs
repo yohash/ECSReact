@@ -21,6 +21,12 @@ namespace ECSReact.Samples.BattleSystem
     /// </summary>
     public static void InitializeSubscriptions()
     {
+      // Register handlers for AIThinkingState
+      StateSubscriptionHelper.RegisterStateSubscriptionHandlers<AIThinkingState>(
+        subscriber => StateNotificationEvents.OnAIThinkingStateChanged += subscriber.OnStateChanged,
+        subscriber => StateNotificationEvents.OnAIThinkingStateChanged -= subscriber.OnStateChanged
+      );
+
       // Register handlers for BattleLogState
       StateSubscriptionHelper.RegisterStateSubscriptionHandlers<BattleLogState>(
         subscriber => StateNotificationEvents.OnBattleLogStateChanged += subscriber.OnStateChanged,

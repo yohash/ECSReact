@@ -1,5 +1,3 @@
-using UnityEngine;
-
 namespace ECSReact.Core
 {
   /// <summary>
@@ -9,12 +7,6 @@ namespace ECSReact.Core
   public abstract class UIEvent
   {
     public UIEventPriority priority = UIEventPriority.Normal;
-    public float timestamp;
-
-    protected UIEvent()
-    {
-      timestamp = Time.realtimeSinceStartup;
-    }
   }
 
   /// <summary>

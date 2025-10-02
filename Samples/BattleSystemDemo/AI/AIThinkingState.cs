@@ -1,6 +1,6 @@
 using Unity.Entities;
-using Unity.Collections;
 using ECSReact.Core;
+using System;
 
 namespace ECSReact.Samples.BattleSystem
 {
@@ -15,7 +15,7 @@ namespace ECSReact.Samples.BattleSystem
   /// - Modified through reducers like any other game state
   /// - No per-entity state management needed during thinking
   /// </summary>
-  public struct AIThinkingState : IGameState
+  public struct AIThinkingState : IGameState, IEquatable<AIThinkingState>
   {
     /// <summary>
     /// The entity currently thinking (Entity.Null if no one is thinking)
@@ -83,6 +83,15 @@ namespace ECSReact.Samples.BattleSystem
       thinkDuration = 0;
       isThinking = false;
       decisionsMadeThisBattle++;
+    }
+
+    public bool Equals(AIThinkingState other)
+    {
+      return thinkingEnemy == other.thinkingEnemy &&
+             thinkingStartTime == other.thinkingStartTime &&
+             thinkDuration == other.thinkDuration &&
+             isThinking == other.isThinking &&
+             decisionsMadeThisBattle == other.decisionsMadeThisBattle;
     }
   }
 }

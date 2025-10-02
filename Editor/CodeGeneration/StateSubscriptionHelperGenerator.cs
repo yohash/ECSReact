@@ -71,7 +71,7 @@ namespace ECSReact.Editor.CodeGeneration
       if (totalStates > 0) {
         EditorGUILayout.LabelField($"Discovered {totalStates} IGameState types in {namespaceGroups.Count} namespaces:", EditorStyles.boldLabel);
 
-        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.MinHeight(180));
+        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
 
         foreach (var kvp in namespaceGroups.OrderBy(n => n.Key)) {
           drawNamespaceGroup(kvp.Key, kvp.Value);
@@ -181,13 +181,13 @@ namespace ECSReact.Editor.CodeGeneration
 
           // Show if it implements IEquatable (required for state change detection)
           bool hasEquatable = state.implementsIEquatable;
+          if (!hasEquatable) {
+            EditorGUILayout.LabelField("⚠️", EditorStyles.boldLabel, GUILayout.Width(36));
+          }
           GUI.enabled = false;
           EditorGUILayout.Toggle("IEquatable", hasEquatable, GUILayout.Width(180));
           GUI.enabled = true;
 
-          if (!hasEquatable) {
-            EditorGUILayout.LabelField("⚠️", EditorStyles.boldLabel, GUILayout.Width(36));
-          }
 
           EditorGUILayout.EndHorizontal();
         }

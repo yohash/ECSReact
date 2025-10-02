@@ -16,6 +16,11 @@ namespace ECSReact.Samples.BattleSystem
   public static class StateNotificationEvents
   {
     /// <summary>
+    /// Event fired when AIThinkingState changes.
+    /// </summary>
+    public static System.Action<AIThinkingState> OnAIThinkingStateChanged;
+
+    /// <summary>
     /// Event fired when BattleLogState changes.
     /// </summary>
     public static System.Action<BattleLogState> OnBattleLogStateChanged;
@@ -46,6 +51,10 @@ namespace ECSReact.Samples.BattleSystem
     /// </summary>
     public static void InitializeEvents()
     {
+      ECSReact.Core.UIStateNotifier
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.AIThinkingStateChangedEvent>(evt => 
+          OnAIThinkingStateChanged?.Invoke(evt.newState));
+
       ECSReact.Core.UIStateNotifier
         .RegisterEventProcessor<ECSReact.Samples.BattleSystem.BattleLogStateChangedEvent>(evt => 
           OnBattleLogStateChanged?.Invoke(evt.newState));

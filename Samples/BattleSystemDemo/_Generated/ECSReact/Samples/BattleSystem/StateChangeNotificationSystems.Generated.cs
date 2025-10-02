@@ -12,9 +12,24 @@ using ECSReact.Samples.BattleSystem;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
+  /// Generated system that detects AIThinkingState changes and queues UI events.
+  /// Generated for namespace: ECSReact.Samples.BattleSystem
+  /// </summary>
+  [BurstCompile]
+  [UINotificationSystem]
+  public partial class AIThinkingStateChangeNotificationSystem : StateChangeNotificationSystem<AIThinkingState>
+  {
+    protected override UIEvent CreateStateChangeEvent(AIThinkingState newState, AIThinkingState oldState, bool hasOldState)
+    {
+      return new AIThinkingStateChangedEvent(newState, oldState, hasOldState);
+    }
+  }
+
+  /// <summary>
   /// Generated system that detects BattleLogState changes and queues UI events.
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
+  [BurstCompile]
   [UINotificationSystem]
   public partial class BattleLogStateChangeNotificationSystem : StateChangeNotificationSystem<BattleLogState>
   {
@@ -28,6 +43,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated system that detects BattleState changes and queues UI events.
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
+  [BurstCompile]
   [UINotificationSystem]
   public partial class BattleStateChangeNotificationSystem : StateChangeNotificationSystem<BattleState>
   {
@@ -41,6 +57,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated system that detects PartyState changes and queues UI events.
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
+  [BurstCompile]
   [UINotificationSystem]
   public partial class PartyStateChangeNotificationSystem : StateChangeNotificationSystem<PartyState>
   {
@@ -54,6 +71,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated system that detects SaveState changes and queues UI events.
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
+  [BurstCompile]
   [UINotificationSystem]
   public partial class SaveStateChangeNotificationSystem : StateChangeNotificationSystem<SaveState>
   {
@@ -67,6 +85,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated system that detects UIBattleState changes and queues UI events.
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
+  [BurstCompile]
   [UINotificationSystem]
   public partial class UIBattleStateChangeNotificationSystem : StateChangeNotificationSystem<UIBattleState>
   {
