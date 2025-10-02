@@ -10,6 +10,24 @@ using ECSReact.Samples.BattleSystem;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
+  /// UI event fired when AIThinkingState from ECSReact.Samples.BattleSystem changes.
+  /// </summary>
+  public class AIThinkingStateChangedEvent : UIEvent
+  {
+    public AIThinkingState newState;
+    public AIThinkingState oldState;
+    public bool hasOldState;
+
+    public AIThinkingStateChangedEvent(AIThinkingState newState, AIThinkingState oldState, bool hasOldState)
+    {
+      this.newState = newState;
+      this.oldState = oldState;
+      this.hasOldState = hasOldState;
+      this.priority = UIEventPriority.Normal;
+    }
+  }
+
+  /// <summary>
   /// UI event fired when BattleLogState from ECSReact.Samples.BattleSystem changes.
   /// </summary>
   public class BattleLogStateChangedEvent : UIEvent

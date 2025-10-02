@@ -537,6 +537,97 @@ namespace ECSReact.Samples.BattleSystem
     }
 
     /// <summary>
+    /// Dispatch a EnemyTurnStartedAction to the ECS world.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="turnIndex">The turnIndex value for the action.</param>
+    /// <param name="turnCount">The turnCount value for the action.</param>
+    /// <param name="enemyName">The enemyName value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool EnemyTurnStarted(this Store store, Entity enemyEntity, int turnIndex, int turnCount, FixedString64Bytes enemyName)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching EnemyTurnStartedAction");
+        return false;
+      }
+
+      var action = new EnemyTurnStartedAction
+      {
+        enemyEntity = enemyEntity,
+        turnIndex = turnIndex,
+        turnCount = turnCount,
+        enemyName = enemyName,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a EnemyTurnStartedAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="turnIndex">The turnIndex value for the action.</param>
+    /// <param name="turnCount">The turnCount value for the action.</param>
+    /// <param name="enemyName">The enemyName value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool EnemyTurnStarted(Entity enemyEntity, int turnIndex, int turnCount, FixedString64Bytes enemyName)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching EnemyTurnStartedAction");
+        return false;
+      }
+
+      return Store.Instance.EnemyTurnStarted(enemyEntity, turnIndex, turnCount, enemyName);
+    }
+
+    /// <summary>
+    /// Dispatch a AIReadyToDecideAction to the ECS world.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="thinkingDuration">The thinkingDuration value for the action.</param>
+    /// <param name="thinkingStartTime">The thinkingStartTime value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool AIReadyToDecide(this Store store, Entity enemyEntity, float thinkingDuration, double thinkingStartTime)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching AIReadyToDecideAction");
+        return false;
+      }
+
+      var action = new AIReadyToDecideAction
+      {
+        enemyEntity = enemyEntity,
+        thinkingDuration = thinkingDuration,
+        thinkingStartTime = thinkingStartTime,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a AIReadyToDecideAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="enemyEntity">The enemyEntity value for the action.</param>
+    /// <param name="thinkingDuration">The thinkingDuration value for the action.</param>
+    /// <param name="thinkingStartTime">The thinkingStartTime value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool AIReadyToDecide(Entity enemyEntity, float thinkingDuration, double thinkingStartTime)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching AIReadyToDecideAction");
+        return false;
+      }
+
+      return Store.Instance.AIReadyToDecide(enemyEntity, thinkingDuration, thinkingStartTime);
+    }
+
+    /// <summary>
     /// Dispatch a AIThinkingAction to the ECS world.
     /// </summary>
     /// <param name="enemyEntity">The enemyEntity value for the action.</param>

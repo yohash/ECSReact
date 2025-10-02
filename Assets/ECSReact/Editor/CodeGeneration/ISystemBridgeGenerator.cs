@@ -19,8 +19,7 @@ namespace ECSReact.Editor.CodeGeneration
   /// </summary>
   public class ISystemBridgeGenerator : EditorWindow
   {
-    private List<ReducerInfo> discoveredReducers = new();
-    private List<MiddlewareInfo> discoveredMiddleware = new();
+    private Dictionary<string, NamespaceGroup> namespaceGroups = new();
     private Vector2 scrollPosition;
     private bool generateXmlDocs = true;
     private bool verboseLogging = false;
@@ -29,8 +28,7 @@ namespace ECSReact.Editor.CodeGeneration
     [MenuItem("ECS React/ISystem Bridge Generator", priority = 204)]
     public static void ShowWindow()
     {
-      var window = GetWindow<ISystemBridgeGenerator>("ECSReact ISystem Generator");
-      window.minSize = new Vector2(600, 400);
+      var window = GetWindow<ISystemBridgeGenerator>("ISystem Code Generator");
     }
 
     private void OnEnable()
@@ -49,22 +47,11 @@ namespace ECSReact.Editor.CodeGeneration
     private void DrawHeader()
     {
       EditorGUILayout.LabelField("ECSReact ISystem Generator", EditorStyles.boldLabel);
-      EditorGUILayout.Space();
-
-      EditorGUILayout.HelpBox(
-        "This tool generates ISystem implementations for your Reducer and Middleware structs.\n" +
-        "• IReducer: Sequential processing with SystemState access\n" +
-        "• IParallelReducer: Parallel processing with PrepareData pattern\n" +
-        "• IMiddleware: Sequential with filtering capability\n" +
-        "• IParallelMiddleware: Parallel transform-only processing",
-        MessageType.Info);
-      EditorGUILayout.Space();
     }
 
     private void DrawSettings()
     {
-      EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-      EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
+      EditorGUILayout.BeginVertical();
 
       EditorGUILayout.BeginHorizontal();
       EditorGUILayout.LabelField("Output Path:", GUILayout.Width(80));
@@ -77,7 +64,7 @@ namespace ECSReact.Editor.CodeGeneration
       }
       EditorGUILayout.EndHorizontal();
 
-      generateXmlDocs = EditorGUILayout.Toggle("Generate XML Docs", generateXmlDocs);
+      generateXmlDocs = EditorGUILayout.Toggle("Generate XML Documentation", generateXmlDocs);
       verboseLogging = EditorGUILayout.Toggle("Verbose Logging", verboseLogging);
 
       EditorGUILayout.EndVertical();
@@ -86,51 +73,130 @@ namespace ECSReact.Editor.CodeGeneration
 
     private void DrawDiscoveredSystems()
     {
-      EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-      EditorGUILayout.LabelField($"Discovered Systems ({discoveredReducers.Count} Reducers, {discoveredMiddleware.Count} Middleware)",
-        EditorStyles.boldLabel);
+      EditorGUILayout.LabelField("Discovered Systems", EditorStyles.boldLabel);
 
-      scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.MaxHeight(300));
-
-      if (discoveredReducers.Count > 0) {
-        EditorGUILayout.LabelField("Reducers:", EditorStyles.miniBoldLabel);
-        foreach (var reducer in discoveredReducers) {
-          EditorGUILayout.BeginHorizontal();
-          reducer.shouldGenerate = EditorGUILayout.Toggle(reducer.shouldGenerate, GUILayout.Width(20));
-
-          string typeLabel = reducer.isParallel ? "[Parallel]" : "[Sequential]";
-          string burstLabel = reducer.disableBurst ? "[No Burst]" : "[Burst]";
-          EditorGUILayout.LabelField(
-            $"{typeLabel} {reducer.structName} → {reducer.stateType} + {reducer.actionType} {burstLabel}");
-
-          if (reducer.isParallel && !string.IsNullOrEmpty(reducer.dataType)) {
-            EditorGUILayout.LabelField($"(Data: {reducer.dataType})", GUILayout.Width(150));
-          }
-          EditorGUILayout.EndHorizontal();
-        }
+      if (namespaceGroups.Count == 0) {
+        EditorGUILayout.HelpBox("No systems discovered. Click 'Refresh List' to scan for [Reducer] and [Middleware] types.", MessageType.Info);
+        return;
       }
 
-      if (discoveredMiddleware.Count > 0) {
-        EditorGUILayout.LabelField("Middleware:", EditorStyles.miniBoldLabel);
-        foreach (var middleware in discoveredMiddleware) {
-          EditorGUILayout.BeginHorizontal();
-          middleware.shouldGenerate = EditorGUILayout.Toggle(middleware.shouldGenerate, GUILayout.Width(20));
+      int totalReducers = namespaceGroups.Values.Sum(g => g.reducers.Count);
+      int totalMiddleware = namespaceGroups.Values.Sum(g => g.middleware.Count);
+      EditorGUILayout.LabelField($"Found {totalReducers} reducers and {totalMiddleware} middleware across {namespaceGroups.Count} namespaces", EditorStyles.miniLabel);
+      EditorGUILayout.Space();
 
-          string typeLabel = middleware.isParallel ? "[Parallel]" : "[Sequential]";
-          string burstLabel = middleware.disableBurst ? "[No Burst]" : "[Burst]";
-          string filterLabel = !middleware.isParallel ? "[Can Filter]" : "[Transform Only]";
-          EditorGUILayout.LabelField(
-            $"{typeLabel} {middleware.structName} → {middleware.actionType} {filterLabel} {burstLabel}");
+      EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+      scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
 
-          if (middleware.isParallel && !string.IsNullOrEmpty(middleware.dataType)) {
-            EditorGUILayout.LabelField($"(Data: {middleware.dataType})", GUILayout.Width(150));
-          }
-          EditorGUILayout.EndHorizontal();
-        }
+      foreach (var kvp in namespaceGroups.OrderBy(n => n.Key)) {
+        DrawNamespaceGroup(kvp.Key, kvp.Value);
+        EditorGUILayout.Space(5);
       }
 
       EditorGUILayout.EndScrollView();
       EditorGUILayout.EndVertical();
+    }
+
+    private void DrawNamespaceGroup(string namespaceName, NamespaceGroup group)
+    {
+      EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+      // Namespace header with checkbox and expand/collapse
+      EditorGUILayout.BeginHorizontal();
+
+      // Namespace-level checkbox
+      bool newIncludeNamespace = EditorGUILayout.Toggle(group.includeInGeneration, GUILayout.Width(20));
+      if (newIncludeNamespace != group.includeInGeneration) {
+        group.includeInGeneration = newIncludeNamespace;
+        // Update all systems in this namespace
+        foreach (var reducer in group.reducers) {
+          reducer.shouldGenerate = newIncludeNamespace;
+        }
+        foreach (var middleware in group.middleware) {
+          middleware.shouldGenerate = newIncludeNamespace;
+        }
+      }
+
+      group.isExpanded = EditorGUILayout.Foldout(group.isExpanded, $"  {namespaceName}", true);
+
+      // Summary
+      int totalSystems = group.reducers.Count + group.middleware.Count;
+      string summary = $"({totalSystems} systems: {group.reducers.Count} reducers, {group.middleware.Count} middleware)";
+      EditorGUILayout.LabelField(summary, EditorStyles.miniLabel, GUILayout.Width(350));
+
+      EditorGUILayout.EndHorizontal();
+
+      // Show systems in this namespace if expanded
+      if (group.isExpanded) {
+        EditorGUI.indentLevel++;
+
+        // Draw reducers
+        if (group.reducers.Count > 0) {
+          EditorGUILayout.LabelField("Reducers:", EditorStyles.boldLabel);
+          foreach (var reducer in group.reducers) {
+            DrawReducerInfo(reducer);
+          }
+          EditorGUILayout.Space(5);
+        }
+
+        // Draw middleware
+        if (group.middleware.Count > 0) {
+          EditorGUILayout.LabelField("Middleware:", EditorStyles.boldLabel);
+          foreach (var middleware in group.middleware) {
+            DrawMiddlewareInfo(middleware);
+          }
+        }
+
+        EditorGUI.indentLevel--;
+      }
+
+      EditorGUILayout.EndVertical();
+    }
+
+    private void DrawReducerInfo(ReducerInfo reducer)
+    {
+      EditorGUILayout.BeginHorizontal();
+      reducer.shouldGenerate = EditorGUILayout.Toggle(reducer.shouldGenerate, GUILayout.Width(40));
+
+      string label = $"{reducer.structName}";
+      string components = $"→ {reducer.stateType} / {reducer.actionType}";
+      string typeLabel = reducer.isParallel ? "[Parallel]" : "[Sequential]";
+      string burstLabel = reducer.disableBurst ? "[No Burst]" : "[Burst]";
+
+      if (reducer.isParallel && !string.IsNullOrEmpty(reducer.dataType)) {
+        label += $" + {reducer.dataType}";
+      }
+
+      EditorGUILayout.LabelField(label, GUILayout.ExpandWidth(true));
+      EditorGUILayout.LabelField(components, GUILayout.ExpandWidth(true));
+      EditorGUILayout.LabelField(typeLabel, GUILayout.Width(100));
+      EditorGUILayout.LabelField(burstLabel, GUILayout.Width(100));
+
+      EditorGUILayout.EndHorizontal();
+    }
+
+    private void DrawMiddlewareInfo(MiddlewareInfo middleware)
+    {
+      EditorGUILayout.BeginHorizontal();
+      middleware.shouldGenerate = EditorGUILayout.Toggle(middleware.shouldGenerate, GUILayout.Width(40));
+
+      string label = $"{middleware.structName}";
+      string components = $"→ {middleware.actionType}";
+      string typeLabel = middleware.isParallel ? "[Parallel]" : "[Sequential]";
+      string burstLabel = middleware.disableBurst ? "[No Burst]" : "[Burst]";
+      string filterLabel = !middleware.isParallel ? "[Can Filter]" : "[Transform Only]";
+
+      if (middleware.isParallel && !string.IsNullOrEmpty(middleware.dataType)) {
+        label += $" + {middleware.dataType})";
+      }
+
+      EditorGUILayout.LabelField(label, GUILayout.ExpandWidth(true));
+      EditorGUILayout.LabelField(components, GUILayout.ExpandWidth(true));
+      EditorGUILayout.LabelField(filterLabel, GUILayout.Width(100));
+      EditorGUILayout.LabelField(typeLabel, GUILayout.Width(100));
+      EditorGUILayout.LabelField(burstLabel, GUILayout.Width(100));
+
+      EditorGUILayout.EndHorizontal();
     }
 
     private void DrawGenerateButton()
@@ -158,8 +224,9 @@ namespace ECSReact.Editor.CodeGeneration
 
     private void RefreshSystemList()
     {
-      discoveredReducers.Clear();
-      discoveredMiddleware.Clear();
+      // Preserve previous selections
+      var previousGroups = new Dictionary<string, NamespaceGroup>(namespaceGroups);
+      namespaceGroups.Clear();
 
       var assemblies = AppDomain.CurrentDomain.GetAssemblies();
       foreach (var assembly in assemblies) {
@@ -175,8 +242,10 @@ namespace ECSReact.Editor.CodeGeneration
                   var genDef = iface.GetGenericTypeDefinition();
                   var genericArgs = iface.GetGenericArguments();
 
+                  ReducerInfo reducerInfo = null;
+
                   if (genDef == typeof(IReducer<,>)) {
-                    discoveredReducers.Add(new ReducerInfo
+                    reducerInfo = new ReducerInfo
                     {
                       structType = type,
                       structName = type.Name,
@@ -189,24 +258,49 @@ namespace ECSReact.Editor.CodeGeneration
                       systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
                       isParallel = false,
                       shouldGenerate = true
-                    });
-                    break;
+                    };
                   } else if (genDef == typeof(IParallelReducer<,,>)) {
-                    // FIXED: Properly extract all three type parameters
-                    discoveredReducers.Add(new ReducerInfo
+                    reducerInfo = new ReducerInfo
                     {
                       structType = type,
                       structName = type.Name,
                       namespaceName = type.Namespace ?? "Global",
                       stateType = genericArgs[0].Name,
                       actionType = genericArgs[1].Name,
-                      dataType = genericArgs[2].Name,  // Extract TData type!
+                      dataType = genericArgs[2].Name,
                       disableBurst = reducerAttr.DisableBurst,
                       order = reducerAttr.Order,
                       systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
                       isParallel = true,
                       shouldGenerate = true
-                    });
+                    };
+                  }
+
+                  if (reducerInfo != null) {
+                    // Get or create namespace group
+                    if (!namespaceGroups.ContainsKey(reducerInfo.namespaceName)) {
+                      namespaceGroups[reducerInfo.namespaceName] = new NamespaceGroup
+                      {
+                        namespaceName = reducerInfo.namespaceName,
+                        includeInGeneration = reducerInfo.namespaceName == "ECSReact.Core" ? false : true,
+                        isExpanded = reducerInfo.namespaceName == "ECSReact.Core" ? false : true,
+                        reducers = new List<ReducerInfo>(),
+                        middleware = new List<MiddlewareInfo>()
+                      };
+                    }
+
+                    // Preserve previous settings if they exist
+                    if (previousGroups.TryGetValue(reducerInfo.namespaceName, out var previousGroup)) {
+                      var previousReducer = previousGroup.reducers.FirstOrDefault(r => r.structName == type.Name);
+                      if (previousReducer != null) {
+                        reducerInfo.shouldGenerate = previousReducer.shouldGenerate;
+                      }
+
+                      namespaceGroups[reducerInfo.namespaceName].includeInGeneration = previousGroup.includeInGeneration;
+                      namespaceGroups[reducerInfo.namespaceName].isExpanded = previousGroup.isExpanded;
+                    }
+
+                    namespaceGroups[reducerInfo.namespaceName].reducers.Add(reducerInfo);
                     break;
                   }
                 }
@@ -222,8 +316,10 @@ namespace ECSReact.Editor.CodeGeneration
                   var genDef = iface.GetGenericTypeDefinition();
                   var genericArgs = iface.GetGenericArguments();
 
+                  MiddlewareInfo middlewareInfo = null;
+
                   if (genDef == typeof(IMiddleware<>)) {
-                    discoveredMiddleware.Add(new MiddlewareInfo
+                    middlewareInfo = new MiddlewareInfo
                     {
                       structType = type,
                       structName = type.Name,
@@ -235,23 +331,48 @@ namespace ECSReact.Editor.CodeGeneration
                       systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
                       isParallel = false,
                       shouldGenerate = true
-                    });
-                    break;
+                    };
                   } else if (genDef == typeof(IParallelMiddleware<,>)) {
-                    // FIXED: Extract TData for parallel middleware
-                    discoveredMiddleware.Add(new MiddlewareInfo
+                    middlewareInfo = new MiddlewareInfo
                     {
                       structType = type,
                       structName = type.Name,
                       namespaceName = type.Namespace ?? "Global",
                       actionType = genericArgs[0].Name,
-                      dataType = genericArgs[1].Name,  // Extract TData type!
+                      dataType = genericArgs[1].Name,
                       disableBurst = middlewareAttr.DisableBurst,
                       order = middlewareAttr.Order,
                       systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
                       isParallel = true,
                       shouldGenerate = true
-                    });
+                    };
+                  }
+
+                  if (middlewareInfo != null) {
+                    // Get or create namespace group
+                    if (!namespaceGroups.ContainsKey(middlewareInfo.namespaceName)) {
+                      namespaceGroups[middlewareInfo.namespaceName] = new NamespaceGroup
+                      {
+                        namespaceName = middlewareInfo.namespaceName,
+                        includeInGeneration = middlewareInfo.namespaceName == "ECSReact.Core" ? false : true,
+                        isExpanded = middlewareInfo.namespaceName == "ECSReact.Core" ? false : true,
+                        reducers = new List<ReducerInfo>(),
+                        middleware = new List<MiddlewareInfo>()
+                      };
+                    }
+
+                    // Preserve previous settings if they exist
+                    if (previousGroups.TryGetValue(middlewareInfo.namespaceName, out var previousGroup)) {
+                      var previousMiddleware = previousGroup.middleware.FirstOrDefault(m => m.structName == type.Name);
+                      if (previousMiddleware != null) {
+                        middlewareInfo.shouldGenerate = previousMiddleware.shouldGenerate;
+                      }
+
+                      namespaceGroups[middlewareInfo.namespaceName].includeInGeneration = previousGroup.includeInGeneration;
+                      namespaceGroups[middlewareInfo.namespaceName].isExpanded = previousGroup.isExpanded;
+                    }
+
+                    namespaceGroups[middlewareInfo.namespaceName].middleware.Add(middlewareInfo);
                     break;
                   }
                 }
@@ -264,35 +385,91 @@ namespace ECSReact.Editor.CodeGeneration
         }
       }
 
+      // Sort systems within each namespace
+      foreach (var group in namespaceGroups.Values) {
+        group.reducers = group.reducers.OrderBy(r => r.structName).ToList();
+        group.middleware = group.middleware.OrderBy(m => m.structName).ToList();
+      }
+
+      int totalReducers = namespaceGroups.Values.Sum(g => g.reducers.Count);
+      int totalMiddleware = namespaceGroups.Values.Sum(g => g.middleware.Count);
+
       if (verboseLogging)
-        Debug.Log($"Found {discoveredReducers.Count} reducers and {discoveredMiddleware.Count} middleware");
+        Debug.Log($"Found {totalReducers} reducers and {totalMiddleware} middleware across {namespaceGroups.Count} namespaces");
     }
 
     private bool HasSystemsToGenerate()
     {
-      return discoveredReducers.Any(r => r.shouldGenerate) ||
-             discoveredMiddleware.Any(m => m.shouldGenerate);
+      return namespaceGroups.Values.Any(g =>
+        g.includeInGeneration &&
+        (g.reducers.Any(r => r.shouldGenerate) || g.middleware.Any(m => m.shouldGenerate)));
     }
 
     private void GenerateSystems()
     {
-      int generatedCount = 0;
+      var selectedNamespaces = namespaceGroups.Values
+        .Where(g => g.includeInGeneration &&
+          (g.reducers.Any(r => r.shouldGenerate) || g.middleware.Any(m => m.shouldGenerate)))
+        .ToList();
 
-      foreach (var reducer in discoveredReducers.Where(r => r.shouldGenerate)) {
-        GenerateReducerSystem(reducer);
-        generatedCount++;
+      if (selectedNamespaces.Count == 0) {
+        EditorUtility.DisplayDialog("No Systems Selected", "Please select at least one system to generate.", "OK");
+        return;
       }
 
-      foreach (var middleware in discoveredMiddleware.Where(m => m.shouldGenerate)) {
-        GenerateMiddlewareSystem(middleware);
-        generatedCount++;
+      List<string> generatedFiles = new List<string>();
+      int generatedCount = 0;
+
+      foreach (var namespaceGroup in selectedNamespaces) {
+        GenerateISystemBridgeCodeForNamespace(namespaceGroup, ref generatedFiles);
+        generatedCount += namespaceGroup.reducers.Count(r => r.shouldGenerate);
+        generatedCount += namespaceGroup.middleware.Count(m => m.shouldGenerate);
       }
 
       AssetDatabase.Refresh();
+
+      string fileList = string.Join("\n• ", generatedFiles.Select(f => f.Replace(Application.dataPath, "Assets")));
+
       Debug.Log($"[ECSReact] Generated {generatedCount} ISystem implementations");
 
       EditorUtility.DisplayDialog("Generation Complete",
-        $"Successfully generated {generatedCount} ISystem implementations.", "OK");
+        $"Successfully generated {generatedCount} ISystem implementations across {selectedNamespaces.Count} namespaces.\n\n" +
+        $"Files created:\n• {fileList}", "OK");
+    }
+
+    /// <summary>
+    /// Public method for AutoGenerateAll to generate ISystem bridges for a specific namespace.
+    /// Follows the same pattern as other generators.
+    /// </summary>
+    public void GenerateISystemBridgeCodeForNamespace(NamespaceGroup namespaceGroup, ref List<string> generatedFiles)
+    {
+      var selectedReducers = namespaceGroup.reducers.Where(r => r.shouldGenerate).ToList();
+      var selectedMiddleware = namespaceGroup.middleware.Where(m => m.shouldGenerate).ToList();
+
+      if (selectedReducers.Count == 0 && selectedMiddleware.Count == 0) {
+        Debug.LogWarning($"No systems selected for generation in namespace {namespaceGroup.namespaceName}");
+        return;
+      }
+
+      foreach (var reducer in selectedReducers) {
+        GenerateReducerSystem(reducer);
+
+        // Track generated file
+        string namespacePath = namespaceGroup.namespaceName.Replace('.', Path.DirectorySeparatorChar);
+        string fullPath = Path.Combine(outputPath, namespacePath, "Generated");
+        string filePath = Path.Combine(fullPath, $"{reducer.systemName}.cs");
+        generatedFiles.Add(filePath);
+      }
+
+      foreach (var middleware in selectedMiddleware) {
+        GenerateMiddlewareSystem(middleware);
+
+        // Track generated file
+        string namespacePath = namespaceGroup.namespaceName.Replace('.', Path.DirectorySeparatorChar);
+        string fullPath = Path.Combine(outputPath, namespacePath, "Generated");
+        string filePath = Path.Combine(fullPath, $"{middleware.systemName}.cs");
+        generatedFiles.Add(filePath);
+      }
     }
 
     private void GenerateReducerSystem(ReducerInfo reducer)
@@ -300,51 +477,41 @@ namespace ECSReact.Editor.CodeGeneration
       var sb = new StringBuilder();
 
       // Header
-      GenerateFileHeader(sb, reducer.structName, reducer.isParallel ? "Parallel Reducer" : "Sequential Reducer");
+      GenerateFileHeader(sb, reducer.structName, reducer.isParallel ? "IParallelReducer" : "IReducer");
 
-      // Using statements
+      // Usings
       sb.AppendLine("using Unity.Entities;");
       sb.AppendLine("using Unity.Burst;");
       sb.AppendLine("using Unity.Collections;");
-      sb.AppendLine("using Unity.Jobs;");
       sb.AppendLine("using ECSReact.Core;");
       if (reducer.namespaceName != "ECSReact.Core")
         sb.AppendLine($"using {reducer.namespaceName};");
       sb.AppendLine();
 
       // Namespace
-      sb.AppendLine($"namespace {reducer.namespaceName}.Generated");
+      sb.AppendLine($"namespace {reducer.namespaceName}");
       sb.AppendLine("{");
 
-      // XML Documentation
       if (generateXmlDocs) {
         sb.AppendLine("  /// <summary>");
-        sb.AppendLine($"  /// Auto-generated ISystem for {reducer.structName} reducer.");
-        sb.AppendLine($"  /// Processes {reducer.actionType} actions to modify {reducer.stateType}.");
+        sb.AppendLine($"  /// Generated ISystem implementation for {reducer.structName}.");
+        sb.AppendLine($"  /// Type: {(reducer.isParallel ? "IParallelReducer" : "IReducer")}");
+        sb.AppendLine($"  /// State: {reducer.stateType}, Action: {reducer.actionType}");
         if (reducer.isParallel)
-          sb.AppendLine($"  /// Uses parallel processing with PrepareData pattern (Data type: {reducer.dataType}).");
-        else
-          sb.AppendLine("  /// Sequential processing with full SystemAPI access.");
-        if (!reducer.disableBurst)
-          sb.AppendLine("  /// Burst-compiled for maximum performance.");
+          sb.AppendLine($"  /// Data: {reducer.structName}.{reducer.dataType}");
         sb.AppendLine("  /// </summary>");
       }
 
-      // System attributes
+      // System declaration
       sb.AppendLine("  [UpdateInGroup(typeof(ReducerSystemGroup))]");
       if (!reducer.disableBurst)
         sb.AppendLine("  [BurstCompile]");
-      if (reducer.order != 0)
-        sb.AppendLine($"  [UpdateOrder({reducer.order})]");
-
-      // System declaration
       sb.AppendLine($"  public partial struct {reducer.systemName} : ISystem");
       sb.AppendLine("  {");
-
-      // Fields
       sb.AppendLine($"    private {reducer.structName} logic;");
-      sb.AppendLine($"    private EntityQuery actionQuery;");
-      if (reducer.isParallel && !string.IsNullOrEmpty(reducer.dataType)) {
+      sb.AppendLine("    private EntityQuery actionQuery;");
+
+      if (reducer.isParallel) {
         sb.AppendLine($"    private {reducer.structName}.{reducer.dataType} preparedData;");
       }
       sb.AppendLine();
@@ -399,28 +566,19 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("    }");
       sb.AppendLine();
 
-      // OnDestroy
-      if (!reducer.disableBurst)
-        sb.AppendLine("    [BurstCompile]");
-      sb.AppendLine("    public void OnDestroy(ref SystemState state) { }");
-
-      // Parallel job if needed
+      // Job struct for parallel processing
       if (reducer.isParallel) {
-        sb.AppendLine();
-        sb.AppendLine("    // Parallel processing job");
         if (!reducer.disableBurst)
           sb.AppendLine("    [BurstCompile]");
-        sb.AppendLine("    private partial struct ProcessActionsJob : IJobEntity");
+        sb.AppendLine($"    private partial struct ProcessActionsJob : IJobEntity");
         sb.AppendLine("    {");
         sb.AppendLine($"      public RefRW<{reducer.stateType}> State;");
         sb.AppendLine($"      [ReadOnly] public {reducer.structName} Logic;");
-        if (!string.IsNullOrEmpty(reducer.dataType)) {
-          sb.AppendLine($"      [ReadOnly] public {reducer.structName}.{reducer.dataType} Data;");
-        }
+        sb.AppendLine($"      [ReadOnly] public {reducer.structName}.{reducer.dataType} Data;");
         sb.AppendLine();
         sb.AppendLine($"      public void Execute(in {reducer.actionType} action, in ActionTag tag)");
         sb.AppendLine("      {");
-        // FIXED: Pass the Data parameter to Execute
+        sb.AppendLine("        // Parallel execution with prepared data");
         sb.AppendLine("        Logic.Execute(ref State.ValueRW, in action, in Data);");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
@@ -437,81 +595,47 @@ namespace ECSReact.Editor.CodeGeneration
       var sb = new StringBuilder();
 
       // Header
-      GenerateFileHeader(sb, middleware.structName, middleware.isParallel ? "Parallel Middleware" : "Sequential Middleware");
+      GenerateFileHeader(sb, middleware.structName, middleware.isParallel ? "IParallelMiddleware" : "IMiddleware");
 
-      // Using statements
+      // Usings
       sb.AppendLine("using Unity.Entities;");
       sb.AppendLine("using Unity.Burst;");
       sb.AppendLine("using Unity.Collections;");
-      sb.AppendLine("using Unity.Jobs;");
       sb.AppendLine("using ECSReact.Core;");
       if (middleware.namespaceName != "ECSReact.Core")
         sb.AppendLine($"using {middleware.namespaceName};");
       sb.AppendLine();
 
       // Namespace
-      sb.AppendLine($"namespace {middleware.namespaceName}.Generated");
+      sb.AppendLine($"namespace {middleware.namespaceName}");
       sb.AppendLine("{");
 
-      // XML Documentation
       if (generateXmlDocs) {
         sb.AppendLine("  /// <summary>");
-        sb.AppendLine($"  /// Auto-generated ISystem for {middleware.structName} middleware.");
-        sb.AppendLine($"  /// Processes {middleware.actionType} actions before they reach reducers.");
-        if (middleware.isParallel) {
-          sb.AppendLine($"  /// Uses parallel processing with PrepareData pattern (Data type: {middleware.dataType}).");
-          sb.AppendLine("  /// Transform-only: cannot filter actions.");
-        } else {
-          sb.AppendLine("  /// Sequential processing with full SystemAPI access.");
-          sb.AppendLine("  /// Can filter actions by returning false from Process().");
-          if (!middleware.disableBurst) {
-            sb.AppendLine("  /// ");
-            sb.AppendLine("  /// NOTE: Burst-compiled. Cannot use managed calls like ECSActionDispatcher.Dispatch().");
-            sb.AppendLine("  /// If you need to dispatch actions or use managed operations, add [Middleware(DisableBurst = true)]");
-          } else {
-            sb.AppendLine("  /// ");
-            sb.AppendLine("  /// NOTE: Burst disabled for managed operations (dispatching, logging, etc.)");
-            sb.AppendLine("  /// For parallel dispatch from jobs, use ECB.DispatchAction() extension instead.");
-          }
-        }
-        if (!middleware.disableBurst && middleware.isParallel)
-          sb.AppendLine("  /// Burst-compiled for maximum performance.");
+        sb.AppendLine($"  /// Generated ISystem implementation for {middleware.structName}.");
+        sb.AppendLine($"  /// Type: {(middleware.isParallel ? "IParallelMiddleware" : "IMiddleware")}");
+        sb.AppendLine($"  /// Action: {middleware.actionType}");
+        if (middleware.isParallel)
+          sb.AppendLine($"  /// Data: {middleware.structName}.{middleware.dataType}");
+        sb.AppendLine($"  /// {(middleware.isParallel ? "Transform-only (cannot filter)" : "Can filter actions")}");
         sb.AppendLine("  /// </summary>");
       }
 
-      // System attributes
-      sb.AppendLine("  [UpdateInGroup(typeof(MiddlewareSystemGroup))]");
-
-      // Sequential middleware: Default to NO Burst (for managed operations like dispatching)
-      // Parallel middleware: Default to Burst (for performance)
-      bool shouldUseBurst = middleware.isParallel ? !middleware.disableBurst : false;
-
-      // Allow explicit opt-in for sequential middleware via DisableBurst = false
-      if (!middleware.isParallel && !middleware.disableBurst) {
-        // User explicitly set DisableBurst = false, they want Burst
-        shouldUseBurst = true;
-      }
-
-      if (shouldUseBurst)
-        sb.AppendLine("  [BurstCompile]");
-
-      if (middleware.order != 0)
-        sb.AppendLine($"  [UpdateOrder({middleware.order})]");
-
       // System declaration
+      sb.AppendLine("  [UpdateInGroup(typeof(MiddlewareSystemGroup))]");
+      if (!middleware.disableBurst)
+        sb.AppendLine("  [BurstCompile]");
       sb.AppendLine($"  public partial struct {middleware.systemName} : ISystem");
       sb.AppendLine("  {");
-
-      // Fields
       sb.AppendLine($"    private {middleware.structName} logic;");
-      sb.AppendLine($"    private EntityQuery actionQuery;");
-      if (middleware.isParallel && !string.IsNullOrEmpty(middleware.dataType)) {
+      sb.AppendLine("    private EntityQuery actionQuery;");
+
+      if (middleware.isParallel) {
         sb.AppendLine($"    private {middleware.structName}.{middleware.dataType} preparedData;");
       }
       sb.AppendLine();
 
       // OnCreate
-      // Always allow Burst for OnCreate (it's just setup)
       if (!middleware.disableBurst)
         sb.AppendLine("    [BurstCompile]");
       sb.AppendLine("    public void OnCreate(ref SystemState state)");
@@ -520,12 +644,12 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine();
       sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
       sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
-      sb.AppendLine($"        .WithAllRW<{middleware.actionType}>()");
-      sb.AppendLine($"        .WithAll<ActionTag>();");
+      sb.AppendLine($"        .WithAll<{middleware.actionType}, ActionTag>();");
       sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
       sb.AppendLine("      queryBuilder.Dispose();");
       sb.AppendLine();
       sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
+      sb.AppendLine($"      state.RequireForUpdate<{middleware.actionType}>();");
       sb.AppendLine("    }");
       sb.AppendLine();
 
@@ -536,33 +660,29 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("    {");
 
       if (middleware.isParallel) {
-        // FIXED: Parallel processing with PrepareData
+        // Parallel middleware - transform only
         sb.AppendLine("      // Prepare data from SystemAPI on main thread");
         sb.AppendLine("      preparedData = logic.PrepareData(ref state);");
         sb.AppendLine();
-        sb.AppendLine("      // Schedule parallel transformation job");
+        sb.AppendLine("      // Schedule parallel job - transform only, cannot filter");
         sb.AppendLine("      state.Dependency = new ProcessActionsJob");
         sb.AppendLine("      {");
+        sb.AppendLine("        ActionHandle = actionHandle,");
         sb.AppendLine("        Logic = logic,");
         sb.AppendLine("        Data = preparedData");
         sb.AppendLine("      }.ScheduleParallel(actionQuery, state.Dependency);");
       } else {
-        // FIXED: Sequential processing with filtering
-        sb.AppendLine("      // Process actions sequentially with filtering capability");
-        if (!middleware.disableBurst) {
-          sb.AppendLine("      // Note: Cannot use ECSActionDispatcher.Dispatch() in Burst-compiled code.");
-          sb.AppendLine("      // To dispatch side-effect actions, either:");
-          sb.AppendLine("      //   1. Add [Middleware(DisableBurst = true)] to your middleware, OR");
-          sb.AppendLine("      //   2. Use ECB to create action entities directly");
-        }
+        // Sequential middleware - can filter
         sb.AppendLine("      var ecb = new EntityCommandBuffer(Allocator.TempJob);");
         sb.AppendLine();
+        sb.AppendLine("      // Process all actions sequentially - can filter");
         sb.AppendLine($"      foreach (var (action, entity) in SystemAPI.Query<RefRW<{middleware.actionType}>>()");
-        sb.AppendLine("        .WithAll<ActionTag>().WithEntityAccess())");
+        sb.AppendLine("          .WithAll<ActionTag>().WithEntityAccess())");
         sb.AppendLine("      {");
-        sb.AppendLine("        // Process returns false to filter out the action");
-        sb.AppendLine("        if (!logic.Process(ref action.ValueRW, ref state))");
+        sb.AppendLine("        bool shouldContinue = logic.Process(ref action.ValueRW, ref state);");
+        sb.AppendLine("        if (!shouldContinue)");
         sb.AppendLine("        {");
+        sb.AppendLine("          // Middleware filtered this action - destroy it");
         sb.AppendLine("          ecb.DestroyEntity(entity);");
         sb.AppendLine("        }");
         sb.AppendLine("      }");
@@ -575,27 +695,20 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine();
 
       // OnDestroy
-      // Always allow Burst for cleanup
-      if (!middleware.disableBurst)
-        sb.AppendLine("    [BurstCompile]");
       sb.AppendLine("    public void OnDestroy(ref SystemState state) { }");
+      sb.AppendLine();
 
-      // Parallel job if needed
+      // Job struct for parallel processing
       if (middleware.isParallel) {
-        sb.AppendLine();
-        sb.AppendLine("    // Parallel transformation job (no filtering)");
         if (!middleware.disableBurst)
           sb.AppendLine("    [BurstCompile]");
-        sb.AppendLine("    private partial struct ProcessActionsJob : IJobEntity");
+        sb.AppendLine($"    private partial struct ProcessActionsJob : IJobEntity");
         sb.AppendLine("    {");
         sb.AppendLine($"      [ReadOnly] public {middleware.structName} Logic;");
-        if (!string.IsNullOrEmpty(middleware.dataType)) {
-          sb.AppendLine($"      [ReadOnly] public {middleware.structName}.{middleware.dataType} Data;");
-        }
+        sb.AppendLine($"      [ReadOnly] public {middleware.structName}.{middleware.dataType} Data;");
         sb.AppendLine();
         sb.AppendLine($"      public void Execute(ref {middleware.actionType} action, in ActionTag tag)");
         sb.AppendLine("      {");
-        // FIXED: Pass the Data parameter to Process
         sb.AppendLine("        // Transform only - parallel middleware cannot filter");
         sb.AppendLine("        Logic.Process(ref action, in Data);");
         sb.AppendLine("      }");
@@ -636,34 +749,5 @@ namespace ECSReact.Editor.CodeGeneration
         Debug.Log($"Generated: {filePath}");
     }
 
-    // Info classes with complete type information
-    private class ReducerInfo
-    {
-      public Type structType;
-      public string structName;
-      public string namespaceName;
-      public string stateType;
-      public string actionType;
-      public string dataType;  // For IParallelReducer<,,> third type param
-      public bool disableBurst;
-      public int order;
-      public string systemName;
-      public bool isParallel;
-      public bool shouldGenerate;
-    }
-
-    private class MiddlewareInfo
-    {
-      public Type structType;
-      public string structName;
-      public string namespaceName;
-      public string actionType;
-      public string dataType;  // For IParallelMiddleware<,> second type param
-      public bool disableBurst;
-      public int order;
-      public string systemName;
-      public bool isParallel;
-      public bool shouldGenerate;
-    }
   }
 }

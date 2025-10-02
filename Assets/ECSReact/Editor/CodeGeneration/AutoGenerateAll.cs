@@ -66,7 +66,7 @@ namespace ECSReact.Editor.CodeGeneration
       EditorGUILayout.LabelField("Select Namespaces to Generate", EditorStyles.boldLabel);
       EditorGUILayout.HelpBox(
         "Choose which namespaces you want to generate code for. This will run all generators:\n" +
-        "• Bridge Systems (for reducers/middleware)\n" +
+        "• ISystem Bridges (for new IReducer/IParallelReducer/IMiddleware/IParallelMiddleware)\n" +
         "• State Registry\n" +
         "• UIStateNotifier extensions\n" +
         "• StateSubscriptionHelper extensions\n" +
@@ -96,46 +96,10 @@ namespace ECSReact.Editor.CodeGeneration
       EditorGUILayout.Space();
 
       // Namespace list with checkboxes
-      scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Height(300));
+      scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
 
       foreach (var kvp in discoveredNamespaces.OrderBy(ns => ns.Key)) {
-        var namespaceName = kvp.Key;
-        var namespaceInfo = kvp.Value;
-
-        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-
-        EditorGUILayout.BeginHorizontal();
-
-        // Checkbox for namespace
-        namespaceInfo.includeInGeneration = EditorGUILayout.Toggle(namespaceInfo.includeInGeneration, GUILayout.Width(24));
-
-        // Namespace name
-        EditorGUILayout.LabelField(namespaceName, EditorStyles.boldLabel, GUILayout.ExpandWidth(true));
-
-        EditorGUILayout.LabelField(namespaceInfo.assemblyName, EditorStyles.miniLabel, GUILayout.Width(240));
-        EditorGUILayout.EndHorizontal();
-
-        // Summary of what's in this namespace
-        int totalStates = namespaceInfo.StateCount;
-        int totalActions = namespaceInfo.ActionCount;
-        int totalReducers = namespaceInfo.ReducerCount;
-        int totalBurstReducers = namespaceInfo.BurstReducerCount;
-        int totalMiddleware = namespaceInfo.MiddlewareCount;
-        int totalBurstMiddleware = namespaceInfo.BurstMiddlewareCount;
-
-        var summaryParts = new List<string>();
-
-        if (totalStates > 0) { summaryParts.Add($"{totalStates} states"); }
-        if (totalActions > 0) { summaryParts.Add($"{totalActions} actions"); }
-        if (totalReducers > 0) { summaryParts.Add($"{totalReducers} reducers"); }
-        if (totalBurstReducers > 0) { summaryParts.Add($"{totalBurstReducers} burst reducers"); }
-        if (totalMiddleware > 0) { summaryParts.Add($"{totalMiddleware} middleware"); }
-        if (totalBurstMiddleware > 0) { summaryParts.Add($"{totalBurstMiddleware} burst middleware"); }
-        var summary = string.Join(", ", summaryParts);
-
-        EditorGUILayout.LabelField(summary, EditorStyles.miniLabel);
-
-        EditorGUILayout.EndVertical();
+        drawNamespace(kvp.Key, kvp.Value);
       }
 
       EditorGUILayout.EndScrollView();
@@ -151,12 +115,13 @@ namespace ECSReact.Editor.CodeGeneration
         EditorGUILayout.HelpBox("Select at least one namespace to enable code generation.", MessageType.Info);
       } else {
         int totalSystems = selectedNamespaces.Sum(ns => ns.SystemCount);
-        string systemInfo = totalSystems > 0 ? $" + {totalSystems} bridge systems" : "";
+        int totalISystems = selectedNamespaces.Sum(ns => ns.ISystemBridgeCount);
+        string systemInfo = totalSystems > 0 ? $" + {totalSystems} old bridge systems" : "";
+        string iSystemInfo = totalISystems > 0 ? $" + {totalISystems} ISystem bridges" : "";
 
         EditorGUILayout.HelpBox($"Ready to generate code for {selectedNamespaces.Count} namespace(s):\n• " +
             string.Join("\n• ", selectedNamespaces.Select(ns =>
-                $"{ns.namespaceName} ({ns.StateCount} states, {ns.ActionCount} actions" +
-                (ns.SystemCount > 0 ? $", {ns.SystemCount} systems)" : ")"))),
+                $"{ns.namespaceName} ({ns.StateCount} states, {ns.ActionCount} actions{(ns.SystemCount > 0 ? $", {ns.SystemCount} old systems" : "")}{(ns.ISystemBridgeCount > 0 ? $", {ns.ISystemBridgeCount} ISystem bridges" : "")})")),
             MessageType.Info);
       }
 
@@ -182,6 +147,42 @@ namespace ECSReact.Editor.CodeGeneration
         cleanGeneratedCode();
       }
       EditorGUILayout.EndHorizontal();
+
+      EditorGUILayout.Space(10);
+    }
+
+    private void drawNamespace(string namespaceName, NamespaceGroup namespaceInfo)
+    {
+      EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+      EditorGUILayout.BeginHorizontal();
+
+      // Checkbox for namespace
+      namespaceInfo.includeInGeneration = EditorGUILayout.Toggle(namespaceInfo.includeInGeneration, GUILayout.Width(24));
+
+      // Namespace name
+      EditorGUILayout.LabelField(namespaceName, EditorStyles.boldLabel, GUILayout.ExpandWidth(true));
+
+      EditorGUILayout.LabelField(namespaceInfo.assemblyName, EditorStyles.miniLabel, GUILayout.Width(240));
+      EditorGUILayout.EndHorizontal();
+
+      // Summary of what's in this namespace
+      int totalStates = namespaceInfo.StateCount;
+      int totalActions = namespaceInfo.ActionCount;
+      int totalIReducers = namespaceInfo.IReducerCount;
+      int totalIMiddleware = namespaceInfo.IMiddlewareCount;
+
+      var summaryParts = new List<string>();
+
+      if (totalStates > 0) { summaryParts.Add($"{totalStates} states"); }
+      if (totalActions > 0) { summaryParts.Add($"{totalActions} actions"); }
+      if (totalIReducers > 0) { summaryParts.Add($"{totalIReducers} reducers"); }
+      if (totalIMiddleware > 0) { summaryParts.Add($"{totalIMiddleware} middleware"); }
+      var summary = string.Join(", ", summaryParts);
+
+      EditorGUILayout.LabelField(summary, EditorStyles.miniLabel);
+
+      EditorGUILayout.EndVertical();
     }
 
     private void discoverNamespaces()
@@ -226,89 +227,173 @@ namespace ECSReact.Editor.CodeGeneration
               var namespaceInfo = discoveredNamespaces[namespaceName];
 
               if (isState) {
-                var stateInfo = new StateTypeInfo
+                var equatableInterface = type.GetInterfaces()
+                    .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEquatable<>));
+
+                namespaceInfo.states.Add(new StateTypeInfo
                 {
-                  stateType = type,
                   typeName = type.Name,
+                  stateType = type,
                   fullTypeName = type.FullName,
                   namespaceName = namespaceName,
                   assemblyName = assembly.GetName().Name,
-                  includeInGeneration = true
-                };
-                namespaceInfo.states.Add(stateInfo);
+                  includeInGeneration = true,
+                  implementsIEquatable = equatableInterface != null,
+                  eventPriority = UIEventPriority.Normal
+                });
               }
 
               if (isAction) {
                 var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance)
-                  .Where(f => !f.IsStatic)
-                  .Select(f => new FieldInfo
-                  {
-                    fieldName = f.Name,
-                    fieldType = CodeGenUtils.GetFriendlyTypeName(f.FieldType),
-                    isOptional = CodeGenUtils.IsOptionalField(f)
-                  })
-                  .ToList();
-                var actionInfo = new ActionTypeInfo
+                    .Where(f => !f.IsStatic)
+                    .Select(f => new FieldInfo
+                    {
+                      fieldName = f.Name,
+                      fieldType = CodeGenUtils.GetFriendlyTypeName(f.FieldType),
+                      isOptional = false
+                    })
+                    .ToList();
+
+                namespaceInfo.actions.Add(new ActionTypeInfo
                 {
                   typeName = type.Name,
                   fullTypeName = type.FullName,
                   namespaceName = namespaceName,
                   assemblyName = assembly.GetName().Name,
-                  includeInGeneration = type.Name == "Payload" ? false : true,
+                  includeInGeneration = true,
+                  hasFields = fields.Count > 0,
                   fields = fields
-                };
-                namespaceInfo.actions.Add(actionInfo);
+                });
               }
             }
 
-            // Then, discover reducer and middleware systems
-            var systemTypes = types
-                .Where(t => t.IsClass && !t.IsAbstract && !t.IsGenericType && isRedOrMed(t))
-                .ToList();
+            // Discover IReducer/IParallelReducer/IMiddleware/IParallelMiddleware types
+            foreach (var type in types) {
+              // Find Reducers
+              var reducerAttr = type.GetCustomAttribute<ReducerAttribute>();
+              if (reducerAttr != null && type.IsValueType) {
+                var interfaces = type.GetInterfaces();
+                foreach (var iface in interfaces) {
+                  if (iface.IsGenericType) {
+                    var genDef = iface.GetGenericTypeDefinition();
+                    var genericArgs = iface.GetGenericArguments();
 
-            bool isRedOrMed(Type type)
-            {
-              // Check if it inherits from any of our system base classes
-              var baseType = type.BaseType;
+                    ReducerInfo reducerInfo = null;
 
-              while (baseType != null) {
-                if (baseType.IsGenericType) {
-                  var genericDef = baseType.GetGenericTypeDefinition();
-                  var genericDefName = genericDef.Name;
+                    if (genDef == typeof(IReducer<,>)) {
+                      reducerInfo = new ReducerInfo
+                      {
+                        structType = type,
+                        structName = type.Name,
+                        namespaceName = type.Namespace ?? "Global",
+                        stateType = genericArgs[0].Name,
+                        actionType = genericArgs[1].Name,
+                        dataType = null,
+                        disableBurst = reducerAttr.DisableBurst,
+                        order = reducerAttr.Order,
+                        systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
+                        isParallel = false,
+                        shouldGenerate = true
+                      };
+                    } else if (genDef == typeof(IParallelReducer<,,>)) {
+                      reducerInfo = new ReducerInfo
+                      {
+                        structType = type,
+                        structName = type.Name,
+                        namespaceName = type.Namespace ?? "Global",
+                        stateType = genericArgs[0].Name,
+                        actionType = genericArgs[1].Name,
+                        dataType = genericArgs[2].Name,
+                        disableBurst = reducerAttr.DisableBurst,
+                        order = reducerAttr.Order,
+                        systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
+                        isParallel = true,
+                        shouldGenerate = true
+                      };
+                    }
 
-                  // Check for our four system types
-                  if (genericDefName == "ReducerSystem`2" ||
-                      genericDefName == "BurstReducerSystem`3" ||
-                      genericDefName == "MiddlewareSystem`1" ||
-                      genericDefName == "BurstMiddlewareSystem`2") {
-                    return true;
+                    if (reducerInfo != null) {
+                      string namespaceName = type.Namespace ?? "Global";
+
+                      if (!discoveredNamespaces.ContainsKey(namespaceName)) {
+                        discoveredNamespaces[namespaceName] = new NamespaceGroup
+                        {
+                          namespaceName = namespaceName,
+                          includeInGeneration = previousSelections.GetValueOrDefault(
+                            namespaceName,
+                            namespaceName == "ECSReact.Core" ? false : true),
+                          assemblyName = assembly.GetName().Name
+                        };
+                      }
+
+                      discoveredNamespaces[namespaceName].reducers.Add(reducerInfo);
+                      break;
+                    }
                   }
                 }
-                baseType = baseType.BaseType;
               }
 
-              return false;
-            }
+              // Find Middleware
+              var middlewareAttr = type.GetCustomAttribute<MiddlewareAttribute>();
+              if (middlewareAttr != null && type.IsValueType) {
+                var interfaces = type.GetInterfaces();
+                foreach (var iface in interfaces) {
+                  if (iface.IsGenericType) {
+                    var genDef = iface.GetGenericTypeDefinition();
+                    var genericArgs = iface.GetGenericArguments();
 
-            foreach (var type in systemTypes) {
-              string namespaceName = type.Namespace ?? "Global";
+                    MiddlewareInfo middlewareInfo = null;
 
-              if (!discoveredNamespaces.ContainsKey(namespaceName)) {
-                discoveredNamespaces[namespaceName] = new NamespaceGroup
-                {
-                  namespaceName = namespaceName,
-                  includeInGeneration = previousSelections.GetValueOrDefault(
-                    namespaceName,
-                    namespaceName == "ECSReact.Core" ? false : true),
-                  assemblyName = assembly.GetName().Name
-                };
+                    if (genDef == typeof(IMiddleware<>)) {
+                      middlewareInfo = new MiddlewareInfo
+                      {
+                        structType = type,
+                        structName = type.Name,
+                        namespaceName = type.Namespace ?? "Global",
+                        actionType = genericArgs[0].Name,
+                        dataType = null,
+                        disableBurst = middlewareAttr.DisableBurst,
+                        order = middlewareAttr.Order,
+                        systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
+                        isParallel = false,
+                        shouldGenerate = true
+                      };
+                    } else if (genDef == typeof(IParallelMiddleware<,>)) {
+                      middlewareInfo = new MiddlewareInfo
+                      {
+                        structType = type,
+                        structName = type.Name,
+                        namespaceName = type.Namespace ?? "Global",
+                        actionType = genericArgs[0].Name,
+                        dataType = genericArgs[1].Name,
+                        disableBurst = middlewareAttr.DisableBurst,
+                        order = middlewareAttr.Order,
+                        systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
+                        isParallel = true,
+                        shouldGenerate = true
+                      };
+                    }
+
+                    if (middlewareInfo != null) {
+                      string namespaceName = type.Namespace ?? "Global";
+
+                      if (!discoveredNamespaces.ContainsKey(namespaceName)) {
+                        discoveredNamespaces[namespaceName] = new NamespaceGroup
+                        {
+                          namespaceName = namespaceName,
+                          includeInGeneration = previousSelections.GetValueOrDefault(
+                            namespaceName,
+                            namespaceName == "ECSReact.Core" ? false : true),
+                          assemblyName = assembly.GetName().Name
+                        };
+                      }
+
+                      discoveredNamespaces[namespaceName].middleware.Add(middlewareInfo);
+                      break;
+                    }
+                  }
+                }
               }
-
-              var namespaceInfo = discoveredNamespaces[namespaceName];
-
-              // Add system info
-              var systemInfo = BridgeSystemGenerator.AnalyzeSystemType(type);
-              namespaceInfo.systems.Add(systemInfo);
             }
 
           } catch (Exception ex) {
@@ -319,18 +404,14 @@ namespace ECSReact.Editor.CodeGeneration
         hasDiscovered = true;
         int totalStates = discoveredNamespaces.Values.Sum(ns => ns.StateCount);
         int totalActions = discoveredNamespaces.Values.Sum(ns => ns.ActionCount);
-        int totalReducers = discoveredNamespaces.Values.Sum(ns => ns.ReducerCount);
-        int totalBurstReducers = discoveredNamespaces.Values.Sum(ns => ns.BurstReducerCount);
-        int totalMiddleware = discoveredNamespaces.Values.Sum(ns => ns.MiddlewareCount);
-        int totalBurstMiddleware = discoveredNamespaces.Values.Sum(ns => ns.BurstMiddlewareCount);
+        int totalIReducers = discoveredNamespaces.Values.Sum(ns => ns.IReducerCount);
+        int totalIMiddleware = discoveredNamespaces.Values.Sum(ns => ns.IMiddlewareCount);
 
         Debug.Log($"Auto Generate All: " +
           $"Discovered {totalStates} states, " +
           $"{totalActions} actions, " +
-          $"{totalReducers} reducers" +
-          (totalBurstReducers > 0 ? $" ({totalBurstReducers} burst), " : ", ") +
-          $"and {totalMiddleware} middleware" +
-          (totalBurstMiddleware > 0 ? $" ({totalBurstMiddleware} burst) " : " ") +
+          $"{totalIReducers} reducers, " +
+          $"{totalIMiddleware} middleware " +
           $"across {discoveredNamespaces.Count} namespaces");
       } catch (Exception ex) {
         Debug.LogError($"Auto Generate All: Discovery failed - {ex.Message}");
@@ -343,7 +424,7 @@ namespace ECSReact.Editor.CodeGeneration
       if (!EditorUtility.DisplayDialog(
           "Generate All Selected",
           $"This will automatically generate code for {selectedNamespaces.Count} namespace(s):\n\n" +
-          "• Bridge Systems (for reducers/middleware)\n" +
+          "• ISystem Bridges (for new IReducer/IParallelReducer/IMiddleware/IParallelMiddleware)\n" +
           "• State Registry\n" +
           "• UIStateNotifier extensions\n" +
           "• StateSubscriptionHelper extensions\n" +
@@ -360,9 +441,9 @@ namespace ECSReact.Editor.CodeGeneration
 
         EditorUtility.DisplayProgressBar("Auto Generate All", "Starting generation...", 0);
 
-        // Generate Bridge Systems
-        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating Bridge Systems...", 0.1f);
-        results.Add(generateBridgeSystemsForNamespaces(selectedNamespaces));
+        // NEW: Generate ISystem Bridges
+        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating ISystem Bridges...", 0.15f);
+        results.Add(generateISystemBridgesForNamespaces(selectedNamespaces));
 
         // Generate StateRegistry
         EditorUtility.DisplayProgressBar("Auto Generate All", "Generating State Registry...", 0.3f);
@@ -406,40 +487,42 @@ namespace ECSReact.Editor.CodeGeneration
       }
     }
 
-    private GenerationResult generateBridgeSystemsForNamespaces(List<NamespaceGroup> namespaces)
+    // Generate ISystem Bridges
+    private GenerationResult generateISystemBridgesForNamespaces(List<NamespaceGroup> namespaces)
     {
       try {
-        var namespacesWithSystems = namespaces.Where(ns => ns.SystemCount > 0).ToList();
+        var namespacesWithISystems = namespaces.Where(ns => ns.ISystemBridgeCount > 0).ToList();
 
-        if (namespacesWithSystems.Count == 0) {
+        if (namespacesWithISystems.Count == 0) {
           return new GenerationResult
           {
-            success = true, // Not a failure, just nothing to do
-            summary = "✓ Bridge Systems: No reducer/middleware systems found to generate bridges for"
+            success = true,
+            summary = "✓ ISystem Bridges: No IReducer/IMiddleware systems found"
           };
         }
 
-        // Call the BridgeSystemGenerator method
-        var gen = new BridgeSystemGenerator();
+        var gen = new ISystemBridgeGenerator();
         var generatedFiles = new List<string>();
-        int totalBridges = 0;
 
-        foreach (var ns in namespacesWithSystems) {
-          int bridgesInNamespace = gen.GenerateBridgesForNamespace(ns, outputPath, ref generatedFiles);
-          totalBridges += bridgesInNamespace;
+        foreach (var ns in namespacesWithISystems) {
+          gen.GenerateISystemBridgeCodeForNamespace(ns, ref generatedFiles);
         }
+
+        int totalIReducers = namespacesWithISystems.Sum(ns => ns.IReducerCount);
+        int totalIMiddleware = namespacesWithISystems.Sum(ns => ns.IMiddlewareCount);
+        int totalISystems = totalIReducers + totalIMiddleware;
 
         return new GenerationResult
         {
           success = true,
-          summary = $"✅ Bridge Systems: Generated {totalBridges} bridges across {namespacesWithSystems.Count} namespaces"
+          summary = $"✅ ISystem Bridges: Generated {totalISystems} ISystem implementations ({totalIReducers} reducers, {totalIMiddleware} middleware) across {namespacesWithISystems.Count} namespaces"
         };
       } catch (Exception ex) {
-        Debug.LogError($"Failed to generate Bridge Systems: {ex.Message}");
+        Debug.LogError($"Failed to generate ISystem Bridges: {ex.Message}");
         return new GenerationResult
         {
           success = false,
-          summary = $"❌ Bridge Systems: Generation failed - {ex.Message}"
+          summary = $"❌ ISystem Bridges: Generation failed - {ex.Message}"
         };
       }
     }

@@ -21,18 +21,19 @@ namespace ECSReact.Editor.CodeGeneration
     // Counts
     public int StateCount => states.Count;
     public int ActionCount => actions.Count;
-    public int ReducerCount => StandardReducerCount + BurstMiddlewareCount;
-    public int MiddlewareCount => StandardMiddlewareCount + BurstMiddlewareCount;
     public int SystemCount => systems.Count;
-    public int StandardReducerCount => systems.Count(s => s.systemKind == SystemType.StandardReducer);
-    public int BurstReducerCount => systems.Count(s => s.systemKind == SystemType.BurstReducer);
-    public int StandardMiddlewareCount => systems.Count(s => s.systemKind == SystemType.StandardMiddleware);
-    public int BurstMiddlewareCount => systems.Count(s => s.systemKind == SystemType.BurstMiddleware);
+    public int IReducerCount => reducers.Count;
+    public int IMiddlewareCount => middleware.Count;
+    public int ISystemBridgeCount => IReducerCount + IMiddlewareCount;
 
     // Type lists
     public List<StateTypeInfo> states = new();
     public List<ActionTypeInfo> actions = new();
     public List<SystemInfo> systems = new();
+
+    // NEW: ISystem bridge types
+    public List<ReducerInfo> reducers = new();
+    public List<MiddlewareInfo> middleware = new();
   }
 
   [Serializable]
@@ -101,18 +102,42 @@ namespace ECSReact.Editor.CodeGeneration
     public Type stateType;
     public Type actionType;
     public Type logicType;
-    public SystemType systemKind;
     public bool includeInGeneration = true;
     public string namespaceName;
     public string className;
+  }
 
-    public string GetBridgeName()
-    {
-      return $"{className}_{actionType.Name}_Bridge";
-    }
+  // NEW: Info classes for IReducer/IParallelReducer types
+  [Serializable]
+  public class ReducerInfo
+  {
+    public Type structType;
+    public string structName;
+    public string namespaceName;
+    public string stateType;
+    public string actionType;
+    public string dataType;  // For IParallelReducer<,,> third type param
+    public bool disableBurst;
+    public int order;
+    public string systemName;
+    public bool isParallel;
+    public bool shouldGenerate;
+  }
 
-    public bool IsBurstOptimized =>
-      systemKind == SystemType.BurstReducer || systemKind == SystemType.BurstMiddleware;
+  // NEW: Info classes for IMiddleware/IParallelMiddleware types
+  [Serializable]
+  public class MiddlewareInfo
+  {
+    public Type structType;
+    public string structName;
+    public string namespaceName;
+    public string actionType;
+    public string dataType;  // For IParallelMiddleware<,> second type param
+    public bool disableBurst;
+    public int order;
+    public string systemName;
+    public bool isParallel;
+    public bool shouldGenerate;
   }
 
   public static class CodeGenUtils
