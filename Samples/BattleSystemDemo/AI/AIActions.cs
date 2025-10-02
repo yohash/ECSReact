@@ -5,6 +5,41 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
+  /// Dispatched when an enemy's turn begins in the battle.
+  /// This replaces the polling architecture - the battle system will dispatch
+  /// this action when it transitions to EnemyTurn phase.
+  /// 
+  /// Contains all context needed for AI to begin thinking, following the
+  /// "Action Enrichment" pattern - no entity lookups needed in reducers.
+  /// </summary>
+  public struct EnemyTurnStartedAction : IGameAction
+  {
+    public Entity enemyEntity;
+    public int turnIndex;
+    public int turnCount;
+
+    /// <summary>
+    /// Optional: Enemy name for logging/debugging
+    /// Can be empty if not needed for AI logic
+    /// </summary>
+    public FixedString64Bytes enemyName;
+  }
+
+  /// <summary>
+  /// Dispatched when the AI thinking timer completes.
+  /// This triggers the actual decision-making logic.
+  /// 
+  /// Replaces the timer polling in the old system - the thinking timer
+  /// system will dispatch this after the dramatic pause completes.
+  /// </summary>
+  public struct AIReadyToDecideAction : IGameAction
+  {
+    public Entity enemyEntity;
+    public float thinkingDuration;
+    public double thinkingStartTime;
+  }
+
+  /// <summary>
   /// Dispatched when an enemy starts thinking about their action.
   /// Used to trigger UI feedback like thinking animations.
   /// </summary>

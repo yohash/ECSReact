@@ -52,6 +52,14 @@ namespace ECSReact.Samples.BattleSystem
 
       var turnOrder = CreateTurnOrder(partySetup);
 
+      // After InitializeTurnOrderAction is dispatched and battle starts
+      var hasState = SceneStateManager.Instance.GetState<PartyState>(out var partyState);
+      if (hasState) {
+        AIStateInitializer.InitializeAIForBattle(entityManager, partyState);
+      } else {
+        Debug.LogError("BattleSystemInitializer - PartyState not found, cannot initialize AI");
+      }
+
       // Initialize core battle state
       InitializeBattleState(entityManager, turnOrder);
       Debug.Log("Initialized BattleState");
