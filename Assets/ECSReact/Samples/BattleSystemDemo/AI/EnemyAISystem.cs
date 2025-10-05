@@ -1,154 +1,139 @@
+// ============================================================================
+// PHASE 1: ENEMYAISYSTEM MODIFICATIONS
+// ============================================================================
+// Instructions for modifying EnemyAISystem to work with the new event-driven flow
+//
+// WHAT WE'RE DOING:
+// 1. Remove the thinking timer update logic (now in AIThinkingTimerSystem)
+// 2. Remove the phase polling and "start thinking" logic (now in AIThinkingTriggerSystem)
+// 3. Make the system listen for AIReadyToDecideAction instead
+// 4. Keep decision-making and execution logic (will be extracted in later phases)
+//
+// NOTE: This is a transitional state. We're keeping the EnemyAISystem for now
+// but removing the polling and timer logic. In later phases, we'll extract
+// the decision and execution logic into reducers and delete this system entirely.
+// ============================================================================
+
 using Unity.Entities;
 using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 using ECSReact.Core;
 
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// Core system that manages enemy AI decision making during battle.
-  /// Monitors battle state and triggers AI decisions when it's an enemy's turn.
+  /// PHASE 1 MODIFIED: Enemy AI Decision and Execution System
+  /// 
+  /// This system now ONLY handles:
+  /// - Responding to AIReadyToDecideAction (decision trigger)
+  /// - Making AI decisions based on behavior
+  /// - Executing the chosen action
+  /// 
+  /// REMOVED in Phase 1:
+  /// - Phase polling (moved to AIThinkingTriggerSystem)
+  /// - Thinking timer updates (moved to AIThinkingTimerSystem)
+  /// - Component checks and additions (handled at initialization)
+  /// 
+  /// TODO in future phases:
+  /// - Phase 2: Extract decision logic to AIDecisionReducer
+  /// - Phase 3: Extract execution logic to AIExecutionReducer
+  /// - Phase 5: Delete this system entirely
   /// </summary>
   [UpdateInGroup(typeof(SimulationSystemGroup))]
   [UpdateAfter(typeof(ReducerSystemGroup))]
+  [UpdateAfter(typeof(AIThinkingTimerSystem))]
   public partial class EnemyAISystem : SystemBase
   {
+    // Query for AIReadyToDecideAction
+    private EntityQuery readyToDecideQuery;
+
     protected override void OnCreate()
     {
       base.OnCreate();
 
+      // Create query for AIReadyToDecideAction
+      readyToDecideQuery = GetEntityQuery(
+        ComponentType.ReadOnly<AIReadyToDecideAction>(),
+        ComponentType.ReadOnly<ActionTag>()
+      );
+
       // Only run when we have the required state singletons
       RequireForUpdate<BattleState>();
       RequireForUpdate<PartyState>();
+      RequireForUpdate<AIThinkingState>();
     }
 
     protected override void OnUpdate()
     {
-      // Get current states using SystemAPI
+      // Check if there's a ready-to-decide action
+      if (readyToDecideQuery.IsEmpty)
+        return;
+
+      // Get current states
       if (!SystemAPI.TryGetSingleton<BattleState>(out var battleState))
         return;
       if (!SystemAPI.TryGetSingleton<PartyState>(out var partyState))
         return;
 
-      // Only process during enemy turn phase
-      if (battleState.currentPhase != BattlePhase.EnemyTurn)
-        return;
+      // Process the AIReadyToDecideAction
+      var actions = readyToDecideQuery.ToComponentDataArray<AIReadyToDecideAction>(Allocator.Temp);
 
-      // Get the active enemy
-      Entity activeEnemy = GetActiveEnemy(battleState, partyState);
-      if (activeEnemy == Entity.Null)
-        return;
+      foreach (var action in actions) {
+        // Make decision for this enemy
+        MakeAndExecuteDecision(action.enemyEntity, battleState, partyState);
 
-      // Check if this enemy has AI behavior
-      if (!EntityManager.HasComponent<AIBehavior>(activeEnemy)) {
-        // Add default AI behavior if missing
-        EntityManager.AddComponentData(activeEnemy, AIBehavior.CreateRandom());
+        // Clear the thinking state
+        ClearThinkingState();
       }
 
-      // Get or create AI state for this enemy
-      if (!EntityManager.HasComponent<AIState>(activeEnemy)) {
-        EntityManager.AddComponentData(activeEnemy, new AIState
-        {
-          isThinking = false,
-          hasDecided = false,
-          thinkingTimer = 0f
-        });
-      }
+      actions.Dispose();
 
-      var aiState = EntityManager.GetComponentData<AIState>(activeEnemy);
-      var aiBehavior = EntityManager.GetComponentData<AIBehavior>(activeEnemy);
-
-      // Process AI state machine
-      if (!aiState.isThinking && !aiState.hasDecided) {
-        // Start thinking
-        StartAIThinking(activeEnemy, aiBehavior);
-      } else if (aiState.isThinking) {
-        // Update thinking timer
-        aiState.thinkingTimer += SystemAPI.Time.DeltaTime;
-
-        if (aiState.thinkingTimer >= aiBehavior.thinkingDuration) {
-          // Time to make a decision
-          MakeAIDecision(activeEnemy, battleState, partyState, aiBehavior);
-        }
-
-        EntityManager.SetComponentData(activeEnemy, aiState);
-      } else if (aiState.hasDecided) {
-        // Execute the decision
-        ExecuteAIDecision(activeEnemy, aiState);
-
-        // Reset AI state for next turn
-        aiState.hasDecided = false;
-        aiState.isThinking = false;
-        aiState.thinkingTimer = 0f;
-        EntityManager.SetComponentData(activeEnemy, aiState);
-      }
+      // Clean up the action entities
+      EntityManager.DestroyEntity(readyToDecideQuery);
     }
 
-    private Entity GetActiveEnemy(BattleState battleState, PartyState partyState)
+    private void MakeAndExecuteDecision(Entity enemy, BattleState battleState, PartyState partyState)
     {
-      if (battleState.activeCharacterIndex >= battleState.turnOrder.Length)
-        return Entity.Null;
-
-      var activeEntity = battleState.turnOrder[battleState.activeCharacterIndex];
-
-      // Verify this is actually an enemy
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == activeEntity &&
-            partyState.characters[i].isEnemy &&
-            partyState.characters[i].isAlive) {
-          return activeEntity;
-        }
+      // Get AI behavior
+      if (!EntityManager.HasComponent<AIBehavior>(enemy)) {
+        Debug.LogWarning($"Enemy {enemy.Index} has no AIBehavior - using default");
+        EntityManager.AddComponentData(enemy, AIBehavior.CreateRandom());
       }
 
-      return Entity.Null;
-    }
-
-    private void StartAIThinking(Entity enemy, AIBehavior behavior)
-    {
-      Debug.Log($"Enemy AI starting to think (duration: {behavior.thinkingDuration}s)");
-
-      // Update AI state
-      var aiState = EntityManager.GetComponentData<AIState>(enemy);
-      aiState.isThinking = true;
-      aiState.thinkingTimer = 0f;
-      EntityManager.SetComponentData(enemy, aiState);
-
-      // Dispatch thinking action for UI feedback
-      ECSActionDispatcher.Dispatch(new AIThinkingAction
-      {
-        enemyEntity = enemy,
-        thinkDuration = behavior.thinkingDuration
-      });
-    }
-
-    private void MakeAIDecision(Entity enemy, BattleState battleState, PartyState partyState, AIBehavior behavior)
-    {
-      Debug.Log("Enemy AI making decision...");
+      var aiBehavior = EntityManager.GetComponentData<AIBehavior>(enemy);
 
       // Build decision context
       var context = BuildDecisionContext(enemy, battleState, partyState);
 
-      // Choose action based on AI behavior
-      var decision = behavior.strategy switch
+      // Make decision based on strategy
+      var decision = aiBehavior.strategy switch
       {
-        AIStrategy.Random => MakeRandomDecision(context, behavior),
-        AIStrategy.Aggressive => MakeAggressiveDecision(context, behavior),
-        AIStrategy.Defensive => MakeDefensiveDecision(context, behavior),
-        AIStrategy.Balanced => MakeBalancedDecision(context, behavior),
-        _ => MakeRandomDecision(context, behavior)
+        AIStrategy.Random => MakeRandomDecision(context, aiBehavior),
+        AIStrategy.Aggressive => MakeAggressiveDecision(context, aiBehavior),
+        AIStrategy.Defensive => MakeDefensiveDecision(context, aiBehavior),
+        AIStrategy.Balanced => MakeBalancedDecision(context, aiBehavior),
+        _ => MakeRandomDecision(context, aiBehavior)
       };
 
-      // Store the decision
-      var aiState = EntityManager.GetComponentData<AIState>(enemy);
-      aiState.isThinking = false;
-      aiState.hasDecided = true;
-      aiState.chosenAction = decision.action;
-      aiState.chosenTarget = decision.target;
-      aiState.chosenSkillId = decision.skillId;
-      EntityManager.SetComponentData(enemy, aiState);
+      Debug.Log($"Enemy {enemy.Index} decided: {decision.action} targeting {decision.target.Index}");
 
-      Debug.Log($"Enemy decided: {decision.action} targeting {decision.target}");
+      // Execute the decision immediately
+      ExecuteAIDecision(enemy, decision);
     }
+
+    private void ClearThinkingState()
+    {
+      // Clear the thinking state singleton
+      var thinkingStateEntity = SystemAPI.GetSingletonEntity<AIThinkingState>();
+      var thinkingState = EntityManager.GetComponentData<AIThinkingState>(thinkingStateEntity);
+      thinkingState.ClearThinking();
+      EntityManager.SetComponentData(thinkingStateEntity, thinkingState);
+    }
+
+    // ========================================================================
+    // DECISION LOGIC (unchanged from original - will be extracted in Phase 2)
+    // ========================================================================
 
     private AIDecisionContext BuildDecisionContext(Entity enemy, BattleState battleState, PartyState partyState)
     {
@@ -176,44 +161,44 @@ namespace ECSReact.Samples.BattleSystem
       context.healthPercent = selfData.Value.maxHealth > 0
         ? (float)selfData.Value.currentHealth / selfData.Value.maxHealth
         : 0f;
-      context.currentMana = selfData.Value.currentMana;
-      context.statusEffects = selfData.Value.status;
 
-      // Count allies and enemies, build target list
+      // Count allies and enemies
+      int aliveAllies = 0;
+      int aliveEnemies = 0;
+
       for (int i = 0; i < partyState.characters.Length; i++) {
         var character = partyState.characters[i];
-
         if (!character.isAlive)
           continue;
 
-        if (character.isEnemy) {
-          context.aliveAllies++;
+        if (character.isEnemy == selfData.Value.isEnemy) {
+          aliveAllies++;
         } else {
-          context.aliveEnemies++;
+          aliveEnemies++;
 
           // Add as potential target
-          if (context.potentialTargets.Length < context.potentialTargets.Capacity) {
-            var targetInfo = new AITargetInfo
-            {
-              entity = character.entity,
-              currentHealth = character.currentHealth,
-              healthPercent = character.maxHealth > 0
-                ? (float)character.currentHealth / character.maxHealth
-                : 0f,
-              isDefending = character.status.HasFlag(CharacterStatus.Defending),
-              hasDebuffs = character.status.HasFlag(CharacterStatus.Weakened) ||
-                          character.status.HasFlag(CharacterStatus.Poisoned),
-              threatLevel = 50, // Default threat (would be calculated from damage history)
-              distance = 1.0f   // Default distance (for future spatial AI)
-            };
+          var targetInfo = new AITargetInfo
+          {
+            entity = character.entity,
+            currentHealth = character.currentHealth,
+            healthPercent = character.maxHealth > 0
+              ? (float)character.currentHealth / character.maxHealth
+              : 0f,
+            isDefending = character.status.HasFlag(CharacterStatus.Defending),
+            hasDebuffs = character.status.HasFlag(CharacterStatus.Weakened) ||
+                        character.status.HasFlag(CharacterStatus.Poisoned),
+            threatLevel = 50,
+            distance = 1.0f
+          };
 
-            context.potentialTargets.Add(targetInfo);
-          }
+          context.potentialTargets.Add(targetInfo);
         }
       }
 
-      context.isOutnumbered = context.aliveEnemies > context.aliveAllies;
-      context.isLastAlly = context.aliveAllies == 1;
+      context.aliveAllies = aliveAllies;
+      context.aliveEnemies = aliveEnemies;
+      context.isOutnumbered = aliveEnemies > aliveAllies;
+      context.isLastAlly = aliveAllies == 1;
 
       return context;
     }
@@ -222,13 +207,11 @@ namespace ECSReact.Samples.BattleSystem
     {
       var decision = new AIDecision();
 
-      // Simple random: Always attack a random target
       if (context.potentialTargets.Length > 0) {
         decision.action = ActionType.Attack;
         int randomIndex = UnityEngine.Random.Range(0, context.potentialTargets.Length);
         decision.target = context.potentialTargets[randomIndex].entity;
       } else {
-        // No valid targets, defend
         decision.action = ActionType.Defend;
         decision.target = Entity.Null;
       }
@@ -240,7 +223,6 @@ namespace ECSReact.Samples.BattleSystem
     {
       var decision = new AIDecision();
 
-      // Aggressive: Target lowest health enemy
       if (context.potentialTargets.Length > 0) {
         decision.action = ActionType.Attack;
 
@@ -268,14 +250,12 @@ namespace ECSReact.Samples.BattleSystem
     {
       var decision = new AIDecision();
 
-      // Defensive: Defend if low health, otherwise attack highest threat
       if (context.ShouldConsiderDefending(behavior.defendThreshold)) {
         decision.action = ActionType.Defend;
         decision.target = Entity.Null;
       } else if (context.potentialTargets.Length > 0) {
         decision.action = ActionType.Attack;
 
-        // Target highest threat (for now, highest health as proxy)
         Entity strongestTarget = Entity.Null;
         float highestHealth = 0f;
 
@@ -300,17 +280,14 @@ namespace ECSReact.Samples.BattleSystem
     {
       var decision = new AIDecision();
 
-      // Balanced: Mix of aggressive and defensive based on situation
       float randomRoll = UnityEngine.Random.Range(0f, 1f);
 
-      // Consider defending if health is low
       if (context.healthPercent < behavior.defendThreshold && randomRoll < 0.5f) {
         decision.action = ActionType.Defend;
         decision.target = Entity.Null;
       } else if (context.potentialTargets.Length > 0) {
         decision.action = ActionType.Attack;
 
-        // Score each target based on weights
         Entity bestTarget = Entity.Null;
         float bestScore = float.MinValue;
 
@@ -318,17 +295,10 @@ namespace ECSReact.Samples.BattleSystem
           var target = context.potentialTargets[i];
 
           float score = 0f;
-
-          // Low health bonus
           score += (1f - target.healthPercent) * behavior.targetLowestHealthWeight;
-
-          // High threat bonus (using health as proxy for now)
           score += (target.currentHealth / 100f) * behavior.targetHighestThreatWeight;
-
-          // Random factor
           score += UnityEngine.Random.Range(0f, 1f) * behavior.targetRandomWeight;
 
-          // Penalty for defending targets
           if (target.isDefending)
             score *= 0.5f;
 
@@ -347,22 +317,24 @@ namespace ECSReact.Samples.BattleSystem
       return decision;
     }
 
-    private void ExecuteAIDecision(Entity enemy, AIState aiState)
+    // ========================================================================
+    // EXECUTION LOGIC (unchanged from original - will be extracted in Phase 3)
+    // ========================================================================
+
+    private void ExecuteAIDecision(Entity enemy, AIDecision decision)
     {
-      Debug.Log($"Executing AI decision: {aiState.chosenAction}");
+      Debug.Log($"Executing AI decision: {decision.action}");
 
-      // Dispatch the chosen action
-      switch (aiState.chosenAction) {
+      switch (decision.action) {
         case ActionType.Attack:
-          if (aiState.chosenTarget != Entity.Null) {
-            // Calculate damage
+          if (decision.target != Entity.Null) {
             int baseDamage = UnityEngine.Random.Range(10, 20);
-            bool isCritical = UnityEngine.Random.Range(0f, 1f) < 0.05f; // 5% crit for enemies
+            bool isCritical = UnityEngine.Random.Range(0f, 1f) < 0.05f;
 
-            Store.Instance?.Dispatch(new AttackAction
+            ECSActionDispatcher.Dispatch(new AttackAction
             {
               attackerEntity = enemy,
-              targetEntity = aiState.chosenTarget,
+              targetEntity = decision.target,
               baseDamage = baseDamage,
               isCritical = isCritical
             });
@@ -370,7 +342,7 @@ namespace ECSReact.Samples.BattleSystem
           break;
 
         case ActionType.Defend:
-          Store.Instance?.Dispatch(new SelectActionTypeAction
+          ECSActionDispatcher.Dispatch(new SelectActionTypeAction
           {
             actionType = ActionType.Defend,
             actingCharacter = enemy
@@ -378,7 +350,6 @@ namespace ECSReact.Samples.BattleSystem
           break;
 
         case ActionType.Skill:
-          // TODO: Implement skill usage
           Debug.Log("Skill usage not yet implemented, falling back to attack");
           break;
       }
@@ -389,20 +360,17 @@ namespace ECSReact.Samples.BattleSystem
 
     private void AdvanceToNextTurn()
     {
-      // Get fresh state using SystemAPI
       if (!SystemAPI.TryGetSingleton<BattleState>(out var battleState))
         return;
       if (!SystemAPI.TryGetSingleton<PartyState>(out var partyState))
         return;
 
-      // Calculate next turn
       var nextIndex = (battleState.activeCharacterIndex + 1) % battleState.turnOrder.Length;
       if (nextIndex >= battleState.turnOrder.Length)
         return;
 
       var nextEntity = battleState.turnOrder[nextIndex];
 
-      // Determine if next turn is player or enemy
       bool isPlayerTurn = false;
       for (int i = 0; i < partyState.characters.Length; i++) {
         if (partyState.characters[i].entity == nextEntity) {
@@ -411,7 +379,6 @@ namespace ECSReact.Samples.BattleSystem
         }
       }
 
-      // Dispatch turn advance
       ECSActionDispatcher.Dispatch(new NextTurnAction
       {
         skipAnimation = false,

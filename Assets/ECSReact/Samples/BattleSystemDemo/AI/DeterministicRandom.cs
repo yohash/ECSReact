@@ -33,7 +33,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Same entity + same turn = same random sequence (deterministic)
   /// Different turn = different sequence (varied behavior)
   /// </summary>
-  public static class AIRandomUtility
+  public static class DeterministicRandom
   {
     // Prime numbers for hash mixing - constants are Burst-compatible
     private const uint ENTITY_INDEX_PRIME = 7919;
