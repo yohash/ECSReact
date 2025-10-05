@@ -126,6 +126,449 @@ public class CharacterSheetPanel : ReactiveUIComponent<PlayerState>
 ```
 </details>
 
+## Dispatching From ECS Context
+
+There are three recommended patterns for dispatching actions from within ECS systems, based on your execution context and performance requirements.
+
+<details>
+<summary>Main-Thread, Non-Burst</summary>
+
+### Direct Dispatch Pattern
+ 
+Use `ECSActionDispatcher.Dispatch()` directly when you're in a non-Burst context and don't need parallel processing. This is the simplest approach for systems that run on the main thread.
+
+```csharp
+// Simple system that dispatches actions based on game logic
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+public partial class HealthMonitorSystem : SystemBase
+{
+    protected override void OnUpdate()
+    {
+        // Direct query and dispatch - not Burst compiled
+        foreach (var (health, entity) in 
+            SystemAPI.Query<RefRO<Health>>()
+                .WithEntityAccess())
+        {
+            if (health.ValueRO.current <= 0 && health.ValueRO.current > -100)
+            {
+                // Mark as processed to avoid repeated dispatches
+                EntityManager.SetComponentData(entity, new Health 
+                { 
+                    current = -100, 
+                    max = health.ValueRO.max 
+                });
+                
+                // Dispatch death action directly
+                ECSActionDispatcher.Dispatch(new EntityDeathAction
+                {
+                    entity = entity,
+                    timestamp = (float)SystemAPI.Time.ElapsedTime
+                });
+            }
+        }
+    }
+}
+
+// Another example: Spawning system
+public partial class WaveSpawnerSystem : SystemBase
+{
+    private float nextSpawnTime;
+    
+    protected override void OnUpdate()
+    {
+        if (SystemAPI.Time.ElapsedTime >= nextSpawnTime)
+        {
+            var config = SystemAPI.GetSingleton<WaveConfig>();
+            
+            // Dispatch spawn action for each enemy in wave
+            for (int i = 0; i < config.enemiesPerWave; i++)
+            {
+                ECSActionDispatcher.Dispatch(new SpawnEnemyAction
+                {
+                    prefabId = config.enemyPrefabId,
+                    position = CalculateSpawnPosition(i),
+                    level = config.currentWaveLevel
+                });
+            }
+            
+            nextSpawnTime = (float)SystemAPI.Time.ElapsedTime + config.waveInterval;
+        }
+    }
+    
+    private float3 CalculateSpawnPosition(int index)
+    {
+        // Calculate spawn position logic
+        return new float3(index * 2f, 0, 10f);
+    }
+}
+```
+</details>
+
+<details>
+<summary>Main-Thread, Burst</summary>
+
+### Pre-fetch ECB Pattern
+    
+For Burst-compiled systems that need to dispatch actions, pre-fetch the `EntityCommandBuffer.ParallelWriter` before entering Burst context, then use it within your Burst-compiled methods.
+
+```csharp
+[BurstCompile]
+public partial struct CollisionResponseSystem : ISystem
+{
+    // Store the ECB writer as a field
+    private EntityCommandBuffer.ParallelWriter ecbWriter;
+
+    public void OnCreate(ref SystemState state)
+    {
+        state.RequireForUpdate<PhysicsWorldSingleton>();
+    }
+
+    public void OnUpdate(ref SystemState state)
+    {
+        // CRITICAL: Get the ECB BEFORE entering Burst context
+        // This happens on main thread before Burst compilation kicks in
+        ecbWriter = ECSActionDispatcher.GetJobCommandBuffer(state.World);
+        
+        // Now we can use it in Burst-compiled code
+        ProcessCollisions(ref state);
+        
+        // Register dependency for proper synchronization
+        ECSActionDispatcher.RegisterJobHandle(state.Dependency, state.World);
+    }
+
+    [BurstCompile]
+    private void ProcessCollisions(ref SystemState state)
+    {
+        var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>().PhysicsWorld;
+        
+        // Process collision events - fully Burst compiled
+        foreach (var (velocity, transform, entity) in 
+            SystemAPI.Query<RefRW<Velocity>, RefRO<LocalTransform>>()
+                .WithEntityAccess())
+        {
+            // Raycast to check for collisions
+            var rayInput = new RaycastInput
+            {
+                Start = transform.ValueRO.Position,
+                End = transform.ValueRO.Position + velocity.ValueRO.value * 0.1f,
+                Filter = CollisionFilter.Default
+            };
+            
+            if (physicsWorld.CastRay(rayInput, out var hit))
+            {
+                // Dispatch collision action using the pre-fetched ECB
+                int sortKey = entity.Index; // Use entity index as sort key
+                
+                ecbWriter.DispatchAction(sortKey, new CollisionAction
+                {
+                    entity1 = entity,
+                    entity2 = hit.Entity,
+                    impactPoint = hit.Position,
+                    impactNormal = hit.SurfaceNormal,
+                    relativeVelocity = velocity.ValueRO.value
+                });
+                
+                // Reflect velocity
+                velocity.ValueRW.value = math.reflect(velocity.ValueRO.value, hit.SurfaceNormal);
+            }
+        }
+    }
+}
+
+// Another example: Damage over time system
+[BurstCompile]
+public partial struct DamageOverTimeSystem : ISystem
+{
+    private EntityCommandBuffer.ParallelWriter ecbWriter;
+    public void OnUpdate(ref SystemState state)
+    {
+        // Pre-fetch ECB
+        ecbWriter = ECSActionDispatcher.GetJobCommandBuffer(state.World);
+    
+        float deltaTime = state.WorldUnmanaged.Time.DeltaTime;
+        float currentTime = (float)state.WorldUnmanaged.Time.ElapsedTime;
+    
+        // Process all DoT effects in Burst
+        ProcessDoTEffects(ref state, deltaTime, currentTime);
+    
+        ECSActionDispatcher.RegisterJobHandle(state.Dependency, state.World);
+    }
+
+    [BurstCompile]
+    private void ProcessDoTEffects(ref SystemState state, float deltaTime, float currentTime)
+    {
+        int sortKey = 0;
+        
+        foreach (var (dot, entity) in 
+            SystemAPI.Query<RefRW<DamageOverTime>>()
+                .WithEntityAccess())
+        {    
+            if (currentTime >= dot.ValueRO.nextTickTime)
+            {
+                // Dispatch damage action
+                ecbWriter.DispatchAction(sortKey++, new DamageAction
+                {
+                    targetEntity = entity,
+                    amount = dot.ValueRO.damagePerTick,    
+                    source = dot.ValueRO.sourceEntity,
+                    damageType = DamageType.Poison
+                });
+            
+                // Update next tick time    
+                dot.ValueRW.nextTickTime = currentTime + dot.ValueRO.tickInterval;
+                dot.ValueRW.remainingTicks--;
+            
+                // If expired, dispatch removal action
+                if (dot.ValueRO.remainingTicks <= 0)
+                {
+                    ecbWriter.DispatchAction(sortKey++, new RemoveEffectAction
+                    {
+                        entity = entity,
+                        effectType = EffectType.DamageOverTime
+                    });
+                }
+            }
+        }
+    }
+}
+```
+</details>
+
+<details>
+<summary>Parallel-Thread, Burst</summary>
+
+### Parallel Job Dispatch Pattern
+    
+For maximum performance with parallel jobs, pass the `EntityCommandBuffer.ParallelWriter` to your job and use the extension methods to dispatch actions from within the job.
+
+```csharp
+[BurstCompile]
+public partial struct AIDecisionSystem : ISystem
+{
+    public void OnCreate(ref SystemState state)
+    {
+        state.RequireForUpdate<AIConfig>();
+    }
+    
+    public void OnUpdate(ref SystemState state)
+    {
+        var config = SystemAPI.GetSingleton<AIConfig>();
+        var ecb = ECSActionDispatcher.GetJobCommandBuffer(state.World);
+        
+        // Schedule parallel job for AI decisions
+        var jobHandle = new AIDecisionJob
+        {
+            ECB = ecb,
+            DeltaTime = state.WorldUnmanaged.Time.DeltaTime,
+            CurrentTime = (float)state.WorldUnmanaged.Time.ElapsedTime,
+            DetectionRange = config.detectionRange,
+            AttackCooldown = config.attackCooldown,
+            TransformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true),
+            HealthLookup = SystemAPI.GetComponentLookup<Health>(true)
+        }.ScheduleParallel(state.Dependency);
+        
+        // Register the job handle for synchronization
+        ECSActionDispatcher.RegisterJobHandle(jobHandle, state.World);
+        state.Dependency = jobHandle;
+    }
+    
+    [BurstCompile]
+    private partial struct AIDecisionJob : IJobEntity
+    {
+        public EntityCommandBuffer.ParallelWriter ECB;
+        public float DeltaTime;
+        public float CurrentTime;
+        public float DetectionRange;
+        public float AttackCooldown;
+        
+        [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
+        [ReadOnly] public ComponentLookup<Health> HealthLookup;
+        
+        public void Execute(
+            [EntityIndexInQuery] int index,
+            Entity entity,
+            ref AIState ai,
+            in LocalTransform transform)
+        {
+            // Find nearest enemy
+            Entity nearestEnemy = FindNearestEnemy(transform.Position);
+            
+            if (nearestEnemy != Entity.Null)
+            {
+                float distance = math.distance(
+                    transform.Position,
+                    TransformLookup[nearestEnemy].Position
+                );
+                
+                // Dispatch different actions based on AI state and distance
+                if (distance <= DetectionRange)
+                {
+                    if (distance <= 2f && CurrentTime >= ai.nextAttackTime)
+                    {
+                        // Close enough to attack
+                        ECB.DispatchAction(index, new AttackAction
+                        {
+                            attacker = entity,
+                            target = nearestEnemy,
+                            damage = ai.attackDamage
+                        });
+                        
+                        ai.nextAttackTime = CurrentTime + AttackCooldown;
+                    }
+                    else
+                    {
+                        // Move towards enemy
+                        ECB.DispatchAction(index, new MoveToTargetAction
+                        {
+                            entity = entity,
+                            targetEntity = nearestEnemy,
+                            speed = ai.moveSpeed
+                        });
+                    }
+                    
+                    ai.currentTarget = nearestEnemy;
+                }
+                else if (ai.currentTarget != Entity.Null)
+                {
+                    // Lost target, dispatch search action
+                    ECB.DispatchAction(index, new SearchForTargetAction
+                    {
+                        entity = entity,
+                        lastKnownPosition = TransformLookup[ai.currentTarget].Position
+                    });
+                    
+                    ai.currentTarget = Entity.Null;
+                }
+            }
+        }
+        
+        private Entity FindNearestEnemy(float3 position)
+        {
+            // Simplified - in real implementation, use spatial queries
+            // This is just to demonstrate the pattern
+            return Entity.Null;
+        }
+    }
+}
+
+// Another example: Batch processing pattern
+[BurstCompile]
+public partial struct ProjectileSystem : ISystem
+{
+    public void OnUpdate(ref SystemState state)
+    {
+        var ecb = ECSActionDispatcher.GetJobCommandBuffer(state.World);
+        var deltaTime = state.WorldUnmanaged.Time.DeltaTime;
+        
+        // Process all projectiles in parallel
+        var moveHandle = new MoveProjectilesJob
+        {
+            DeltaTime = deltaTime
+        }.ScheduleParallel(state.Dependency);
+        
+        // Check for impacts in parallel
+        var impactHandle = new CheckProjectileImpactsJob
+        {
+            ECB = ecb,
+            TerrainHeight = 0f, // Ground level
+            MaxDistance = 100f
+        }.ScheduleParallel(moveHandle);
+        
+        ECSActionDispatcher.RegisterJobHandle(impactHandle, state.World);
+        state.Dependency = impactHandle;
+    }
+    
+    [BurstCompile]
+    private partial struct MoveProjectilesJob : IJobEntity
+    {
+        public float DeltaTime;
+        
+        public void Execute(
+            ref LocalTransform transform,
+            ref Velocity velocity,
+            in Projectile projectile)
+        {
+            // Apply gravity
+            velocity.value.y -= 9.81f * DeltaTime;
+            
+            // Update position
+            transform.Position += velocity.value * DeltaTime;
+            
+            // Rotate to face direction
+            if (math.lengthsq(velocity.value) > 0.01f)
+            {
+                transform.Rotation = quaternion.LookRotation(
+                    math.normalize(velocity.value),
+                    math.up()
+                );
+            }
+        }
+    }
+    
+    [BurstCompile]
+    private partial struct CheckProjectileImpactsJob : IJobEntity
+    {
+        public EntityCommandBuffer.ParallelWriter ECB;
+        public float TerrainHeight;
+        public float MaxDistance;
+        
+        public void Execute(
+            [EntityIndexInQuery] int index,
+            Entity entity,
+            in LocalTransform transform,
+            in Projectile projectile)
+        {
+            // Check ground impact
+            if (transform.Position.y <= TerrainHeight)
+            {
+                ECB.DispatchAction(index * 2, new ProjectileImpactAction
+                {
+                    projectile = entity,
+                    impactPoint = new float3(transform.Position.x, TerrainHeight, transform.Position.z),
+                    impactType = ImpactType.Terrain,
+                    damage = projectile.damage
+                });
+                
+                ECB.DispatchAction(index * 2 + 1, new DestroyEntityAction
+                {
+                    entity = entity,
+                    reason = DestroyReason.Impact
+                });
+            }
+            // Check max range
+            else if (math.length(transform.Position) > MaxDistance)
+            {
+                ECB.DispatchAction(index, new DestroyEntityAction
+                {
+                    entity = entity,
+                    reason = DestroyReason.OutOfRange
+                });
+            }
+        }
+    }
+}
+```
+</details>
+
+<details>
+<summary>Key Patterns Summary</summary>
+
+
+    
+| Context | Burst | Method | Use Case |
+| --- | --- | --- | --- |
+| Main Thread | No |  ECSActionDispatcher.Dispatch() | Simple systems, UI  integration | 
+| Main Thread | Yes | Pre-fetch ECB + ECB.DispatchAction() | High-performance single-threaded | 
+| Job Thread | Yes | Pass ECB to job + ECB.DispatchAction() | Maximum throughput, parallel processing | 
+
+#### Important Notes:
+
+- Always call `GetJobCommandBuffer()` from main thread before Burst context
+- Use unique sort keys for ParallelWriter (entity index, query index, etc.)
+- Register job handles with `RegisterJobHandle()` for proper synchronization
+- The extension methods in `ECBActionExtensions` provide one-line dispatch
+</details>
+
 ## Elements and Props
 
 <details>
