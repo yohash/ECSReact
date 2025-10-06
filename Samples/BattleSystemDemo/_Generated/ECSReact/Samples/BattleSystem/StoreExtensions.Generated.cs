@@ -589,8 +589,16 @@ namespace ECSReact.Samples.BattleSystem
     /// <param name="enemyEntity">The enemyEntity value for the action.</param>
     /// <param name="thinkingDuration">The thinkingDuration value for the action.</param>
     /// <param name="thinkingStartTime">The thinkingStartTime value for the action.</param>
+    /// <param name="behavior">The behavior value for the action.</param>
+    /// <param name="turnCount">The turnCount value for the action.</param>
+    /// <param name="currentHealth">The currentHealth value for the action.</param>
+    /// <param name="maxHealth">The maxHealth value for the action.</param>
+    /// <param name="statusEffects">The statusEffects value for the action.</param>
+    /// <param name="potentialTargets">The potentialTargets value for the action.</param>
+    /// <param name="aliveAllies">The aliveAllies value for the action.</param>
+    /// <param name="aliveEnemies">The aliveEnemies value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool AIReadyToDecide(this Store store, Entity enemyEntity, float thinkingDuration, double thinkingStartTime)
+    public static bool AIReadyToDecide(this Store store, Entity enemyEntity, float thinkingDuration, double thinkingStartTime, AIBehavior behavior, int turnCount, int currentHealth, int maxHealth, CharacterStatus statusEffects, FixedList64Bytes<AITargetInfo> potentialTargets, int aliveAllies, int aliveEnemies)
     {
       if (store == null)
       {
@@ -603,6 +611,14 @@ namespace ECSReact.Samples.BattleSystem
         enemyEntity = enemyEntity,
         thinkingDuration = thinkingDuration,
         thinkingStartTime = thinkingStartTime,
+        behavior = behavior,
+        turnCount = turnCount,
+        currentHealth = currentHealth,
+        maxHealth = maxHealth,
+        statusEffects = statusEffects,
+        potentialTargets = potentialTargets,
+        aliveAllies = aliveAllies,
+        aliveEnemies = aliveEnemies,
       };
 
       store.Dispatch(action);
@@ -615,8 +631,16 @@ namespace ECSReact.Samples.BattleSystem
     /// <param name="enemyEntity">The enemyEntity value for the action.</param>
     /// <param name="thinkingDuration">The thinkingDuration value for the action.</param>
     /// <param name="thinkingStartTime">The thinkingStartTime value for the action.</param>
+    /// <param name="behavior">The behavior value for the action.</param>
+    /// <param name="turnCount">The turnCount value for the action.</param>
+    /// <param name="currentHealth">The currentHealth value for the action.</param>
+    /// <param name="maxHealth">The maxHealth value for the action.</param>
+    /// <param name="statusEffects">The statusEffects value for the action.</param>
+    /// <param name="potentialTargets">The potentialTargets value for the action.</param>
+    /// <param name="aliveAllies">The aliveAllies value for the action.</param>
+    /// <param name="aliveEnemies">The aliveEnemies value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool AIReadyToDecide(Entity enemyEntity, float thinkingDuration, double thinkingStartTime)
+    public static bool AIReadyToDecide(Entity enemyEntity, float thinkingDuration, double thinkingStartTime, AIBehavior behavior, int turnCount, int currentHealth, int maxHealth, CharacterStatus statusEffects, FixedList64Bytes<AITargetInfo> potentialTargets, int aliveAllies, int aliveEnemies)
     {
       if (Store.Instance == null)
       {
@@ -624,7 +648,7 @@ namespace ECSReact.Samples.BattleSystem
         return false;
       }
 
-      return Store.Instance.AIReadyToDecide(enemyEntity, thinkingDuration, thinkingStartTime);
+      return Store.Instance.AIReadyToDecide(enemyEntity, thinkingDuration, thinkingStartTime, behavior, turnCount, currentHealth, maxHealth, statusEffects, potentialTargets, aliveAllies, aliveEnemies);
     }
 
     /// <summary>

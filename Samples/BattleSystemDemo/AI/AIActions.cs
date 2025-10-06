@@ -26,17 +26,62 @@ namespace ECSReact.Samples.BattleSystem
   }
 
   /// <summary>
-  /// Dispatched when the AI thinking timer completes.
-  /// This triggers the actual decision-making logic.
+  /// PHASE 2 CORRECTED: Enriched AIReadyToDecideAction
   /// 
-  /// Replaces the timer polling in the old system - the thinking timer
-  /// system will dispatch this after the dramatic pause completes.
+  /// Following action enrichment pattern from best practices:
+  /// "Actions describe what happened with full context"
+  /// 
+  /// This action now carries ALL information needed for the reducer to make
+  /// a decision without fetching any additional state.
+  /// 
+  /// The dispatching system (AIThinkingTimerSystem) enriches this action
+  /// with battle context before sending it.
   /// </summary>
   public struct AIReadyToDecideAction : IGameAction
   {
+    // ========================================================================
+    // BASIC INFO (from Phase 1)
+    // ========================================================================
+
+    /// <summary>The enemy entity that's ready to make a decision</summary>
     public Entity enemyEntity;
+
+    /// <summary>How long the enemy thought (for analytics/tuning)</summary>
     public float thinkingDuration;
+
+    /// <summary>Timestamp when thinking started (for validation)</summary>
     public double thinkingStartTime;
+
+    // ========================================================================
+    // ENRICHED CONTEXT (Phase 2 addition)
+    // ========================================================================
+
+    /// <summary>AI behavior configuration for this enemy</summary>
+    public AIBehavior behavior;
+
+    /// <summary>Current turn count (for deterministic random seed)</summary>
+    public int turnCount;
+
+    /// <summary>Enemy's current health</summary>
+    public int currentHealth;
+
+    /// <summary>Enemy's maximum health</summary>
+    public int maxHealth;
+
+    /// <summary>Enemy's status effects</summary>
+    public CharacterStatus statusEffects;
+
+    /// <summary>
+    /// List of potential targets for this enemy.
+    /// Pre-populated with all alive enemies on the opposite team.
+    /// </summary>
+    public FixedList64Bytes<AITargetInfo> potentialTargets;
+
+    /// <summary>Number of allies still alive (same team as this enemy)</summary>
+    public int aliveAllies;
+
+    /// <summary>Number of enemies still alive (opposite team)</summary>
+    public int aliveEnemies;
   }
 
   /// <summary>
