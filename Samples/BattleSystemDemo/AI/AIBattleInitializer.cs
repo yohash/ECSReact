@@ -81,16 +81,6 @@ namespace ECSReact.Samples.BattleSystem
         entityManager.SetComponentData(character.entity, behavior);
       }
 
-      // Also add AI state component
-      if (!entityManager.HasComponent<AIState>(character.entity)) {
-        entityManager.AddComponentData(character.entity, new AIState
-        {
-          isThinking = false,
-          hasDecided = false,
-          thinkingTimer = 0f
-        });
-      }
-
       Debug.Log($"Assigned {behavior.strategy} AI to {character.name}");
     }
 

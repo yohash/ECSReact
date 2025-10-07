@@ -86,12 +86,6 @@ namespace ECSReact.Samples.BattleSystem
           Debug.LogWarning($"Unknown action type: {action.chosenAction}");
           return;
       }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-      Debug.Log($"AIExecutionReducer: Calculated combat for entity {action.enemyEntity.Index} - " +
-                $"Action: {action.chosenAction}, Target: {action.targetEntity.Index}, " +
-                $"Damage: {state.combatDamage}, Crit: {state.combatIsCritical}");
-#endif
     }
 
     /// <summary>
@@ -142,7 +136,8 @@ namespace ECSReact.Samples.BattleSystem
 
     /// <summary>
     /// Calculate skill execution details deterministically.
-    /// TODO: Implement proper skill system with damage formulas.
+    /// Skills use enhanced damage calculation (2x base damage, 1.5x crit chance).
+    /// Future: Integrate with skill data system for per-skill formulas.
     /// </summary>
     private void CalculateSkillExecution(
         ref AIThinkingState state,
@@ -163,10 +158,6 @@ namespace ECSReact.Samples.BattleSystem
         isCritical,
         action.skillId
       );
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-      Debug.Log($"Skill execution calculated (skill ID: {action.skillId}) - not yet fully implemented");
-#endif
     }
   }
 }

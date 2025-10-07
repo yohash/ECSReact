@@ -1,32 +1,25 @@
-using Unity.Entities;
+﻿using Unity.Entities;
 using UnityEngine;
 using ECSReact.Core;
 
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// PHASE 3: Repurposed Enemy AI System - Simple Reactive Dispatcher
+  /// Turn Advancement System
   /// 
-  /// This system is now dramatically simplified:
-  /// - Watches AIThinkingState.readyToExecuteCombat flag
-  /// - Dispatches pre-calculated combat actions
-  /// - Advances turn
+  /// Handles turn progression and combat action dispatching after AI execution.
+  /// This is NOT an AI decision system - all AI logic happens in reducers.
   /// 
-  /// All the heavy lifting (decision-making, combat calculation) happens
-  /// in pure reducers. This system is just a thin reactive layer that
-  /// reads state and performs side effects (dispatching actions).
+  /// Responsibilities:
+  /// - Watch for readyToExecuteCombat flag in AIThinkingState
+  /// - Dispatch pre-calculated combat actions
+  /// - Advance to next turn after action execution
   /// 
-  /// Flow:
-  /// 1. Detect: readyToExecuteCombat = true
-  /// 2. Read: Pre-calculated combat details from state
-  /// 3. Dispatch: Appropriate combat action with those details
-  /// 4. Advance: Turn progression
-  /// 
-  /// Simple, focused, and easy to understand!
+  /// Clean separation: AI thinks → reducer calculates → this dispatches → turn advances
   /// </summary>
   [UpdateInGroup(typeof(SimulationSystemGroup))]
   [UpdateAfter(typeof(ReducerSystemGroup))]
-  public partial class EnemyAISystem : SystemBase
+  public partial class TurnAdvancementSystem : SystemBase
   {
     protected override void OnCreate()
     {

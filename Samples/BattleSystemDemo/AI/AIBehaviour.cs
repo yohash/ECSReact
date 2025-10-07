@@ -149,42 +149,4 @@ namespace ECSReact.Samples.BattleSystem
     public float distance;         // For future spatial AI
     public float targetScore;      // Calculated desirability as target
   }
-
-  /// <summary>
-  /// Component to track AI state between decisions.
-  /// </summary>
-  public struct AIState : IComponentData
-  {
-    public float thinkingTimer;
-    public bool isThinking;
-    public bool hasDecided;
-    public ActionType chosenAction;
-    public Entity chosenTarget;
-    public int chosenSkillId;
-
-    // Pattern tracking
-    public ActionType lastAction;
-    public Entity lastTarget;
-    public int consecutiveAttacks;
-    public int consecutiveDefends;
-    public float lastDecisionTime;
-  }
-
-  /// <summary>
-  /// Component to track threat levels for tactical AI.
-  /// </summary>
-  public struct ThreatTracker : IComponentData
-  {
-    public Entity highestThreatEntity;
-    public int highestThreatValue;
-    public FixedList64Bytes<ThreatEntry> threats;
-  }
-
-  public struct ThreatEntry
-  {
-    public Entity source;
-    public int totalDamageDealt;
-    public int lastDamage;
-    public float lastDamageTime;
-  }
 }

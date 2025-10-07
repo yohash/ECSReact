@@ -76,12 +76,6 @@ namespace ECSReact.Samples.BattleSystem
         turnCount = turnCount  // ✅ ENRICHED with context!
       });
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-      Debug.Log($"AIDecisionDispatchSystem: Dispatched AIDecisionMadeAction for " +
-                $"entity {decidingEnemy.Index}: {chosenAction} targeting {chosenTarget.Index} " +
-                $"(turn {turnCount})");
-#endif
-
       // Clear the pending decision
       var thinkingStateEntity = SystemAPI.GetSingletonEntity<AIThinkingState>();
       var updatedState = EntityManager.GetComponentData<AIThinkingState>(thinkingStateEntity);
