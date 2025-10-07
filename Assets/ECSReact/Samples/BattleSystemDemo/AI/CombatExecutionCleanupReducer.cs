@@ -32,10 +32,6 @@ namespace ECSReact.Samples.BattleSystem
       // If this attack came from AI execution, clear the flag
       if (state.readyToExecuteCombat && state.combatExecutor == action.attackerEntity) {
         state.ClearCombatExecution();
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        Debug.Log($"AttackExecutionCleanupReducer: Cleared combat execution flag for entity {action.attackerEntity.Index}");
-#endif
       }
     }
   }
@@ -56,15 +52,9 @@ namespace ECSReact.Samples.BattleSystem
           state.readyToExecuteCombat &&
           state.combatExecutor == action.actingCharacter) {
         state.ClearCombatExecution();
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        Debug.Log($"DefendExecutionCleanupReducer: Cleared combat execution flag for entity {action.actingCharacter.Index}");
-#endif
       }
     }
   }
-
-  // TODO: Add cleanup reducers for other action types as they're implemented
-  // - SkillExecutionCleanupReducer (when skill system is complete)
-  // - ItemExecutionCleanupReducer (when item system is complete)
+  // Note: Additional cleanup reducers (SkillExecutionCleanupReducer, etc.) 
+  // can be added as new action types are implemented.
 }

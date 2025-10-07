@@ -7,7 +7,7 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// PHASE 4: Enemy Turn Detection Middleware
+  /// Enemy Turn Detection Middleware
   /// 
   /// This middleware observes NextTurnAction events and detects when it's an enemy's turn.
   /// When an enemy turn begins, it enriches and dispatches EnemyTurnStartedAction with

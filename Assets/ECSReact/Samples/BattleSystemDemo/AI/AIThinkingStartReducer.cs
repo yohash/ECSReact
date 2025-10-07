@@ -5,7 +5,7 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// PHASE 4: AI Thinking Start Reducer
+  /// AI Thinking Start Reducer
   /// 
   /// Pure reducer that responds to EnemyTurnStartedAction and initiates the AI thinking process.
   /// This replaces the temporary AIThinkingTriggerSystem from Phase 1.

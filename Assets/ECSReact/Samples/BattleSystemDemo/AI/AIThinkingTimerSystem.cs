@@ -7,7 +7,7 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// PHASE 4 COMPLETED: AI Thinking Timer System with Action Enrichment
+  /// AI Thinking Timer System with Action Enrichment
   /// 
   /// This system follows the "Action Enrichment" pattern:
   /// - Gathers ALL context needed for decision-making
@@ -16,11 +16,6 @@ namespace ECSReact.Samples.BattleSystem
   /// 
   /// The system has access to all states and can build complete context
   /// once, then pass it to the reducer via the enriched action.
-  /// 
-  /// PHASE 4 UPDATE:
-  /// - Removed AIThinkingTriggerSystem (replaced by EnemyTurnDetectionMiddleware)
-  /// - System is now fully event-driven (no polling!)
-  /// - Thinking is initiated by AIThinkingStartReducer responding to EnemyTurnStartedAction
   /// </summary>
   [UpdateInGroup(typeof(SimulationSystemGroup))]
   [UpdateAfter(typeof(ReducerSystemGroup))]
@@ -104,11 +99,6 @@ namespace ECSReact.Samples.BattleSystem
 
       // Dispatch the enriched action
       ECSActionDispatcher.Dispatch(enrichedAction);
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-      Debug.Log($"AIThinkingTimerSystem: Dispatched enriched AIReadyToDecideAction for " +
-                $"entity {enemyEntity.Index} with {context.potentialTargets.Length} targets");
-#endif
     }
 
     /// <summary>
@@ -193,4 +183,5 @@ namespace ECSReact.Samples.BattleSystem
       return context;
     }
   }
+
 }
