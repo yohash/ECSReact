@@ -12,7 +12,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Demonstrates IElementChild pattern for receiving props from parent.
   /// Includes tooltip functionality on hover.
   /// </summary>
-  public class StatusEffectIcon : ReactiveUIComponent<PartyState>, IElementChild, IPointerEnterHandler, IPointerExitHandler
+  public class StatusEffectIcon : ReactiveUIComponent, IElementChild, IPointerEnterHandler, IPointerExitHandler
   {
     [Header("Icon Display")]
     [SerializeField] private Image iconImage;
@@ -133,12 +133,6 @@ namespace ECSReact.Samples.BattleSystem
       }
     }
 
-    public override void OnStateChanged(PartyState newState)
-    {
-      // Status effect icons primarily update through props
-      // But we can respond to global state changes if needed
-    }
-
     private void UpdateDisplay()
     {
       if (currentProps == null)
@@ -158,18 +152,6 @@ namespace ECSReact.Samples.BattleSystem
 
         if (borderImage != null)
           borderImage.color = effectColor;
-      }
-
-      // Update duration display
-      if (durationContainer != null) {
-        // Only show duration for timed effects
-        bool hasDuration = currentProps.Duration > 0;
-        durationContainer.SetActive(hasDuration);
-
-        if (hasDuration && durationText != null) {
-          int turnsRemaining = Mathf.CeilToInt(currentProps.Duration);
-          durationText.text = turnsRemaining.ToString();
-        }
       }
 
       // Hide tooltip initially
@@ -290,10 +272,6 @@ namespace ECSReact.Samples.BattleSystem
 
           if (tooltipDescription != null) {
             string desc = info.Description;
-            if (currentProps.Duration > 0) {
-              int turns = Mathf.CeilToInt(currentProps.Duration);
-              desc += $"\n<color=#888>({turns} turn{(turns != 1 ? "s" : "")} remaining)</color>";
-            }
             tooltipDescription.text = desc;
           }
 
@@ -321,5 +299,8 @@ namespace ECSReact.Samples.BattleSystem
 
       base.OnDestroy();
     }
+
+    protected override void SubscribeToStateChanges() { }
+    protected override void UnsubscribeFromStateChanges() { }
   }
 }

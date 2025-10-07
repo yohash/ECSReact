@@ -8,7 +8,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Simple header component for separating party and enemy sections
   /// </summary>
-  public class StatusSectionHeader : ReactiveUIComponent<PartyState>, IElementChild
+  public class StatusSectionHeader : ReactiveUIComponent, IElementChild
   {
     [SerializeField] private TextMeshProUGUI titleText;
     [SerializeField] private Image backgroundImage;
@@ -29,10 +29,9 @@ namespace ECSReact.Samples.BattleSystem
       UpdateDisplay();
     }
 
-    public override void OnStateChanged(PartyState newState)
-    {
-      // Headers don't need to respond to party state changes
-    }
+    // no state
+    protected override void SubscribeToStateChanges() { }
+    protected override void UnsubscribeFromStateChanges() { }
 
     private void UpdateDisplay()
     {
@@ -45,5 +44,11 @@ namespace ECSReact.Samples.BattleSystem
       if (backgroundImage)
         backgroundImage.color = currentProps.IsEnemy ? enemyColor : partyColor;
     }
+  }
+
+  public class SectionHeaderProps : UIProps
+  {
+    public string Title { get; set; }
+    public bool IsEnemy { get; set; }
   }
 }

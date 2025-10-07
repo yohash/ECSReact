@@ -5,7 +5,12 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// Turn Advancement System
+  /// Turn Advancement System - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState dependency
+  /// - Added CharacterIdentityState dependency
+  /// - Replaced O(n) loop with O(1) HashMap lookup to determine player/enemy
   /// 
   /// Handles turn progression and combat action dispatching after AI execution.
   /// This is NOT an AI decision system - all AI logic happens in reducers.
@@ -26,7 +31,7 @@ namespace ECSReact.Samples.BattleSystem
       base.OnCreate();
       RequireForUpdate<AIThinkingState>();
       RequireForUpdate<BattleState>();
-      RequireForUpdate<PartyState>();
+      RequireForUpdate<CharacterIdentityState>(); // Changed from PartyState
     }
 
     protected override void OnUpdate()
@@ -48,7 +53,7 @@ namespace ECSReact.Samples.BattleSystem
       int skillId = thinkingState.combatSkillId;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-      Debug.Log($"EnemyAISystem: Dispatching {action} from entity {executor.Index} with pre-calculated data");
+      Debug.Log($"TurnAdvancementSystem: Dispatching {action} from entity {executor.Index} with pre-calculated data");
 #endif
 
       // Dispatch the appropriate combat action
@@ -122,13 +127,17 @@ namespace ECSReact.Samples.BattleSystem
 
     /// <summary>
     /// Advance to next turn after combat action is dispatched.
+    /// NEW: Uses CharacterIdentityState for O(1) player/enemy lookup.
+    /// OLD: Looped through PartyState.characters array (O(n)).
     /// </summary>
     private void AdvanceToNextTurn()
     {
       // Get fresh state for turn advancement
       if (!SystemAPI.TryGetSingleton<BattleState>(out var battleState))
         return;
-      if (!SystemAPI.TryGetSingleton<PartyState>(out var partyState))
+
+      // NEW: Get identity state for player/enemy lookup
+      if (!SystemAPI.TryGetSingleton<CharacterIdentityState>(out var identityState))
         return;
 
       // Calculate next turn index
@@ -138,13 +147,14 @@ namespace ECSReact.Samples.BattleSystem
 
       var nextEntity = battleState.turnOrder[nextIndex];
 
-      // Determine if next turn is player or enemy
-      bool isPlayerTurn = false;
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == nextEntity) {
-          isPlayerTurn = !partyState.characters[i].isEnemy;
-          break;
-        }
+      // NEW: O(1) HashMap lookup to determine player/enemy
+      // OLD: O(n) loop through PartyState.characters
+      bool isPlayerTurn = true; // Default to player if lookup fails
+      if (identityState.isEnemy.IsCreated &&
+          identityState.isEnemy.TryGetValue(nextEntity, out var isEnemy)) {
+        isPlayerTurn = !isEnemy;
+      } else {
+        Debug.LogWarning($"Could not determine if entity {nextEntity.Index} is player or enemy - defaulting to player turn");
       }
 
       // Dispatch turn advance action

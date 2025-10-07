@@ -3,19 +3,24 @@ using UnityEngine;
 using UnityEngine.UI;
 using ECSReact.Core;
 using Unity.Entities;
+using Unity.Collections;
 using TMPro;
 
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// Displays upcoming turn order with smooth animations.
-  /// Demonstrates element reordering and dynamic updates based on state changes.
+  /// Displays upcoming turn order with smooth animations - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState subscription
+  /// - Added CharacterIdentityState, CharacterHealthState subscriptions
+  /// - Replaced GetCharacterData() O(n) loop with O(1) HashMap lookups
+  /// - Builds CharacterData from multiple state lookups
   /// </summary>
-  public class TurnOrderDisplay : ReactiveUIComponent<BattleState, PartyState>
+  public class TurnOrderDisplay : ReactiveUIComponent<BattleState, CharacterIdentityState, CharacterHealthState>
   {
     [Header("UI Configuration")]
     [SerializeField] private Transform turnSlotContainer;
-    //[SerializeField] private Transform currentTurnHighlight;
     [SerializeField] private TextMeshProUGUI turnCounterText;
     [SerializeField] private int maxVisibleTurns = 5;
 
@@ -30,22 +35,29 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private float currentTurnYOffset = -10f;
 
     private BattleState battleState;
-    private PartyState partyState;
+    private CharacterIdentityState identityState;
+    private CharacterHealthState healthState;
+
     private Dictionary<Entity, TurnSlotAnimationData> animationData = new Dictionary<Entity, TurnSlotAnimationData>();
     private int previousActiveIndex = -1;
 
     public override void OnStateChanged(BattleState newState)
     {
       battleState = newState;
-
       UpdateElements();
       UpdateTurnCounter();
     }
 
-    public override void OnStateChanged(PartyState newState)
+    public override void OnStateChanged(CharacterIdentityState newState)
     {
-      partyState = newState;
-      UpdateElements(); // Refresh portraits if character data changes
+      identityState = newState;
+      UpdateElements();
+    }
+
+    public override void OnStateChanged(CharacterHealthState newState)
+    {
+      healthState = newState;
+      UpdateElements(); // Refresh if character dies/heals
     }
 
     protected override IEnumerable<UIElement> DeclareElements()
@@ -61,8 +73,8 @@ namespace ECSReact.Samples.BattleSystem
         int turnIndex = (battleState.activeCharacterIndex + i) % battleState.turnOrder.Length;
         Entity characterEntity = battleState.turnOrder[turnIndex];
 
-        // Find character data
-        CharacterData? characterData = GetCharacterData(characterEntity);
+        // NEW: Build character data from normalized state lookups
+        CharacterData? characterData = GetCharacterDataFromStates(characterEntity);
         if (!characterData.HasValue)
           continue;
 
@@ -88,29 +100,51 @@ namespace ECSReact.Samples.BattleSystem
             parentTransform: turnSlotContainer
         );
       }
-
-      // Turn prediction preview (shows what happens after current visible turns)
-      if (turnsToShow < battleState.turnOrder.Length) {
-        //yield return UIElement.FromComponent<TurnCycleIndicator>(
-        //    key: "turn_cycle",
-        //    props: new TurnCycleProps
-        //    {
-        //      RemainingTurns = battleState.turnOrder.Length - turnsToShow,
-        //      CycleNumber = battleState.turnCount / battleState.turnOrder.Length
-        //    },
-        //    index: turnsToShow,
-        //    parentTransform: turnSlotContainer
-        //);
-      }
     }
 
-    private CharacterData? GetCharacterData(Entity entity)
+    // ========================================================================
+    // HELPER METHODS - NORMALIZED VERSION
+    // ========================================================================
+
+    /// <summary>
+    /// Builds CharacterData from normalized states using O(1) lookups.
+    /// OLD: O(n) loop through PartyState.characters array
+    /// NEW: O(1) HashMap lookups across multiple states
+    /// </summary>
+    private CharacterData? GetCharacterDataFromStates(Entity entity)
     {
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == entity)
-          return partyState.characters[i];
+      // Lookup name from identity state
+      if (!identityState.names.IsCreated ||
+          !identityState.names.TryGetValue(entity, out var name))
+        return null;
+
+      // Lookup team affiliation
+      bool isEnemy = false;
+      if (identityState.isEnemy.IsCreated) {
+        identityState.isEnemy.TryGetValue(entity, out isEnemy);
       }
-      return null;
+
+      // Lookup health data
+      if (!healthState.health.IsCreated ||
+          !healthState.health.TryGetValue(entity, out var healthData))
+        return null;
+
+      // Build CharacterData struct for props
+      // Note: TurnOrderSlot doesn't need all fields, but we provide them for compatibility
+      return new CharacterData
+      {
+        entity = entity,
+        name = name,
+        currentHealth = healthData.current,
+        maxHealth = healthData.max,
+        isAlive = healthData.isAlive,
+        isEnemy = isEnemy,
+
+        // Fields not used by TurnOrderSlot (defaults)
+        currentMana = 0,
+        maxMana = 0,
+        status = CharacterStatus.None
+      };
     }
 
     private void UpdateTurnCounter()
@@ -136,5 +170,29 @@ namespace ECSReact.Samples.BattleSystem
       public float animationTime;
       public bool isAnimating;
     }
+  }
+
+  public struct CharacterData
+  {
+    public Entity entity;
+    public FixedString32Bytes name;
+    public int currentHealth;
+    public int maxHealth;
+    public int currentMana;
+    public int maxMana;
+    public bool isEnemy;
+    public bool isAlive;
+    public CharacterStatus status;
+  }
+
+  // Props for TurnOrderSlot child component
+  public class TurnOrderSlotProps : UIProps
+  {
+    public CharacterData Character { get; set; }
+    public int SlotIndex { get; set; }
+    public bool IsCurrent { get; set; }
+    public Vector3 TargetPosition { get; set; }
+    public Vector2 TargetScale { get; set; }
+    public int TurnNumber { get; set; }
   }
 }

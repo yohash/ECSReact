@@ -6,17 +6,6 @@ using TMPro;
 
 namespace ECSReact.Samples.BattleSystem
 {
-  // Props for turn order slots
-  public class TurnOrderSlotProps : UIProps
-  {
-    public CharacterData Character { get; set; }
-    public int SlotIndex { get; set; }
-    public bool IsCurrent { get; set; }
-    public Vector3 TargetPosition { get; set; }
-    public Vector2 TargetScale { get; set; }
-    public int TurnNumber { get; set; }
-  }
-
   /// <summary>
   /// Individual turn slot that displays a character portrait and animates position changes.
   /// </summary>

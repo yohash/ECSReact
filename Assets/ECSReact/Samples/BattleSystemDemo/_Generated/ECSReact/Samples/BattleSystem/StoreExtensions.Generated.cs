@@ -68,6 +68,56 @@ namespace ECSReact.Samples.BattleSystem
     }
 
     /// <summary>
+    /// Dispatch a ApplyDamageAction to the ECS world.
+    /// </summary>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="finalDamage">The finalDamage value for the action.</param>
+    /// <param name="wasDefending">The wasDefending value for the action.</param>
+    /// <param name="isTargetEnemy">The isTargetEnemy value for the action.</param>
+    /// <param name="wasCritical">The wasCritical value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool ApplyDamage(this Store store, Entity targetEntity, int finalDamage, bool wasDefending, bool isTargetEnemy, bool wasCritical)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching ApplyDamageAction");
+        return false;
+      }
+
+      var action = new ApplyDamageAction
+      {
+        targetEntity = targetEntity,
+        finalDamage = finalDamage,
+        wasDefending = wasDefending,
+        isTargetEnemy = isTargetEnemy,
+        wasCritical = wasCritical,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a ApplyDamageAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="targetEntity">The targetEntity value for the action.</param>
+    /// <param name="finalDamage">The finalDamage value for the action.</param>
+    /// <param name="wasDefending">The wasDefending value for the action.</param>
+    /// <param name="isTargetEnemy">The isTargetEnemy value for the action.</param>
+    /// <param name="wasCritical">The wasCritical value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool ApplyDamage(Entity targetEntity, int finalDamage, bool wasDefending, bool isTargetEnemy, bool wasCritical)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching ApplyDamageAction");
+        return false;
+      }
+
+      return Store.Instance.ApplyDamage(targetEntity, finalDamage, wasDefending, isTargetEnemy, wasCritical);
+    }
+
+    /// <summary>
     /// Dispatch a AttackAction to the ECS world.
     /// </summary>
     /// <param name="attackerEntity">The attackerEntity value for the action.</param>
@@ -112,6 +162,59 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       return Store.Instance.Attack(attackerEntity, targetEntity, baseDamage, isCritical);
+    }
+
+    /// <summary>
+    /// Dispatch a CharacterCreatedAction to the ECS world.
+    /// </summary>
+    /// <param name="entity">The entity value for the action.</param>
+    /// <param name="name">The name value for the action.</param>
+    /// <param name="maxHealth">The maxHealth value for the action.</param>
+    /// <param name="maxMana">The maxMana value for the action.</param>
+    /// <param name="isEnemy">The isEnemy value for the action.</param>
+    /// <param name="initialStatus">The initialStatus value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool CharacterCreated(this Store store, Entity entity, FixedString32Bytes name, int maxHealth, int maxMana, bool isEnemy, CharacterStatus initialStatus)
+    {
+      if (store == null)
+      {
+        UnityEngine.Debug.LogError("Store instance is null when dispatching CharacterCreatedAction");
+        return false;
+      }
+
+      var action = new CharacterCreatedAction
+      {
+        entity = entity,
+        name = name,
+        maxHealth = maxHealth,
+        maxMana = maxMana,
+        isEnemy = isEnemy,
+        initialStatus = initialStatus,
+      };
+
+      store.Dispatch(action);
+      return true;
+    }
+
+    /// <summary>
+    /// Dispatch a CharacterCreatedAction using the Store singleton instance.
+    /// </summary>
+    /// <param name="entity">The entity value for the action.</param>
+    /// <param name="name">The name value for the action.</param>
+    /// <param name="maxHealth">The maxHealth value for the action.</param>
+    /// <param name="maxMana">The maxMana value for the action.</param>
+    /// <param name="isEnemy">The isEnemy value for the action.</param>
+    /// <param name="initialStatus">The initialStatus value for the action.</param>
+    /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
+    public static bool CharacterCreated(Entity entity, FixedString32Bytes name, int maxHealth, int maxMana, bool isEnemy, CharacterStatus initialStatus)
+    {
+      if (Store.Instance == null)
+      {
+        UnityEngine.Debug.LogError("Store.Instance is null when dispatching CharacterCreatedAction");
+        return false;
+      }
+
+      return Store.Instance.CharacterCreated(entity, name, maxHealth, maxMana, isEnemy, initialStatus);
     }
 
     /// <summary>
@@ -699,8 +802,9 @@ namespace ECSReact.Samples.BattleSystem
     /// <param name="chosenAction">The chosenAction value for the action.</param>
     /// <param name="targetEntity">The targetEntity value for the action.</param>
     /// <param name="skillId">The skillId value for the action.</param>
+    /// <param name="turnCount">The turnCount value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool AIDecisionMade(this Store store, Entity enemyEntity, ActionType chosenAction, Entity targetEntity, int skillId)
+    public static bool AIDecisionMade(this Store store, Entity enemyEntity, ActionType chosenAction, Entity targetEntity, int skillId, int turnCount)
     {
       if (store == null)
       {
@@ -714,6 +818,7 @@ namespace ECSReact.Samples.BattleSystem
         chosenAction = chosenAction,
         targetEntity = targetEntity,
         skillId = skillId,
+        turnCount = turnCount,
       };
 
       store.Dispatch(action);
@@ -727,8 +832,9 @@ namespace ECSReact.Samples.BattleSystem
     /// <param name="chosenAction">The chosenAction value for the action.</param>
     /// <param name="targetEntity">The targetEntity value for the action.</param>
     /// <param name="skillId">The skillId value for the action.</param>
+    /// <param name="turnCount">The turnCount value for the action.</param>
     /// <returns>True if the action was dispatched successfully, false if Store instance is not available.</returns>
-    public static bool AIDecisionMade(Entity enemyEntity, ActionType chosenAction, Entity targetEntity, int skillId)
+    public static bool AIDecisionMade(Entity enemyEntity, ActionType chosenAction, Entity targetEntity, int skillId, int turnCount)
     {
       if (Store.Instance == null)
       {
@@ -736,7 +842,7 @@ namespace ECSReact.Samples.BattleSystem
         return false;
       }
 
-      return Store.Instance.AIDecisionMade(enemyEntity, chosenAction, targetEntity, skillId);
+      return Store.Instance.AIDecisionMade(enemyEntity, chosenAction, targetEntity, skillId, turnCount);
     }
 
     /// <summary>

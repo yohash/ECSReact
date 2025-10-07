@@ -6,10 +6,14 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// Root battle UI component that demonstrates conditional element rendering
-  /// based on battle phase. This is the main orchestrator for all battle UI.
+  /// Root battle UI component - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState subscription
+  /// - Added CharacterManaState, CharacterRosterState subscriptions
+  /// - Replaced HasManaForSkills() O(n) loop with O(1) HashMap lookup
   /// </summary>
-  public class BattleUIRoot : ReactiveUIComponent<BattleState, PartyState, UIBattleState>
+  public class BattleUIRoot : ReactiveUIComponent<BattleState, CharacterManaState, CharacterRosterState, UIBattleState>
   {
     [Header("UI Configuration")]
     [SerializeField] private bool showDebugPanels = false;
@@ -18,24 +22,31 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private RectTransform leftColumn;
 
     private BattleState battleState;
-    private PartyState partyState;
+    private CharacterManaState manaState;
+    private CharacterRosterState rosterState;
     private UIBattleState uiState;
 
     public override void OnStateChanged(BattleState newState)
     {
       battleState = newState;
-      UpdateElements(); // Trigger element reconciliation
+      UpdateElements();
+    }
+
+    public override void OnStateChanged(CharacterManaState newState)
+    {
+      manaState = newState;
+      UpdateElements();
+    }
+
+    public override void OnStateChanged(CharacterRosterState newState)
+    {
+      rosterState = newState;
+      UpdateElements();
     }
 
     public override void OnStateChanged(UIBattleState newState)
     {
       uiState = newState;
-      UpdateElements();
-    }
-
-    public override void OnStateChanged(PartyState newState)
-    {
-      partyState = newState;
       UpdateElements();
     }
 
@@ -60,10 +71,7 @@ namespace ECSReact.Samples.BattleSystem
       // Conditional rendering based on battle phase
       switch (battleState.currentPhase) {
         case BattlePhase.Initializing:
-          //yield return UIElement.FromComponent<BattleLoadingScreen>(
-          //    key: "loading",
-          //    index: 2
-          //);
+          // Loading screen could go here
           break;
 
         case BattlePhase.PlayerSelectAction:
@@ -110,10 +118,7 @@ namespace ECSReact.Samples.BattleSystem
               parentTransform: leftColumn
             );
           } else if (uiState.activePanel == MenuPanel.ItemList) {
-            //yield return UIElement.FromComponent<ItemSelectionPanel>(
-            //    key: "item_panel",
-            //    index: 3
-            //);
+            // Item panel could go here
           }
           break;
 
@@ -139,7 +144,7 @@ namespace ECSReact.Samples.BattleSystem
             props: new ActionPanelProps
             {
               ActiveCharacterEntity = GetActiveCharacterEntity(),
-              CanUseSkills = false, // Disabled during targeting
+              CanUseSkills = false,
               CanUseItems = false
             },
             index: 2,
@@ -148,49 +153,19 @@ namespace ECSReact.Samples.BattleSystem
           break;
 
         case BattlePhase.ExecutingAction:
-          // Action animation display
-          //yield return UIElement.FromComponent<ActionExecutionDisplay>(
-          //    key: "action_execution",
-          //    props: new ActionExecutionProps
-          //    {
-          //      ActionType = uiState.selectedAction,
-          //      Source = GetActiveCharacterEntity(),
-          //      Target = uiState.selectedTarget
-          //    },
-          //    index: 2
-          //);
+          // Action animation display could go here
           break;
 
         case BattlePhase.EnemyTurn:
-          // Enemy thinking indicator
-          //yield return UIElement.FromComponent<EnemyTurnIndicator>(
-          //    key: "enemy_turn",
-          //    props: new EnemyTurnProps
-          //    {
-          //      EnemyEntity = GetActiveCharacterEntity(),
-          //      ThinkingDuration = 1.5f
-          //    },
-          //    index: 2
-          //);
+          // Enemy thinking indicator could go here
           break;
 
         case BattlePhase.Victory:
-          //yield return UIElement.FromComponent<VictoryScreen>(
-          //    key: "victory",
-          //    props: new VictoryProps
-          //    {
-          //      TurnCount = battleState.turnCount,
-          //      PartyState = GetPartyStateSummary()
-          //    },
-          //    index: 2
-          //);
+          // Victory screen could go here
           break;
 
         case BattlePhase.Defeat:
-          //yield return UIElement.FromComponent<DefeatScreen>(
-          //    key: "defeat",
-          //    index: 2
-          //);
+          // Defeat screen could go here
           break;
       }
 
@@ -210,55 +185,42 @@ namespace ECSReact.Samples.BattleSystem
           parentTransform: leftColumn
       );
 
-      //// Optional debug panels
-      //if (showDebugPanels) {
-      //  yield return UIElement.FromComponent<StateDebugPanel>(
-      //      key: "debug_states",
-      //      index: 20
-      //  );
-
-      //  yield return UIElement.FromComponent<ActionHistoryPanel>(
-      //      key: "debug_actions",
-      //      index: 21
-      //  );
-      //}
-
       // Tutorial overlay if enabled
       if (enableTutorialMode && battleState.currentPhase == BattlePhase.PlayerSelectAction) {
-        //yield return UIElement.FromComponent<TutorialOverlay>(
-        //    key: "tutorial",
-        //    props: new TutorialProps
-        //    {
-        //      CurrentPhase = battleState.currentPhase,
-        //      HighlightElement = GetTutorialHighlight()
-        //    },
-        //    index: 100 // Always on top
-        //);
+        // Tutorial overlay could go here
       }
     }
 
-    // Helper methods for props data
-    private Unity.Entities.Entity GetActiveCharacterEntity()
+    // ========================================================================
+    // HELPER METHODS - NORMALIZED VERSION
+    // ========================================================================
+
+    private Entity GetActiveCharacterEntity()
     {
       if (battleState.activeCharacterIndex >= 0 &&
           battleState.activeCharacterIndex < battleState.turnOrder.Length) {
         return battleState.turnOrder[battleState.activeCharacterIndex];
       }
-      return Unity.Entities.Entity.Null;
+      return Entity.Null;
     }
 
+    /// <summary>
+    /// Check if active character has mana for skills.
+    /// OLD: O(n) loop through PartyState.characters array
+    /// NEW: O(1) HashMap lookup in CharacterManaState
+    /// </summary>
     private bool HasManaForSkills()
     {
       var activeEntity = GetActiveCharacterEntity();
       if (activeEntity == Entity.Null)
         return false;
 
-      // Check if active character has mana
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == activeEntity) {
-          return partyState.characters[i].currentMana > 0;
-        }
+      // O(1) lookup in normalized state
+      if (manaState.mana.IsCreated &&
+          manaState.mana.TryGetValue(activeEntity, out var manaData)) {
+        return manaData.current > 0;
       }
+
       return false;
     }
 
@@ -267,64 +229,5 @@ namespace ECSReact.Samples.BattleSystem
       // In real implementation, check InventoryState
       return true;
     }
-
-    private Unity.Collections.FixedList64Bytes<Unity.Entities.Entity> GetValidTargets(ActionType actionType)
-    {
-      var targets = new Unity.Collections.FixedList64Bytes<Unity.Entities.Entity>();
-      // In real implementation, determine valid targets based on action type
-      // For now, return empty list
-      return targets;
-    }
-
-    private string GetPartyStateSummary()
-    {
-      // In real implementation, generate summary from PartyState
-      return "All party members survived!";
-    }
-
-    private string GetTutorialHighlight()
-    {
-      // Determine what to highlight based on current state
-      if (uiState.selectedAction == ActionType.None)
-        return "action_panel";
-
-      return "";
-    }
-  }
-
-  public class SkillPanelProps : UIProps
-  {
-    public Unity.Entities.Entity CharacterEntity { get; set; }
-  }
-
-  public class TargetingProps : UIProps
-  {
-    public ActionType ActionType { get; set; }
-    public Unity.Collections.FixedList64Bytes<Unity.Entities.Entity> ValidTargets { get; set; }
-  }
-
-  public class ActionExecutionProps : UIProps
-  {
-    public ActionType ActionType { get; set; }
-    public Unity.Entities.Entity Source { get; set; }
-    public Unity.Entities.Entity Target { get; set; }
-  }
-
-  public class EnemyTurnProps : UIProps
-  {
-    public Unity.Entities.Entity EnemyEntity { get; set; }
-    public float ThinkingDuration { get; set; }
-  }
-
-  public class VictoryProps : UIProps
-  {
-    public int TurnCount { get; set; }
-    public string PartyState { get; set; }
-  }
-
-  public class TutorialProps : UIProps
-  {
-    public BattlePhase CurrentPhase { get; set; }
-    public string HighlightElement { get; set; }
   }
 }

@@ -7,7 +7,13 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// Enemy Turn Detection Middleware
+  /// Enemy Turn Detection Middleware - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState dependency
+  /// - Uses CharacterIdentityState for enemy validation and names (O(1))
+  /// - Uses CharacterHealthState for alive check (O(1))
+  /// - Replaced O(n) loops with HashMap lookups
   /// 
   /// This middleware observes NextTurnAction events and detects when it's an enemy's turn.
   /// When an enemy turn begins, it enriches and dispatches EnemyTurnStartedAction with
@@ -49,13 +55,17 @@ namespace ECSReact.Samples.BattleSystem
         return true;
       }
 
-      // Get party state to validate enemy
-      if (!systemState.TryGetSingleton<PartyState>(out var partyState)) {
+      // NEW: Get normalized states for validation
+      if (!systemState.TryGetSingleton<CharacterIdentityState>(out var identityState)) {
+        return true;
+      }
+
+      if (!systemState.TryGetSingleton<CharacterHealthState>(out var healthState)) {
         return true;
       }
 
       // Find the active enemy entity
-      Entity activeEnemy = GetActiveEnemy(battleState, partyState, ref systemState);
+      Entity activeEnemy = GetActiveEnemy(battleState, identityState, healthState, ref systemState);
       if (activeEnemy == Entity.Null) {
         return true;
       }
@@ -68,8 +78,8 @@ namespace ECSReact.Samples.BattleSystem
 
       var behavior = behaviorLookup[activeEnemy];
 
-      // Get enemy name for enrichment (optional but useful)
-      FixedString64Bytes enemyName = GetEnemyName(activeEnemy, partyState);
+      // NEW: Get enemy name using O(1) lookup
+      FixedString64Bytes enemyName = GetEnemyName(activeEnemy, identityState);
 
       // ====================================================================
       // SIDE EFFECT: Dispatch enriched EnemyTurnStartedAction
@@ -99,38 +109,64 @@ namespace ECSReact.Samples.BattleSystem
 
     /// <summary>
     /// Get the active enemy entity from battle state.
-    /// Validates that the active character is actually an enemy.
+    /// Validates that the active character is actually an enemy and alive.
+    /// 
+    /// NEW: Uses O(1) HashMap lookups in CharacterIdentityState and CharacterHealthState.
+    /// OLD: O(n) loop through PartyState.characters array.
     /// </summary>
     private Entity GetActiveEnemy(
         BattleState battleState,
-        PartyState partyState,
+        CharacterIdentityState identityState,
+        CharacterHealthState healthState,
         ref SystemState systemState)
     {
+      // Calculate next index (wraps around)
       int nextIndex = (battleState.activeCharacterIndex + 1) % battleState.turnOrder.Length;
       Entity activeEntity = battleState.turnOrder[nextIndex];
 
-      // Verify this is actually an enemy
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        var character = partyState.characters[i];
-        if (character.entity == activeEntity &&
-            character.isEnemy &&
-            character.isAlive) {
-          return activeEntity;
-        }
+      if (activeEntity == Entity.Null)
+        return Entity.Null;
+
+      // NEW: Verify this is an enemy using O(1) HashMap lookup
+      if (!identityState.isEnemy.IsCreated ||
+          !identityState.isEnemy.TryGetValue(activeEntity, out bool isEnemy)) {
+        return Entity.Null;
       }
-      return Entity.Null;
+
+      if (!isEnemy)
+        return Entity.Null;
+
+      // NEW: Verify alive status using O(1) HashMap lookup
+      if (!healthState.health.IsCreated ||
+          !healthState.health.TryGetValue(activeEntity, out var health)) {
+        return Entity.Null;
+      }
+
+      if (!health.isAlive)
+        return Entity.Null;
+
+      return activeEntity;
     }
 
     /// <summary>
-    /// Get enemy name from party state for logging/debugging.
+    /// Get enemy name from CharacterIdentityState for logging/debugging.
     /// Returns empty string if not found.
+    /// 
+    /// NEW: O(1) HashMap lookup.
+    /// OLD: O(n) loop through PartyState.characters array.
     /// </summary>
-    private FixedString64Bytes GetEnemyName(Entity enemyEntity, PartyState partyState)
+    private FixedString64Bytes GetEnemyName(
+        Entity enemyEntity,
+        CharacterIdentityState identityState)
     {
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == enemyEntity) {
-          return partyState.characters[i].name;
-        }
+      if (!identityState.names.IsCreated)
+        return new FixedString64Bytes();
+
+      if (identityState.names.TryGetValue(enemyEntity, out var name)) {
+        // Convert FixedString32Bytes to FixedString64Bytes
+        FixedString64Bytes result = default;
+        result.Append(name);
+        return result;
       }
 
       return new FixedString64Bytes();

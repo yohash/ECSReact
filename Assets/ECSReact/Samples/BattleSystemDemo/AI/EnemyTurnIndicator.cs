@@ -8,10 +8,15 @@ using System.Collections;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// UI component that displays enemy thinking state and action preview.
-  /// Shows visual feedback when enemies are making decisions.
+  /// UI component that displays enemy thinking state and action preview - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState subscription
+  /// - Added CharacterIdentityState subscription
+  /// - Replaced O(n) loops with O(1) HashMap lookups for names
+  /// - Uses CharacterIdentityState to verify enemy status
   /// </summary>
-  public class EnemyTurnIndicator : ReactiveUIComponent<BattleState, PartyState>
+  public class EnemyTurnIndicator : ReactiveUIComponent<BattleState, CharacterIdentityState>
   {
     [Header("UI References")]
     [SerializeField] private GameObject indicatorPanel;
@@ -28,7 +33,7 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private float fadeInDuration = 0.3f;
 
     private BattleState battleState;
-    private PartyState partyState;
+    private CharacterIdentityState identityState;
     private Entity currentEnemyTurn = Entity.Null;
     private bool isThinking = false;
     private float thinkingTimer = 0f;
@@ -41,9 +46,9 @@ namespace ECSReact.Samples.BattleSystem
       UpdateDisplay();
     }
 
-    public override void OnStateChanged(PartyState newState)
+    public override void OnStateChanged(CharacterIdentityState newState)
     {
-      partyState = newState;
+      identityState = newState;
       UpdateDisplay();
     }
 
@@ -88,7 +93,7 @@ namespace ECSReact.Samples.BattleSystem
         return;
       }
 
-      // Get active enemy
+      // Get active entity from battle state
       if (battleState.activeCharacterIndex >= battleState.turnOrder.Length) {
         HideIndicator();
         return;
@@ -96,33 +101,58 @@ namespace ECSReact.Samples.BattleSystem
 
       Entity activeEntity = battleState.turnOrder[battleState.activeCharacterIndex];
 
-      // Find enemy in party state
-      CharacterData? enemyData = null;
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == activeEntity &&
-            partyState.characters[i].isEnemy) {
-          enemyData = partyState.characters[i];
-          break;
-        }
-      }
-
-      if (!enemyData.HasValue) {
+      // NEW: Verify this is an enemy using CharacterIdentityState (O(1))
+      if (!IsEnemy(activeEntity)) {
         HideIndicator();
         return;
       }
 
       // Show indicator for this enemy
-      ShowIndicator(enemyData.Value);
+      ShowIndicator(activeEntity);
     }
 
-    private void ShowIndicator(CharacterData enemy)
+    /// <summary>
+    /// NEW: Check if entity is an enemy using O(1) HashMap lookup.
+    /// OLD: O(n) loop through PartyState.characters
+    /// </summary>
+    private bool IsEnemy(Entity entity)
+    {
+      if (!identityState.isEnemy.IsCreated)
+        return false;
+
+      if (identityState.isEnemy.TryGetValue(entity, out bool isEnemy)) {
+        return isEnemy;
+      }
+
+      return false;
+    }
+
+    /// <summary>
+    /// NEW: Get enemy name using O(1) HashMap lookup.
+    /// OLD: O(n) loop through PartyState.characters
+    /// </summary>
+    private string GetEnemyName(Entity enemyEntity)
+    {
+      if (!identityState.names.IsCreated)
+        return "Enemy";
+
+      if (identityState.names.TryGetValue(enemyEntity, out var name)) {
+        return name.ToString();
+      }
+
+      return "Enemy";
+    }
+
+    private void ShowIndicator(Entity enemy)
     {
       if (indicatorPanel == null)
         return;
 
-      // Update enemy info
-      if (enemyNameText != null)
-        enemyNameText.text = $"{enemy.name}'s Turn";
+      // Update enemy info using O(1) lookup
+      if (enemyNameText != null) {
+        string name = GetEnemyName(enemy);
+        enemyNameText.text = $"{name}'s Turn";
+      }
 
       if (statusText != null)
         statusText.text = "Thinking...";
@@ -130,6 +160,7 @@ namespace ECSReact.Samples.BattleSystem
       // Reset and show
       isThinking = true;
       thinkingTimer = 0f;
+      currentEnemyTurn = enemy;
 
       if (!indicatorPanel.activeSelf) {
         indicatorPanel.SetActive(true);
@@ -155,7 +186,10 @@ namespace ECSReact.Samples.BattleSystem
       currentEnemyTurn = Entity.Null;
     }
 
-    // Called when AI makes a decision (would be event-driven)
+    /// <summary>
+    /// Called when AI makes a decision (would be event-driven in full implementation).
+    /// Could subscribe to AIThinkingState changes to detect this.
+    /// </summary>
     public void OnAIDecisionMade(ActionType action, Entity target)
     {
       isThinking = false;
@@ -189,15 +223,20 @@ namespace ECSReact.Samples.BattleSystem
       targetHighlight.gameObject.SetActive(true);
     }
 
+    /// <summary>
+    /// NEW: Get target name using O(1) HashMap lookup.
+    /// OLD: O(n) loop through PartyState.characters
+    /// </summary>
     private string GetTargetName(Entity target)
     {
       if (target == Entity.Null)
         return "";
 
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == target) {
-          return partyState.characters[i].name.ToString();
-        }
+      if (!identityState.names.IsCreated)
+        return "Unknown";
+
+      if (identityState.names.TryGetValue(target, out var name)) {
+        return name.ToString();
       }
 
       return "Unknown";

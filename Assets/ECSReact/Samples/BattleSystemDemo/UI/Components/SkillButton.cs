@@ -10,7 +10,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Individual skill button component that receives props from SkillSelectionPanel.
   /// Demonstrates IElement pattern and interactive UI with state-based styling.
   /// </summary>
-  public class SkillButton : ReactiveUIComponent<PartyState>, IElementChild, IPointerEnterHandler, IPointerExitHandler
+  public class SkillButton : ReactiveUIComponent<CharacterManaState>, IElementChild, IPointerEnterHandler, IPointerExitHandler
   {
     [Header("UI References")]
     [SerializeField] private Button button;
@@ -42,7 +42,7 @@ namespace ECSReact.Samples.BattleSystem
       UpdateDisplay();
     }
 
-    public override void OnStateChanged(PartyState newState)
+    public override void OnStateChanged(CharacterManaState newState)
     {
       // Could update if character mana changes
       UpdateDisplay();

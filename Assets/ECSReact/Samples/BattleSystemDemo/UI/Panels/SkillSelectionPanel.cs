@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Entities;
 using UnityEngine;
 using UnityEngine.UI;
 using ECSReact.Core;
@@ -7,11 +8,19 @@ using TMPro;
 
 namespace ECSReact.Samples.BattleSystem
 {
+  // ============================================================================
+  // SKILL SELECTION PANEL - NORMALIZED VERSION
+  // ============================================================================
+
   /// <summary>
-  /// Nested skill selection panel that appears when Skills is selected.
-  /// Demonstrates conditional rendering and nested element composition.
+  /// Skill selection panel - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState subscription
+  /// - Added CharacterManaState, CharacterIdentityState subscriptions
+  /// - Replaced loop to find active character with O(1) lookups
   /// </summary>
-  public class SkillSelectionPanel : ReactiveUIComponent<PartyState, UIBattleState>, IElementChild
+  public class SkillSelectionPanel : ReactiveUIComponent<CharacterManaState, CharacterIdentityState, UIBattleState>, IElementChild
   {
     [Header("Panel Configuration")]
     [SerializeField] private Transform skillGridContainer;
@@ -22,11 +31,16 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private bool showCategories = true;
     [SerializeField] private Transform categoryTabContainer;
 
-    private PartyState partyState;
+    private CharacterManaState manaState;
+    private CharacterIdentityState identityState;
     private UIBattleState uiState;
     private SkillPanelProps currentProps;
-    private CharacterData activeCharacter;
     private SkillCategory selectedCategory = SkillCategory.All;
+
+    // Cached character data
+    private FixedString32Bytes characterName;
+    private int characterCurrentMana;
+    private int characterMaxMana;
 
     // Mock skill data for demo
     private readonly List<SkillData> availableSkills = new List<SkillData>
@@ -50,11 +64,17 @@ namespace ECSReact.Samples.BattleSystem
       UpdateCharacterInfo();
     }
 
-    public override void OnStateChanged(PartyState newState)
+    public override void OnStateChanged(CharacterManaState newState)
     {
-      partyState = newState;
+      manaState = newState;
       UpdateCharacterInfo();
-      UpdateElements(); // Refresh skill buttons
+      UpdateElements(); // Refresh skill buttons (mana affects usability)
+    }
+
+    public override void OnStateChanged(CharacterIdentityState newState)
+    {
+      identityState = newState;
+      UpdateCharacterInfo();
     }
 
     public override void OnStateChanged(UIBattleState newState)
@@ -91,7 +111,7 @@ namespace ECSReact.Samples.BattleSystem
       var filteredSkills = GetFilteredSkills();
 
       foreach (var skill in filteredSkills) {
-        bool canUse = activeCharacter.currentMana >= skill.manaCost;
+        bool canUse = characterCurrentMana >= skill.manaCost;
 
         yield return Mount.Element.FromResources(
             key: $"skill_{skill.id}",
@@ -100,7 +120,7 @@ namespace ECSReact.Samples.BattleSystem
             {
               Skill = skill,
               CanUse = canUse,
-              CharacterMana = activeCharacter.currentMana,
+              CharacterMana = characterCurrentMana,
               OnSkillSelected = OnSkillSelected
             },
             index: buttonIndex++
@@ -109,37 +129,38 @@ namespace ECSReact.Samples.BattleSystem
 
       // Empty state message if no skills
       if (filteredSkills.Count == 0) {
-        //yield return UIElement.FromComponent<EmptySkillMessage>(
-        //    key: "empty_skills",
-        //    props: new EmptyMessageProps
-        //    {
-        //      Message = selectedCategory == SkillCategory.All
-        //            ? "No skills learned yet!"
-        //            : $"No {selectedCategory} skills available"
-        //    },
-        //    index: buttonIndex
-        //);
+        // Empty message could go here
       }
     }
 
+    /// <summary>
+    /// NEW: Fetch character info using O(1) lookups
+    /// OLD: O(n) loop through PartyState.characters
+    /// </summary>
     private void UpdateCharacterInfo()
     {
-      if (currentProps == null)
+      if (currentProps == null || currentProps.CharacterEntity == Entity.Null)
         return;
 
-      // Find active character data
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == currentProps.CharacterEntity) {
-          activeCharacter = partyState.characters[i];
+      Entity entity = currentProps.CharacterEntity;
 
-          if (titleText)
-            titleText.text = $"{activeCharacter.name}'s Skills";
+      // Lookup name (O(1))
+      if (identityState.names.IsCreated &&
+          identityState.names.TryGetValue(entity, out var name)) {
+        characterName = name;
 
-          if (manaText)
-            manaText.text = $"MP: {activeCharacter.currentMana}/{activeCharacter.maxMana}";
+        if (titleText)
+          titleText.text = $"{characterName}'s Skills";
+      }
 
-          break;
-        }
+      // Lookup mana (O(1))
+      if (manaState.mana.IsCreated &&
+          manaState.mana.TryGetValue(entity, out var manaData)) {
+        characterCurrentMana = manaData.current;
+        characterMaxMana = manaData.max;
+
+        if (manaText)
+          manaText.text = $"MP: {characterCurrentMana}/{characterMaxMana}";
       }
     }
 
@@ -154,7 +175,7 @@ namespace ECSReact.Samples.BattleSystem
     private void OnCategorySelected(SkillCategory category)
     {
       selectedCategory = category;
-      UpdateElements(); // Refresh skill list
+      UpdateElements();
     }
 
     private void OnSkillSelected(SkillData skill)
@@ -166,15 +187,6 @@ namespace ECSReact.Samples.BattleSystem
         actingCharacter = currentProps.CharacterEntity,
         targetRequired = skill.category != SkillCategory.Support
       });
-
-      // Update UI state to show targeting if needed
-      if (skill.category != SkillCategory.Support) {
-        DispatchAction(new ShowTargetingAction
-        {
-          actionType = ActionType.Skill,
-          allowMultiTarget = skill.isAreaEffect
-        });
-      }
     }
 
     private void OnBackClicked()
@@ -233,7 +245,7 @@ namespace ECSReact.Samples.BattleSystem
   public struct SelectSkillAction : IGameAction
   {
     public int skillId;
-    public Unity.Entities.Entity actingCharacter;
+    public Entity actingCharacter;
     public bool targetRequired;
   }
 
@@ -241,5 +253,10 @@ namespace ECSReact.Samples.BattleSystem
   {
     public ActionType actionType;
     public bool allowMultiTarget;
+  }
+
+  public class SkillPanelProps : UIProps
+  {
+    public Entity CharacterEntity { get; set; }  // Changed from full character data
   }
 }
