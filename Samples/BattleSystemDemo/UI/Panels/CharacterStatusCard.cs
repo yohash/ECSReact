@@ -35,6 +35,7 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private TextMeshProUGUI manaText;
     [SerializeField] private GameObject manaContainer;
     [SerializeField] private Image backgroundImage;
+    [SerializeField] private Image characterPortraitImage;
     [SerializeField] private GameObject activeIndicator;
     [SerializeField] private GameObject targetIndicator;
     [SerializeField] private GameObject deathOverlay;
@@ -56,6 +57,13 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private Color targetableColor = new Color(1f, 0.8f, 0.8f, 1f);
     [SerializeField] private Color hoveredColor = new Color(1f, 1f, 0.8f, 1f);
     [SerializeField] private Color invalidTargetColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+
+    [Header("Character Portraits")]
+    [SerializeField] private Sprite heroSprite;
+    [SerializeField] private Sprite warriorSprite;
+    [SerializeField] private Sprite mageSprite;
+    [SerializeField] private Sprite goblinSprite;
+    [SerializeField] private Sprite orcSprite;
 
     private CharacterStatusProps currentProps;
     private CharacterData previousCharacterData;
@@ -312,12 +320,8 @@ namespace ECSReact.Samples.BattleSystem
             ? (float)character.currentHealth / character.maxHealth
             : 0f;
 
-        if (currentProps.AnimateChanges) {
-          // Smooth animation will happen in Update()
-        } else {
-          healthBar.value = healthPercent;
-          currentDisplayHealth = character.currentHealth;
-        }
+        healthBar.value = healthPercent;
+        currentDisplayHealth = character.currentHealth;
       }
 
       if (healthText)
