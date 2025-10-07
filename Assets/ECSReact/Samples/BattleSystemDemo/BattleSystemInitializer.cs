@@ -40,8 +40,8 @@ namespace ECSReact.Samples.BattleSystem
     {
       Debug.Log("Battle System Initializing...");
 
-      //StateNotificationEvents.InitializeEvents();
-      //StateSubscriptionRegistration.InitializeSubscriptions();
+      StateNotificationEvents.InitializeEvents();
+      StateSubscriptionRegistration.InitializeSubscriptions();
 
       // ========================================================================
       // STEP 1: Dispatch AddCharacter actions for all combatants

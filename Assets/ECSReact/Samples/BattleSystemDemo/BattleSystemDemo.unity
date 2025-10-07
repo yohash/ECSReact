@@ -448,6 +448,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   stateConfigurations:
+  - typeName: ECSReact.Samples.BattleSystem.AIThinkingState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: AIThinkingState
+    enabled: 1
+    serializedDefaults: 
   - typeName: ECSReact.Samples.BattleSystem.BattleLogState
     namespaceName: ECSReact.Samples.BattleSystem
     displayName: BattleLogState
@@ -458,11 +463,31 @@ MonoBehaviour:
     displayName: BattleState
     enabled: 1
     serializedDefaults: 
-  - typeName: ECSReact.Samples.BattleSystem.PartyState
+  - typeName: ECSReact.Samples.BattleSystem.CharacterHealthState
     namespaceName: ECSReact.Samples.BattleSystem
-    displayName: PartyState
+    displayName: CharacterHealthState
     enabled: 1
-    serializedDefaults: '{"characters":{"data":{"offset0000":{"byte0000":0,"byte0008":0},"offset0016":{"byte0000":13925780440547333,"byte0008":0},"offset0032":{"byte0000":0,"byte0008":0},"offset0048":{"byte0000":429496729700,"byte0008":214748364850},"offset0064":{"byte0000":256,"byte0008":0},"offset0080":{"byte0000":14207255417257989,"byte0008":0},"offset0096":{"byte0000":0,"byte0008":0},"offset0112":{"byte0000":429496729700,"byte0008":214748364850},"offset0128":{"byte0000":256,"byte0008":0},"offset0144":{"byte0000":14488730393968645,"byte0008":0},"offset0160":{"byte0000":0,"byte0008":0},"offset0176":{"byte0000":429496729700,"byte0008":214748364850},"offset0192":{"byte0000":256,"byte0008":0},"offset0208":{"byte0000":3565000862451695622,"byte0008":0},"offset0224":{"byte0000":0,"byte0008":0},"offset0240":{"byte0000":429496729700,"byte0008":214748364850},"offset0256":{"byte0000":257,"byte0008":0},"offset0272":{"byte0000":0,"byte0008":0},"offset0288":{"byte0000":0,"byte0008":0},"offset0304":{"byte0000":0,"byte0008":0},"offset0320":{"byte0000":0,"byte0008":0},"offset0336":{"byte0000":0,"byte0008":0},"offset0352":{"byte0000":0,"byte0008":0},"offset0368":{"byte0000":0,"byte0008":0},"offset0384":{"byte0000":0,"byte0008":0},"offset0400":{"byte0000":0,"byte0008":0},"offset0416":{"byte0000":0,"byte0008":0},"offset0432":{"byte0000":0,"byte0008":0},"offset0448":{"byte0000":0,"byte0008":0},"offset0464":{"byte0000":0,"byte0008":0},"offset0480":{"byte0000":0,"byte0008":0},"offset0496":{"byte0000":0,"byte0008":0}}},"activePartySize":0,"aliveCount":0,"enemyCount":0,"aliveEnemyCount":0}'
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterManaState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterManaState
+    enabled: 1
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterStatusState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterStatusState
+    enabled: 1
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterIdentityState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterIdentityState
+    enabled: 1
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterRosterState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterRosterState
+    enabled: 1
+    serializedDefaults: 
   - typeName: ECSReact.Samples.BattleSystem.SaveState
     namespaceName: ECSReact.Samples.BattleSystem
     displayName: SaveState
