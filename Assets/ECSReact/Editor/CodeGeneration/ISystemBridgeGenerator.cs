@@ -624,81 +624,136 @@ namespace ECSReact.Editor.CodeGeneration
       // System declaration
       sb.AppendLine("  [UpdateInGroup(typeof(MiddlewareSystemGroup))]");
       if (!middleware.disableBurst)
-        sb.AppendLine("  [BurstCompile]");
+        sb.AppendLine("  [BurstCompile]");  // System-level Burst (for OnCreate)
       sb.AppendLine($"  public partial struct {middleware.systemName} : ISystem");
       sb.AppendLine("  {");
       sb.AppendLine($"    private {middleware.structName} logic;");
       sb.AppendLine("    private EntityQuery actionQuery;");
 
       if (middleware.isParallel) {
+        // Parallel middleware - existing implementation (unchanged)
         sb.AppendLine($"    private {middleware.structName}.{middleware.dataType} preparedData;");
-      }
-      sb.AppendLine();
+        sb.AppendLine();
 
-      // OnCreate
-      if (!middleware.disableBurst)
-        sb.AppendLine("    [BurstCompile]");
-      sb.AppendLine("    public void OnCreate(ref SystemState state)");
-      sb.AppendLine("    {");
-      sb.AppendLine($"      logic = new {middleware.structName}();");
-      sb.AppendLine();
-      sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
-      sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
-      sb.AppendLine($"        .WithAll<{middleware.actionType}, ActionTag>();");
-      sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
-      sb.AppendLine("      queryBuilder.Dispose();");
-      sb.AppendLine();
-      sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
-      sb.AppendLine($"      state.RequireForUpdate<{middleware.actionType}>();");
-      sb.AppendLine("    }");
-      sb.AppendLine();
+        // OnCreate
+        if (!middleware.disableBurst)
+          sb.AppendLine("    [BurstCompile]");
+        sb.AppendLine("    public void OnCreate(ref SystemState state)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"      logic = new {middleware.structName}();");
+        sb.AppendLine();
+        sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
+        sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
+        sb.AppendLine($"        .WithAll<{middleware.actionType}, ActionTag>();");
+        sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
+        sb.AppendLine("      queryBuilder.Dispose();");
+        sb.AppendLine();
+        sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
+        sb.AppendLine($"      state.RequireForUpdate<{middleware.actionType}>();");
+        sb.AppendLine("    }");
+        sb.AppendLine();
 
-      // OnUpdate
-      if (!middleware.disableBurst)
-        sb.AppendLine("    [BurstCompile]");
-      sb.AppendLine("    public void OnUpdate(ref SystemState state)");
-      sb.AppendLine("    {");
-
-      if (middleware.isParallel) {
-        // Parallel middleware - transform only
+        // OnUpdate for parallel
+        if (!middleware.disableBurst)
+          sb.AppendLine("    [BurstCompile]");
+        sb.AppendLine("    public void OnUpdate(ref SystemState state)");
+        sb.AppendLine("    {");
         sb.AppendLine("      // Prepare data from SystemAPI on main thread");
         sb.AppendLine("      preparedData = logic.PrepareData(ref state);");
         sb.AppendLine();
         sb.AppendLine("      // Schedule parallel job - transform only, cannot filter");
         sb.AppendLine("      state.Dependency = new ProcessActionsJob");
         sb.AppendLine("      {");
-        sb.AppendLine("        ActionHandle = actionHandle,");
         sb.AppendLine("        Logic = logic,");
         sb.AppendLine("        Data = preparedData");
         sb.AppendLine("      }.ScheduleParallel(actionQuery, state.Dependency);");
+        sb.AppendLine("    }");
       } else {
-        // Sequential middleware - can filter
+        // ========================================================================
+        // SEQUENTIAL MIDDLEWARE - NEW ECB PATTERN
+        // ========================================================================
+
+        // Add ECB writer field
+        sb.AppendLine();
+        sb.AppendLine("    // ECB writer for Burst-compatible action dispatching");
+        sb.AppendLine("    private EntityCommandBuffer.ParallelWriter ecbWriter;");
+        sb.AppendLine();
+
+        // OnCreate
+        if (!middleware.disableBurst)
+          sb.AppendLine("    [BurstCompile]");
+        sb.AppendLine("    public void OnCreate(ref SystemState state)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"      logic = new {middleware.structName}();");
+        sb.AppendLine();
+        sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
+        sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
+        sb.AppendLine($"        .WithAll<{middleware.actionType}, ActionTag>();");
+        sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
+        sb.AppendLine("      queryBuilder.Dispose();");
+        sb.AppendLine();
+        sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
+        sb.AppendLine($"      state.RequireForUpdate<{middleware.actionType}>();");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // OnUpdate - NOT Burst compiled (main thread ECB fetch)
+        sb.AppendLine("    // NOT Burst compiled - allows main-thread ECB fetch");
+        sb.AppendLine("    public void OnUpdate(ref SystemState state)");
+        sb.AppendLine("    {");
+        sb.AppendLine("      // Pre-fetch ECB writer on main thread (MUST happen before Burst context)");
+        sb.AppendLine("      ecbWriter = ECSActionDispatcher.GetJobCommandBuffer(state.World);");
+        sb.AppendLine();
+        sb.AppendLine("      // Call Burst-compiled middleware processing");
+        sb.AppendLine("      ProcessMiddleware(ref state);");
+        sb.AppendLine();
+        sb.AppendLine("      // Register job handle for proper synchronization");
+        sb.AppendLine("      ECSActionDispatcher.RegisterJobHandle(state.Dependency, state.World);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // ProcessMiddleware - Burst compiled method
+        if (!middleware.disableBurst)
+          sb.AppendLine("    [BurstCompile]");
+        sb.AppendLine("    private void ProcessMiddleware(ref SystemState state)");
+        sb.AppendLine("    {");
+        sb.AppendLine("      // ECB for filtering actions (destroy entity if filtered)");
         sb.AppendLine("      var ecb = new EntityCommandBuffer(Allocator.TempJob);");
         sb.AppendLine();
         sb.AppendLine("      // Process all actions sequentially - can filter");
+        sb.AppendLine("      int sortKey = 0;");
         sb.AppendLine($"      foreach (var (action, entity) in SystemAPI.Query<RefRW<{middleware.actionType}>>()");
         sb.AppendLine("          .WithAll<ActionTag>().WithEntityAccess())");
         sb.AppendLine("      {");
-        sb.AppendLine("        bool shouldContinue = logic.Process(ref action.ValueRW, ref state);");
+        sb.AppendLine("        // Call user's middleware with dispatcher and sortKey");
+        sb.AppendLine("        bool shouldContinue = logic.Process(");
+        sb.AppendLine("          ref action.ValueRW,");
+        sb.AppendLine("          ref state,");
+        sb.AppendLine("          ecbWriter,      // Dispatcher for action dispatching");
+        sb.AppendLine("          sortKey         // Sort key for deterministic ordering");
+        sb.AppendLine("        );");
+        sb.AppendLine();
         sb.AppendLine("        if (!shouldContinue)");
         sb.AppendLine("        {");
         sb.AppendLine("          // Middleware filtered this action - destroy it");
         sb.AppendLine("          ecb.DestroyEntity(entity);");
         sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        sortKey++;");
         sb.AppendLine("      }");
         sb.AppendLine();
         sb.AppendLine("      ecb.Playback(state.EntityManager);");
         sb.AppendLine("      ecb.Dispose();");
+        sb.AppendLine("    }");
       }
 
-      sb.AppendLine("    }");
       sb.AppendLine();
 
       // OnDestroy
       sb.AppendLine("    public void OnDestroy(ref SystemState state) { }");
       sb.AppendLine();
 
-      // Job struct for parallel processing
+      // Job struct for parallel processing (if parallel middleware)
       if (middleware.isParallel) {
         if (!middleware.disableBurst)
           sb.AppendLine("    [BurstCompile]");
@@ -720,6 +775,8 @@ namespace ECSReact.Editor.CodeGeneration
 
       WriteGeneratedFile(middleware.namespaceName, middleware.systemName, sb.ToString());
     }
+
+
 
     private void GenerateFileHeader(StringBuilder sb, string sourceName, string systemType)
     {

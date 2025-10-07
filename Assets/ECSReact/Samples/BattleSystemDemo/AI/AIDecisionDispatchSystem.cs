@@ -1,3 +1,4 @@
+﻿
 using Unity.Entities;
 using UnityEngine;
 using ECSReact.Core;
@@ -17,8 +18,9 @@ namespace ECSReact.Samples.BattleSystem
   /// 1. Reducer makes decision, stores in AIThinkingState
   /// 2. This system detects hasPendingDecision = true
   /// 3. Reads decision from state
-  /// 4. Dispatches AIDecisionMadeAction
-  /// 5. Clears pending decision flag
+  /// 4. ENRICHES action with turnCount from BattleState
+  /// 5. Dispatches enriched AIDecisionMadeAction
+  /// 6. Clears pending decision flag
   /// 
   /// This is the proper way to handle side effects in a reducer-based architecture.
   /// Reducer stays pure, side effects are isolated in dedicated systems.
@@ -31,6 +33,7 @@ namespace ECSReact.Samples.BattleSystem
     {
       base.OnCreate();
       RequireForUpdate<AIThinkingState>();
+      RequireForUpdate<BattleState>();  // Now required for enrichment
     }
 
     protected override void OnUpdate()
@@ -50,7 +53,18 @@ namespace ECSReact.Samples.BattleSystem
       int chosenSkillId = thinkingState.chosenSkillId;
 
       // ====================================================================
-      // SIDE EFFECT: Dispatch action based on state
+      // ACTION ENRICHMENT: Gather turn count for deterministic execution
+      // ====================================================================
+
+      int turnCount = 1; // Default fallback
+      if (SystemAPI.TryGetSingleton<BattleState>(out var battleState)) {
+        turnCount = battleState.turnCount;
+      } else {
+        Debug.LogWarning("AIDecisionDispatchSystem: BattleState not found, using default turnCount=1");
+      }
+
+      // ====================================================================
+      // SIDE EFFECT: Dispatch enriched action
       // ====================================================================
 
       ECSActionDispatcher.Dispatch(new AIDecisionMadeAction
@@ -58,12 +72,14 @@ namespace ECSReact.Samples.BattleSystem
         enemyEntity = decidingEnemy,
         chosenAction = chosenAction,
         targetEntity = chosenTarget,
-        skillId = chosenSkillId
+        skillId = chosenSkillId,
+        turnCount = turnCount  // ✅ ENRICHED with context!
       });
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
       Debug.Log($"AIDecisionDispatchSystem: Dispatched AIDecisionMadeAction for " +
-                $"entity {decidingEnemy.Index}: {chosenAction} targeting {chosenTarget.Index}");
+                $"entity {decidingEnemy.Index}: {chosenAction} targeting {chosenTarget.Index} " +
+                $"(turn {turnCount})");
 #endif
 
       // Clear the pending decision

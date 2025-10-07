@@ -97,6 +97,9 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Dispatched when an enemy has made their decision.
   /// Can be used for UI preview of the action about to be taken.
+  /// 
+  /// ENRICHED with turnCount for deterministic execution calculations.
+  /// Following action enrichment pattern - reducer doesn't need to fetch BattleState.
   /// </summary>
   public struct AIDecisionMadeAction : IGameAction
   {
@@ -104,6 +107,13 @@ namespace ECSReact.Samples.BattleSystem
     public ActionType chosenAction;
     public Entity targetEntity;
     public int skillId;
+
+    /// <summary>
+    /// Current turn count from BattleState.
+    /// Used for deterministic random seed in execution calculations.
+    /// Enriched by AIDecisionDispatchSystem to avoid state fetching in reducer.
+    /// </summary>
+    public int turnCount;
   }
 
   /// <summary>

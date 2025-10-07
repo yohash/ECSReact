@@ -1,3 +1,4 @@
+﻿
 using Unity.Entities;
 using Unity.Collections;
 using UnityEngine;
@@ -12,7 +13,7 @@ namespace ECSReact.Samples.BattleSystem
   /// combat details (damage, crit) deterministically using DeterministicRandom.
   /// 
   /// Flow:
-  /// 1. Receives AIDecisionMadeAction
+  /// 1. Receives AIDecisionMadeAction (enriched with turnCount!)
   /// 2. Uses DeterministicRandom to calculate damage/crit
   /// 3. Stores results in AIThinkingState
   /// 4. Sets readyToExecuteCombat = true
@@ -21,6 +22,7 @@ namespace ECSReact.Samples.BattleSystem
   /// This is PURE:
   /// - No dispatching (only state mutation)
   /// - No UnityEngine.Random (uses DeterministicRandom)
+  /// - No state fetching (turnCount comes from enriched action!)
   /// - Fully deterministic (testable!)
   /// </summary>
   [Reducer(DisableBurst = true)]
@@ -42,12 +44,17 @@ namespace ECSReact.Samples.BattleSystem
         return;
       }
 
+      // ====================================================================
+      // PURE: Use turnCount from enriched action (no state fetching!)
+      // ====================================================================
+
       // Create deterministic RNG for combat calculations
-      // Use entity index + a different context to get different rolls than decision
+      // Use entity index + context to get different rolls than decision
       var rng = DeterministicRandom.CreateForDecisionWithContext(
-        action.enemyEntity,
-        GetTurnCount(ref systemState),
-        contextId: 1 // Context 0 = decision, Context 1 = execution
+        action.enemyEntity.Index,
+        action.enemyEntity.Version,
+        action.turnCount,  // From enriched action, not fetched from state!
+        contextId: 1       // Context 0 = decision, Context 1 = execution
       );
 
       // Calculate combat details based on action type
@@ -160,20 +167,6 @@ namespace ECSReact.Samples.BattleSystem
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
       Debug.Log($"Skill execution calculated (skill ID: {action.skillId}) - not yet fully implemented");
 #endif
-    }
-
-    /// <summary>
-    /// Helper to get current turn count for RNG seed.
-    /// If BattleState is not available, use a default.
-    /// </summary>
-    private int GetTurnCount(ref SystemState systemState)
-    {
-      if (systemState.TryGetSingleton<BattleState>(out var battleState)) {
-        return battleState.turnCount;
-      }
-
-      // Fallback if BattleState not available
-      return 1;
     }
   }
 }

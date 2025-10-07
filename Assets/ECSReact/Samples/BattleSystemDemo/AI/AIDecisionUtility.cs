@@ -24,7 +24,6 @@ namespace ECSReact.Samples.BattleSystem
     /// Main entry point for making an AI decision.
     /// Routes to appropriate strategy based on AIBehavior.
     /// </summary>
-    [BurstCompile]
     public static AIDecision MakeDecision(
         AIDecisionContext context,
         AIBehavior behavior,
@@ -45,7 +44,6 @@ namespace ECSReact.Samples.BattleSystem
     /// Random strategy: Pick random action and random target.
     /// Simple but unpredictable.
     /// </summary>
-    [BurstCompile]
     public static AIDecision MakeRandomDecision(
         AIDecisionContext context,
         AIBehavior behavior,
@@ -65,11 +63,11 @@ namespace ECSReact.Samples.BattleSystem
       return decision;
     }
 
+
     /// <summary>
     /// Aggressive strategy: Always attack, target weakest enemy.
     /// Tries to finish off low-health targets.
     /// </summary>
-    [BurstCompile]
     public static AIDecision MakeAggressiveDecision(
         AIDecisionContext context,
         AIBehavior behavior,
@@ -107,7 +105,6 @@ namespace ECSReact.Samples.BattleSystem
     /// Defensive strategy: Defend when low health, otherwise attack strongest threat.
     /// Prioritizes survival.
     /// </summary>
-    [BurstCompile]
     public static AIDecision MakeDefensiveDecision(
         AIDecisionContext context,
         AIBehavior behavior,
@@ -149,7 +146,6 @@ namespace ECSReact.Samples.BattleSystem
     /// Balanced strategy: Mix of offense and defense with weighted scoring.
     /// Uses behavior weights to score each target.
     /// </summary>
-    [BurstCompile]
     public static AIDecision MakeBalancedDecision(
         AIDecisionContext context,
         AIBehavior behavior,
@@ -197,7 +193,6 @@ namespace ECSReact.Samples.BattleSystem
     /// Tactical strategy: Smart targeting with threat assessment.
     /// Similar to Balanced but with more sophisticated logic.
     /// </summary>
-    [BurstCompile]
     public static AIDecision MakeTacticalDecision(
         AIDecisionContext context,
         AIBehavior behavior,
@@ -248,7 +243,6 @@ namespace ECSReact.Samples.BattleSystem
     /// Score a target based on behavior weights.
     /// Higher score = more desirable target.
     /// </summary>
-    [BurstCompile]
     private static float ScoreTarget(
         AITargetInfo target,
         AIBehavior behavior,
@@ -280,7 +274,6 @@ namespace ECSReact.Samples.BattleSystem
     /// <summary>
     /// Enhanced tactical scoring that considers battlefield state.
     /// </summary>
-    [BurstCompile]
     private static float ScoreTacticalTarget(
         AITargetInfo target,
         AIDecisionContext context,

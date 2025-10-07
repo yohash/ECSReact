@@ -11,7 +11,12 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct AttackLoggingMiddleware : IMiddleware<AttackAction>
   {
-    public bool Process(ref AttackAction action, ref SystemState systemState)
+    public bool Process(
+      ref AttackAction action,
+      ref SystemState systemState,
+      EntityCommandBuffer.ParallelWriter dispatcher,
+      int sortKey
+    )
     {
       // Get character names for the log message
       var attackerName = GetCharacterName(action.attackerEntity);
@@ -65,7 +70,12 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct TurnChangeLoggingMiddleware : IMiddleware<NextTurnAction>
   {
-    public bool Process(ref NextTurnAction action, ref SystemState systemState)
+    public bool Process(
+      ref NextTurnAction action,
+      ref SystemState systemState,
+      EntityCommandBuffer.ParallelWriter dispatcher,
+      int sortKey
+    )
     {
       // Get current battle state to determine whose turn it is
       if (systemState.TryGetSingleton<BattleState>(out var battleState)) {
@@ -114,7 +124,12 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct ActionSelectionLoggingMiddleware : IMiddleware<SelectActionTypeAction>
   {
-    public bool Process(ref SelectActionTypeAction action, ref SystemState systemState)
+    public bool Process(
+      ref SelectActionTypeAction action,
+      ref SystemState systemState,
+      EntityCommandBuffer.ParallelWriter dispatcher,
+      int sortKey
+    )
     {
       if (action.actionType == ActionType.None)
         return true;
