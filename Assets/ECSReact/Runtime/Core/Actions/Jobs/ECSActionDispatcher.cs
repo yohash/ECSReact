@@ -40,10 +40,6 @@ namespace ECSReact.Core
       // Track job dependencies for safe buffer refresh
       public JobHandle LastJobHandle { get; set; }
 
-      // Track created buffers for disposal
-      private readonly List<EntityCommandBuffer> createdBuffers = new();
-      private readonly object bufferLock = new object();
-
       public DispatchContext(World world)
       {
         World = world;
@@ -52,8 +48,6 @@ namespace ECSReact.Core
         ECBSystem = world.GetOrCreateSystemManaged<BeginInitializationEntityCommandBufferSystem>();
 
         // Job dispatches collected by a dedicated system that extends EntityCommandBufferSystem
-        // so that the EntityCommandBuffer.ParallelWriter JobCommandBuffer has automatic
-        // playback in the OnUpdate method
         JobECBSystem = world.GetOrCreateSystemManaged<JobActionCollectorSystem>();
       }
 
@@ -62,57 +56,38 @@ namespace ECSReact.Core
         // Ensure previous jobs complete before creating new buffer
         LastJobHandle.Complete();
 
-        lock (bufferLock) {
-          // Create a fresh parallel writer for jobs to use this frame
-          var newECB = JobECBSystem.CreateCommandBuffer();
-          JobCommandBuffer = newECB.AsParallelWriter();
-          createdBuffers.Add(newECB);
-        }
+        // Create a fresh parallel writer for jobs to use this frame
+        var newECB = JobECBSystem.CreateCommandBuffer();
+        JobCommandBuffer = newECB.AsParallelWriter();
       }
 
       public EntityCommandBuffer GetOrCreateFrameECB()
       {
         double currentTime = World.Time.ElapsedTime;
 
-        lock (bufferLock) {
-          // Check if we need a new ECB for this frame
-          if (!CurrentFrameECB.HasValue || currentTime > LastTimeUpdated) {
-            // Create new ECB for this frame
-            var newECB = ECBSystem.CreateCommandBuffer();
-            CurrentFrameECB = newECB;
-            LastTimeUpdated = currentTime;
-            createdBuffers.Add(newECB);
-          }
-
-          return CurrentFrameECB.Value;
+        // Check if we need a new ECB for this frame
+        if (!CurrentFrameECB.HasValue || currentTime > LastTimeUpdated) {
+          // Create new ECB for this frame
+          var newECB = ECBSystem.CreateCommandBuffer();
+          CurrentFrameECB = newECB;
+          LastTimeUpdated = currentTime;
         }
+
+        return CurrentFrameECB.Value;
       }
 
       public void RegisterJobHandle(JobHandle handle)
       {
-        lock (bufferLock) {
-          LastJobHandle = JobHandle.CombineDependencies(LastJobHandle, handle);
-        }
+        LastJobHandle = JobHandle.CombineDependencies(LastJobHandle, handle);
       }
 
       public void Dispose()
       {
-        lock (bufferLock) {
-          // Complete any remaining jobs
-          LastJobHandle.Complete();
+        // The EntityCommandBufferSystem will handle ECB disposal in its OnDestroy
+        LastJobHandle.Complete();
 
-          // Dispose all created buffers
-          foreach (var buffer in createdBuffers) {
-            if (buffer.IsCreated) {
-              try {
-                buffer.Dispose();
-              } catch (ObjectDisposedException) {
-                // Buffer was already disposed by the system, which is fine
-              }
-            }
-          }
-          createdBuffers.Clear();
-        }
+        // Clear references
+        CurrentFrameECB = null;
       }
     }
 
