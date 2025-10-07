@@ -6,17 +6,21 @@ using ECSReact.Core;
 
 namespace ECSReact.Samples.BattleSystem
 {
-
   /// <summary>
-  /// PHASE 2 CORRECTED: AI Thinking Timer System with Action Enrichment
+  /// PHASE 4 COMPLETED: AI Thinking Timer System with Action Enrichment
   /// 
-  /// This system now follows the "Action Enrichment" pattern:
+  /// This system follows the "Action Enrichment" pattern:
   /// - Gathers ALL context needed for decision-making
   /// - Enriches AIReadyToDecideAction with complete context
   /// - Reducer can be pure (no state fetching needed)
   /// 
   /// The system has access to all states and can build complete context
   /// once, then pass it to the reducer via the enriched action.
+  /// 
+  /// PHASE 4 UPDATE:
+  /// - Removed AIThinkingTriggerSystem (replaced by EnemyTurnDetectionMiddleware)
+  /// - System is now fully event-driven (no polling!)
+  /// - Thinking is initiated by AIThinkingStartReducer responding to EnemyTurnStartedAction
   /// </summary>
   [UpdateInGroup(typeof(SimulationSystemGroup))]
   [UpdateAfter(typeof(ReducerSystemGroup))]
@@ -187,110 +191,6 @@ namespace ECSReact.Samples.BattleSystem
       context.isLastAlly = aliveAllies == 1;
 
       return context;
-    }
-  }
-
-
-  /// <summary>
-  /// PHASE 1: Temporary Trigger System
-  /// 
-  /// This system detects when the battle phase changes to EnemyTurn and
-  /// starts the AI thinking process by setting the AIThinkingState singleton.
-  /// 
-  /// NOTE: This is a TEMPORARY implementation for Phase 1!
-  /// In Phase 4, this will be replaced by a proper reducer that responds
-  /// to EnemyTurnStartedAction. For now, we're still working with the
-  /// existing battle flow that polls for phase changes.
-  /// 
-  /// This system:
-  /// - Detects phase change to EnemyTurn
-  /// - Gets active enemy and their AIBehavior
-  /// - Sets AIThinkingState singleton to start thinking
-  /// - Dispatches AIThinkingAction for UI feedback
-  /// </summary>
-  [UpdateInGroup(typeof(SimulationSystemGroup))]
-  [UpdateAfter(typeof(ReducerSystemGroup))]
-  [UpdateBefore(typeof(AIThinkingTimerSystem))]
-  public partial class AIThinkingTriggerSystem : SystemBase
-  {
-    private BattlePhase lastPhase = BattlePhase.Initializing;
-
-    protected override void OnCreate()
-    {
-      base.OnCreate();
-      RequireForUpdate<BattleState>();
-      RequireForUpdate<PartyState>();
-      RequireForUpdate<AIThinkingState>();
-    }
-
-    protected override void OnUpdate()
-    {
-      // Get current battle state
-      if (!SystemAPI.TryGetSingleton<BattleState>(out var battleState))
-        return;
-
-      // Detect phase change to EnemyTurn
-      if (battleState.currentPhase != BattlePhase.EnemyTurn || lastPhase == BattlePhase.EnemyTurn) {
-        lastPhase = battleState.currentPhase;
-        return;
-      }
-
-      lastPhase = battleState.currentPhase;
-
-      // Get party state to find the active enemy
-      if (!SystemAPI.TryGetSingleton<PartyState>(out var partyState))
-        return;
-
-      // Get active enemy entity
-      Entity activeEnemy = GetActiveEnemy(battleState, partyState);
-      if (activeEnemy == Entity.Null)
-        return;
-
-      // Get AI behavior for this enemy
-      if (!EntityManager.HasComponent<AIBehavior>(activeEnemy)) {
-        Debug.LogWarning($"Active enemy {activeEnemy.Index} has no AIBehavior component!");
-        return;
-      }
-
-      var aiBehavior = EntityManager.GetComponentData<AIBehavior>(activeEnemy);
-
-      // Get and update the thinking state singleton
-      var thinkingStateEntity = SystemAPI.GetSingletonEntity<AIThinkingState>();
-      var thinkingState = EntityManager.GetComponentData<AIThinkingState>(thinkingStateEntity);
-
-      // Start thinking for this enemy
-      double currentTime = SystemAPI.Time.ElapsedTime;
-      thinkingState.StartThinking(activeEnemy, aiBehavior.thinkingDuration, currentTime);
-
-      EntityManager.SetComponentData(thinkingStateEntity, thinkingState);
-
-      // Dispatch UI feedback action
-      ECSActionDispatcher.Dispatch(new AIThinkingAction
-      {
-        enemyEntity = activeEnemy,
-        thinkDuration = aiBehavior.thinkingDuration
-      });
-
-      Debug.Log($"Enemy {activeEnemy.Index} started thinking (duration: {aiBehavior.thinkingDuration}s)");
-    }
-
-    private Entity GetActiveEnemy(BattleState battleState, PartyState partyState)
-    {
-      if (battleState.activeCharacterIndex >= battleState.turnOrder.Length)
-        return Entity.Null;
-
-      var activeEntity = battleState.turnOrder[battleState.activeCharacterIndex];
-
-      // Verify this is actually an enemy
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == activeEntity &&
-            partyState.characters[i].isEnemy &&
-            partyState.characters[i].isAlive) {
-          return activeEntity;
-        }
-      }
-
-      return Entity.Null;
     }
   }
 }

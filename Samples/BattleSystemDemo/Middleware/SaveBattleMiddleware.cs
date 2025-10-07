@@ -14,7 +14,12 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct SaveBattleMiddleware : IMiddleware<SaveBattleAction>
   {
-    public bool Process(ref SaveBattleAction action, ref SystemState systemState)
+    public bool Process(
+      ref SaveBattleAction action,
+      ref SystemState systemState,
+      EntityCommandBuffer.ParallelWriter dispatcher,
+      int sortKey
+    )
     {
       // Generate filename if not provided
       string fileName = action.fileName.IsEmpty

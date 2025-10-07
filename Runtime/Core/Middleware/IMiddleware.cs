@@ -16,7 +16,12 @@ namespace ECSReact.Core
   /// [Middleware]
   /// public struct DamageValidationMiddleware : IMiddleware&lt;DamageAction&gt;
   /// {
-  ///     public bool Process(ref DamageAction action, ref SystemState systemState)
+  ///     public bool Process(
+  ///         ref NextTurnAction action, 
+  ///         ref SystemState systemState, 
+  ///         EntityCommandBuffer.ParallelWriter dispatcher, 
+  ///         int sortKey
+  ///     )
   ///     {
   ///         var config = SystemAPI.GetSingleton&lt;GameConfig&gt;();
   ///         action.damage = math.clamp(action.damage, 0, config.maxDamage);
@@ -39,16 +44,20 @@ namespace ECSReact.Core
       where TAction : unmanaged, IGameAction
   {
     /// <summary>
-    /// Processes an action before it reaches reducers with full SystemAPI access.
-    /// Can modify the action or prevent it from propagating.
+    /// Processes an action before it reaches reducers.
+    /// NEW: Now receives EntityCommandBuffer.ParallelWriter for Burst-compatible dispatching.
     /// 
-    /// Use 'ref' for the action parameter to modify it before it reaches reducers.
-    /// Use 'ref' for the systemState to access SystemAPI features.
-    /// Return false to prevent the action from reaching reducers (it will be destroyed).
+    /// NOTE: Actions dispatched via 'dispatcher' are deferred and will appear in the next frame.
+    /// For immediate action dispatch, use [Middleware(DisableBurst = true)] and ECSActionDispatcher.Dispatch().
     /// </summary>
     /// <param name="action">The action to process (can be modified)</param>
     /// <param name="systemState">The system state providing access to SystemAPI</param>
-    /// <returns>True to continue processing, false to prevent the action from reaching reducers</returns>
-    bool Process(ref TAction action, ref SystemState systemState);
+    /// <param name="dispatcher">ECB ParallelWriter for Burst-compatible action dispatching</param>
+    /// <param name="sortKey">Unique index for deterministic command buffer ordering</param>
+    bool Process(
+      ref TAction action,
+      ref SystemState systemState,
+      EntityCommandBuffer.ParallelWriter dispatcher,
+      int sortKey);
   }
 }

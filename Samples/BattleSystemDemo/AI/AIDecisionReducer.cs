@@ -45,7 +45,10 @@ namespace ECSReact.Samples.BattleSystem
       var context = BuildContextFromAction(action);
 
       // Create deterministic RNG for this decision
-      var rng = DeterministicRandom.CreateForDecision(action.enemyEntity, action.turnCount);
+      var rng = DeterministicRandom.CreateForDecision(
+        action.enemyEntity.Index,
+        action.enemyEntity.Version,
+        action.turnCount);
 
       // Make decision using pure strategy functions
       var decision = AIDecisionUtility.MakeDecision(context, action.behavior, ref rng);

@@ -47,13 +47,12 @@ namespace ECSReact.Samples.BattleSystem
   }
 
   /// <summary>
-  /// This is a hot path that runs for every attack in battle - perfect for Burst!
   /// Handles damage application and health updates
   /// </summary>
   [Reducer]
-  public struct DamageReducer : IParallelReducer<PartyState, AttackAction, DamageReducer.Data>
+  public struct DamageReducer : IReducer<PartyState, AttackAction>
   {
-    public void Execute(ref PartyState state, in AttackAction action, in Data data)
+    public void Execute(ref PartyState state, in AttackAction action, ref SystemState systemState)
     {
       // Find target character in party state
       for (int i = 0; i < state.characters.Length; i++) {
@@ -93,17 +92,6 @@ namespace ECSReact.Samples.BattleSystem
           break;
         }
       }
-    }
-
-    public struct Data
-    {
-      // No extra data needed for this example, but could add config or lookups here
-    }
-
-    public Data PrepareData(ref SystemState systemState)
-    {
-      // No extra data needed for this example, but we could fetch config or time here
-      return new Data();
     }
   }
 

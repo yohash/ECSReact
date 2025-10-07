@@ -33,6 +33,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Same entity + same turn = same random sequence (deterministic)
   /// Different turn = different sequence (varied behavior)
   /// </summary>
+  [BurstCompile]
   public static class DeterministicRandom
   {
     // Prime numbers for hash mixing - constants are Burst-compatible
@@ -51,9 +52,9 @@ namespace ECSReact.Samples.BattleSystem
     /// </summary>
     [BurstCompile]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Random CreateForDecision(Entity entity, int turnCount)
+    public static Random CreateForDecision(int entityIndex, int entityVersion, int turnCount)
     {
-      uint seed = CalculateSeed(entity, turnCount);
+      uint seed = CalculateSeed(entityIndex, entityVersion, turnCount);
       return Random.CreateFromIndex(seed);
     }
 
@@ -66,10 +67,10 @@ namespace ECSReact.Samples.BattleSystem
     /// </summary>
     [BurstCompile]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Random CreateForEntity(Entity entity)
+    public static Random CreateForEntity(int entityIndex, int entityVersion)
     {
-      uint seed = (uint)entity.Index * ENTITY_INDEX_PRIME +
-                  (uint)entity.Version * ENTITY_VERSION_PRIME +
+      uint seed = (uint)entityIndex * ENTITY_INDEX_PRIME +
+                  (uint)entityVersion * ENTITY_VERSION_PRIME +
                   BASE_SEED_PRIME;
       return Random.CreateFromIndex(seed);
     }
@@ -82,11 +83,12 @@ namespace ECSReact.Samples.BattleSystem
     [BurstCompile]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Random CreateForDecisionWithContext(
-        Entity entity,
+        int entityIndex,
+        int entityVersion,
         int turnCount,
         int contextId)
     {
-      uint seed = CalculateSeed(entity, turnCount) + (uint)contextId * CONTEXT_PRIME;
+      uint seed = CalculateSeed(entityIndex, entityVersion, turnCount) + (uint)contextId * CONTEXT_PRIME;
       return Random.CreateFromIndex(seed);
     }
 
@@ -97,10 +99,10 @@ namespace ECSReact.Samples.BattleSystem
     /// </summary>
     [BurstCompile]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static uint CalculateSeed(Entity entity, int turnCount)
+    private static uint CalculateSeed(int entityIndex, int entityVersion, int turnCount)
     {
-      return (uint)entity.Index * ENTITY_INDEX_PRIME +
-             (uint)entity.Version * ENTITY_VERSION_PRIME +
+      return (uint)entityIndex * ENTITY_INDEX_PRIME +
+             (uint)entityVersion * ENTITY_VERSION_PRIME +
              (uint)turnCount * TURN_COUNT_PRIME +
              BASE_SEED_PRIME;
     }
@@ -112,6 +114,7 @@ namespace ECSReact.Samples.BattleSystem
   /// 
   /// Separated from AIRandomUtility class for better Burst compatibility.
   /// </summary>
+  [BurstCompile]
   public static class RandomExtensions
   {
     /// <summary>
