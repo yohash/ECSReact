@@ -54,16 +54,72 @@ namespace ECSReact.Samples.BattleSystem
   }
 
   /// <summary>
-  /// Generated system that detects PartyState changes and queues UI events.
+  /// Generated system that detects CharacterHealthState changes and queues UI events.
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
   [UINotificationSystem]
-  public partial class PartyStateChangeNotificationSystem : StateChangeNotificationSystem<PartyState>
+  public partial class CharacterHealthStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterHealthState>
   {
-    protected override UIEvent CreateStateChangeEvent(PartyState newState, PartyState oldState, bool hasOldState)
+    protected override UIEvent CreateStateChangeEvent(CharacterHealthState newState, CharacterHealthState oldState, bool hasOldState)
     {
-      return new PartyStateChangedEvent(newState, oldState, hasOldState);
+      return new CharacterHealthStateChangedEvent(newState, oldState, hasOldState);
+    }
+  }
+
+  /// <summary>
+  /// Generated system that detects CharacterManaState changes and queues UI events.
+  /// Generated for namespace: ECSReact.Samples.BattleSystem
+  /// </summary>
+  [BurstCompile]
+  [UINotificationSystem]
+  public partial class CharacterManaStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterManaState>
+  {
+    protected override UIEvent CreateStateChangeEvent(CharacterManaState newState, CharacterManaState oldState, bool hasOldState)
+    {
+      return new CharacterManaStateChangedEvent(newState, oldState, hasOldState);
+    }
+  }
+
+  /// <summary>
+  /// Generated system that detects CharacterStatusState changes and queues UI events.
+  /// Generated for namespace: ECSReact.Samples.BattleSystem
+  /// </summary>
+  [BurstCompile]
+  [UINotificationSystem]
+  public partial class CharacterStatusStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterStatusState>
+  {
+    protected override UIEvent CreateStateChangeEvent(CharacterStatusState newState, CharacterStatusState oldState, bool hasOldState)
+    {
+      return new CharacterStatusStateChangedEvent(newState, oldState, hasOldState);
+    }
+  }
+
+  /// <summary>
+  /// Generated system that detects CharacterIdentityState changes and queues UI events.
+  /// Generated for namespace: ECSReact.Samples.BattleSystem
+  /// </summary>
+  [BurstCompile]
+  [UINotificationSystem]
+  public partial class CharacterIdentityStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterIdentityState>
+  {
+    protected override UIEvent CreateStateChangeEvent(CharacterIdentityState newState, CharacterIdentityState oldState, bool hasOldState)
+    {
+      return new CharacterIdentityStateChangedEvent(newState, oldState, hasOldState);
+    }
+  }
+
+  /// <summary>
+  /// Generated system that detects CharacterRosterState changes and queues UI events.
+  /// Generated for namespace: ECSReact.Samples.BattleSystem
+  /// </summary>
+  [BurstCompile]
+  [UINotificationSystem]
+  public partial class CharacterRosterStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterRosterState>
+  {
+    protected override UIEvent CreateStateChangeEvent(CharacterRosterState newState, CharacterRosterState oldState, bool hasOldState)
+    {
+      return new CharacterRosterStateChangedEvent(newState, oldState, hasOldState);
     }
   }
 

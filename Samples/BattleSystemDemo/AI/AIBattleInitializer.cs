@@ -6,66 +6,95 @@ using UnityEngine;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// Helper class to initialize AI behaviors for enemies in battle.
-  /// Can be called from BattleSystemInitializer or other setup code.
+  /// Helper class to initialize AI behaviors for enemies in battle - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState dependency
+  /// - Uses CharacterRosterState, CharacterIdentityState, CharacterHealthState
+  /// - Enemy lookup via roster instead of filtering all characters
   /// </summary>
   public static class AIBattleInitializer
   {
     /// <summary>
     /// Initialize AI for all enemies in the current battle.
+    /// NEW: Uses CharacterRosterState to get enemy entities directly.
     /// </summary>
-    public static void InitializeEnemyAI(EntityManager entityManager)
+    public static void InitializeEnemyAI()
     {
-      // Get party state to find enemies
-      var hasState = SceneStateManager.Instance.GetState<PartyState>(out var partyState);
-      if (!hasState) {
-        Debug.LogWarning("Cannot initialize AI - PartyState not found");
+      // Get roster state to find enemies
+      if (!SceneStateManager.Instance.GetState<CharacterRosterState>(out var rosterState)) {
+        Debug.LogWarning("Cannot initialize AI - CharacterRosterState not found");
         return;
       }
 
-      // Process each character
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        var character = partyState.characters[i];
+      // Get identity state for enemy names (used in behavior assignment)
+      bool hasIdentity = SceneStateManager.Instance.GetState<CharacterIdentityState>(out var identityState);
 
-        // Skip non-enemies and dead characters
-        if (!character.isEnemy || !character.isAlive)
+      // Get health state to check alive status
+      bool hasHealth = SceneStateManager.Instance.GetState<CharacterHealthState>(out var healthState);
+
+      // Process each enemy
+      for (int i = 0; i < rosterState.enemies.Length; i++) {
+        Entity enemyEntity = rosterState.enemies[i];
+
+        if (enemyEntity == Entity.Null)
           continue;
 
+        // Skip dead enemies if we have health state
+        if (hasHealth && healthState.health.IsCreated &&
+            healthState.health.TryGetValue(enemyEntity, out var health)) {
+          if (!health.isAlive)
+            continue;
+        }
+
+        // Get enemy name for behavior assignment
+        FixedString32Bytes enemyName = default;
+        if (hasIdentity && identityState.names.IsCreated) {
+          identityState.names.TryGetValue(enemyEntity, out enemyName);
+        }
+
+        var world = World.DefaultGameObjectInjectionWorld;
+        var entityManager = world.EntityManager;
+
         // Assign AI behavior based on enemy type
-        AssignAIBehavior(entityManager, character);
+        AssignAIBehavior(entityManager, enemyEntity, enemyName);
       }
 
-      Debug.Log("Enemy AI initialized successfully");
+      Debug.Log($"Enemy AI initialized for {rosterState.enemies.Length} enemies");
     }
 
     /// <summary>
-    /// Assign appropriate AI behavior to an enemy based on their characteristics.
+    /// Assign appropriate AI behavior to an enemy based on their name/type.
+    /// NEW: Takes Entity and name separately instead of CharacterData struct.
     /// </summary>
-    private static void AssignAIBehavior(EntityManager entityManager, CharacterData character)
+    private static void AssignAIBehavior(
+        EntityManager entityManager,
+        Entity enemyEntity,
+        FixedString32Bytes enemyName)
     {
       AIBehavior behavior;
 
       // Determine behavior based on enemy name/type
       // In a real game, this would be data-driven
-      string enemyName = character.name.ToString().ToLower();
+      string nameStr = enemyName.ToString().ToLower();
 
-      if (enemyName.Contains("boss")) {
+      if (nameStr.Contains("boss")) {
         // Boss enemies are tactical
         behavior = CreateBossBehavior();
-      } else if (enemyName.Contains("goblin")) {
+      } else if (nameStr.Contains("goblin")) {
         // Goblins are aggressive but weak
         behavior = AIBehavior.CreateAggressive();
         behavior.defendThreshold = 0.15f; // Only defend when nearly dead
         behavior.thinkingDuration = 0.6f; // Quick decisions
-      } else if (enemyName.Contains("orc")) {
+      } else if (nameStr.Contains("orc")) {
         // Orcs are balanced fighters
         behavior = AIBehavior.CreateBalanced();
         behavior.skillUseChance = 0.3f;
         behavior.thinkingDuration = 0.8f;
-      } else if (enemyName.Contains("mage") || enemyName.Contains("wizard")) {
+      } else if (nameStr.Contains("mage") || nameStr.Contains("wizard")) {
         // Mages prefer skills and tactical targeting
         behavior = CreateMageBehavior();
-      } else if (enemyName.Contains("tank") || enemyName.Contains("guardian")) {
+      } else if (nameStr.Contains("tank") || nameStr.Contains("guardian")) {
         // Tanks are defensive
         behavior = AIBehavior.CreateDefensive();
         behavior.defendThreshold = 0.6f; // Defend often
@@ -75,13 +104,17 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Add the behavior component to the entity
-      if (!entityManager.HasComponent<AIBehavior>(character.entity)) {
-        entityManager.AddComponentData(character.entity, behavior);
+      if (!entityManager.HasComponent<AIBehavior>(enemyEntity)) {
+        entityManager.AddComponentData(enemyEntity, behavior);
       } else {
-        entityManager.SetComponentData(character.entity, behavior);
+        entityManager.SetComponentData(enemyEntity, behavior);
       }
 
-      Debug.Log($"Assigned {behavior.strategy} AI to {character.name}");
+      if (!string.IsNullOrEmpty(nameStr)) {
+        Debug.Log($"Assigned {behavior.strategy} AI to {enemyName}");
+      } else {
+        Debug.Log($"Assigned {behavior.strategy} AI to entity {enemyEntity.Index}");
+      }
     }
 
     private static AIBehavior CreateBossBehavior()
@@ -116,6 +149,7 @@ namespace ECSReact.Samples.BattleSystem
 
     /// <summary>
     /// Modify AI difficulty for all enemies.
+    /// Uses entity queries instead of state lookups.
     /// </summary>
     public static void SetGlobalAIDifficulty(EntityManager entityManager, float difficultyModifier)
     {
@@ -147,7 +181,10 @@ namespace ECSReact.Samples.BattleSystem
     /// <summary>
     /// Change AI behavior for a specific enemy (useful for boss phases).
     /// </summary>
-    public static void ChangeEnemyAIBehavior(EntityManager entityManager, Entity enemy, AIStrategy newStrategy)
+    public static void ChangeEnemyAIBehavior(
+        EntityManager entityManager,
+        Entity enemy,
+        AIStrategy newStrategy)
     {
       if (!entityManager.HasComponent<AIBehavior>(enemy)) {
         Debug.LogWarning($"Entity {enemy} does not have AI behavior");

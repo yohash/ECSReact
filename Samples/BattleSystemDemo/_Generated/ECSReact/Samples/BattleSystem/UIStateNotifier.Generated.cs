@@ -31,9 +31,29 @@ namespace ECSReact.Samples.BattleSystem
     public static System.Action<BattleState> OnBattleStateChanged;
 
     /// <summary>
-    /// Event fired when PartyState changes.
+    /// Event fired when CharacterHealthState changes.
     /// </summary>
-    public static System.Action<PartyState> OnPartyStateChanged;
+    public static System.Action<CharacterHealthState> OnCharacterHealthStateChanged;
+
+    /// <summary>
+    /// Event fired when CharacterManaState changes.
+    /// </summary>
+    public static System.Action<CharacterManaState> OnCharacterManaStateChanged;
+
+    /// <summary>
+    /// Event fired when CharacterStatusState changes.
+    /// </summary>
+    public static System.Action<CharacterStatusState> OnCharacterStatusStateChanged;
+
+    /// <summary>
+    /// Event fired when CharacterIdentityState changes.
+    /// </summary>
+    public static System.Action<CharacterIdentityState> OnCharacterIdentityStateChanged;
+
+    /// <summary>
+    /// Event fired when CharacterRosterState changes.
+    /// </summary>
+    public static System.Action<CharacterRosterState> OnCharacterRosterStateChanged;
 
     /// <summary>
     /// Event fired when SaveState changes.
@@ -64,8 +84,24 @@ namespace ECSReact.Samples.BattleSystem
           OnBattleStateChanged?.Invoke(evt.newState));
 
       ECSReact.Core.UIStateNotifier
-        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.PartyStateChangedEvent>(evt => 
-          OnPartyStateChanged?.Invoke(evt.newState));
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.CharacterHealthStateChangedEvent>(evt => 
+          OnCharacterHealthStateChanged?.Invoke(evt.newState));
+
+      ECSReact.Core.UIStateNotifier
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.CharacterManaStateChangedEvent>(evt => 
+          OnCharacterManaStateChanged?.Invoke(evt.newState));
+
+      ECSReact.Core.UIStateNotifier
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.CharacterStatusStateChangedEvent>(evt => 
+          OnCharacterStatusStateChanged?.Invoke(evt.newState));
+
+      ECSReact.Core.UIStateNotifier
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.CharacterIdentityStateChangedEvent>(evt => 
+          OnCharacterIdentityStateChanged?.Invoke(evt.newState));
+
+      ECSReact.Core.UIStateNotifier
+        .RegisterEventProcessor<ECSReact.Samples.BattleSystem.CharacterRosterStateChangedEvent>(evt => 
+          OnCharacterRosterStateChanged?.Invoke(evt.newState));
 
       ECSReact.Core.UIStateNotifier
         .RegisterEventProcessor<ECSReact.Samples.BattleSystem.SaveStateChangedEvent>(evt => 

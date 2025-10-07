@@ -8,8 +8,13 @@ using UnityEngine;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// Middleware that handles async file I/O for battle saves.
-  /// Demonstrates fire-and-forget async operations with proper error handling.
+  /// Middleware that handles async file I/O for battle saves - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState dependency
+  /// - Uses CharacterRosterState to get character list
+  /// - Uses CharacterHealthState, CharacterManaState, CharacterStatusState, CharacterIdentityState
+  /// - Builds SerializableCharacterData from O(1) HashMap lookups
   /// </summary>
   [Middleware(DisableBurst = true)]
   public struct SaveBattleMiddleware : IMiddleware<SaveBattleAction>
@@ -35,14 +40,20 @@ namespace ECSReact.Samples.BattleSystem
 
       // Start async save operation (fire-and-forget)
       var elapsedTime = (float)systemState.GetElapsedTime();
-      // Collect current game state
+
+      // Collect current game state from normalized states
       var saveData = CollectSaveData(ref systemState);
+
       _ = PerformSaveAsync(fileName, action.format, saveData, elapsedTime);
 
       return true; // Continue processing the action
     }
 
-    private async Task PerformSaveAsync(string fileName, SaveFormat format, BattleSaveData saveData, float elapsedTime)
+    private async Task PerformSaveAsync(
+      string fileName,
+      SaveFormat format,
+      BattleSaveData saveData,
+      float elapsedTime)
     {
       string saveDirectory = Path.Combine(Application.persistentDataPath, "BattleSaves");
 
@@ -55,7 +66,6 @@ namespace ECSReact.Samples.BattleSystem
       string filePath = Path.Combine(saveDirectory, fileName);
 
       try {
-
         // Simulate some processing time for demo purposes
         await Task.Delay(UnityEngine.Random.Range(500, 1500));
 
@@ -75,40 +85,18 @@ namespace ECSReact.Samples.BattleSystem
           duration = (float)duration.TotalSeconds
         });
 
-        // Log the successful save
-        var worldTime = duration.TotalSeconds + elapsedTime;
-        ECSActionDispatcher.Dispatch(new BattleLogAction
-        {
-          logType = LogType.System,
-          message = $"Battle saved to {fileName} ({fileInfo.Length} bytes)",
-          sourceEntity = Entity.Null,
-          targetEntity = Entity.Null,
-          numericValue = (int)fileInfo.Length,
-          // Adjusted timestamp basing off world elapsed time
-          timestamp = (float)worldTime
-        });
-
+        Debug.Log($"Save completed: {fileName} ({fileInfo.Length} bytes)");
       } catch (Exception ex) {
-        // Determine error type
-        SaveErrorType errorType = ex switch
-        {
-          UnauthorizedAccessException => SaveErrorType.PermissionDenied,
-          DirectoryNotFoundException => SaveErrorType.FileSystemError,
-          IOException => SaveErrorType.InsufficientSpace,
-          _ => SaveErrorType.Unknown
-        };
-
         // Dispatch failure action
         ECSActionDispatcher.Dispatch(new SaveBattleFailedAction
         {
           fileName = fileName,
           errorMessage = ex.Message,
-          errorType = errorType
+          errorType = SaveErrorType.FileSystemError
         });
 
-        // Log the error
-        var duration = DateTime.Now - startTime;
-        var worldTime = duration.TotalSeconds + elapsedTime;
+        // Also log to battle log
+        var worldTime = Time.realtimeSinceStartup;
         ECSActionDispatcher.Dispatch(new BattleLogAction
         {
           logType = LogType.System,
@@ -123,6 +111,14 @@ namespace ECSReact.Samples.BattleSystem
       }
     }
 
+    // ========================================================================
+    // COLLECT SAVE DATA - NORMALIZED VERSION
+    // ========================================================================
+
+    /// <summary>
+    /// NEW: Collects save data from normalized states.
+    /// Fetches character data via O(1) HashMap lookups instead of array iteration.
+    /// </summary>
     private BattleSaveData CollectSaveData(ref SystemState systemState)
     {
       var saveData = new BattleSaveData
@@ -136,7 +132,9 @@ namespace ECSReact.Samples.BattleSystem
         }
       };
 
-      // Collect battle state
+      // ====================================================================
+      // Collect BattleState (unchanged)
+      // ====================================================================
       if (systemState.TryGetSingleton<BattleState>(out var battleState)) {
         saveData.battleState = new SerializableBattleState
         {
@@ -149,25 +147,14 @@ namespace ECSReact.Samples.BattleSystem
         saveData.metadata.turnCount = battleState.turnCount;
       }
 
-      // Collect party state
-      if (systemState.TryGetSingleton<PartyState>(out var partyState)) {
-        var characters = new SerializableCharacterData[partyState.characters.Length];
-        for (int i = 0; i < characters.Length; i++) {
-          var character = partyState.characters[i];
-          characters[i] = new SerializableCharacterData
-          {
-            name = character.name.ToString(),
-            currentHealth = character.currentHealth,
-            maxHealth = character.maxHealth,
-            currentMana = character.currentMana,
-            maxMana = character.maxMana,
-            statusEffects = character.status
-          };
-        }
-        saveData.partyState = new SerializablePartyState { characters = characters };
-      }
+      // ====================================================================
+      // Collect Character Data - NEW: From Normalized States
+      // ====================================================================
+      saveData.partyState = CollectCharacterDataFromNormalizedStates(ref systemState);
 
-      // Collect UI state
+      // ====================================================================
+      // Collect UI State (unchanged)
+      // ====================================================================
       if (systemState.TryGetSingleton<UIBattleState>(out var uiState)) {
         saveData.uiState = new SerializableUIBattleState
         {
@@ -180,6 +167,72 @@ namespace ECSReact.Samples.BattleSystem
 
       return saveData;
     }
+
+    /// <summary>
+    /// NEW: Collects character data from normalized states using O(1) lookups.
+    /// OLD: Iterated through PartyState.characters array.
+    /// </summary>
+    private SerializablePartyState CollectCharacterDataFromNormalizedStates(ref SystemState systemState)
+    {
+      // Get roster state for character list
+      if (!systemState.TryGetSingleton<CharacterRosterState>(out var rosterState)) {
+        Debug.LogWarning("CharacterRosterState not found - cannot save character data");
+        return new SerializablePartyState { characters = new SerializableCharacterData[0] };
+      }
+
+      // Get all normalized state singletons
+      bool hasIdentity = systemState.TryGetSingleton<CharacterIdentityState>(out var identityState);
+      bool hasHealth = systemState.TryGetSingleton<CharacterHealthState>(out var healthState);
+      bool hasMana = systemState.TryGetSingleton<CharacterManaState>(out var manaState);
+      bool hasStatus = systemState.TryGetSingleton<CharacterStatusState>(out var statusState);
+
+      // Calculate total character count
+      int totalCharacters = rosterState.allCharacters.Length;
+      var characters = new SerializableCharacterData[totalCharacters];
+
+      // Iterate all characters and build serializable data from lookups
+      for (int i = 0; i < totalCharacters; i++) {
+        Entity entity = rosterState.allCharacters[i];
+
+        if (entity == Entity.Null)
+          continue;
+
+        // Build SerializableCharacterData from multiple O(1) lookups
+        characters[i] = new SerializableCharacterData();
+
+        // Lookup name (O(1))
+        if (hasIdentity && identityState.names.IsCreated &&
+            identityState.names.TryGetValue(entity, out var name)) {
+          characters[i].name = name.ToString();
+        }
+
+        // Lookup health (O(1))
+        if (hasHealth && healthState.health.IsCreated &&
+            healthState.health.TryGetValue(entity, out var health)) {
+          characters[i].currentHealth = health.current;
+          characters[i].maxHealth = health.max;
+        }
+
+        // Lookup mana (O(1))
+        if (hasMana && manaState.mana.IsCreated &&
+            manaState.mana.TryGetValue(entity, out var mana)) {
+          characters[i].currentMana = mana.current;
+          characters[i].maxMana = mana.max;
+        }
+
+        // Lookup status (O(1))
+        if (hasStatus && statusState.statuses.IsCreated &&
+            statusState.statuses.TryGetValue(entity, out var status)) {
+          characters[i].statusEffects = status;
+        }
+      }
+
+      return new SerializablePartyState { characters = characters };
+    }
+
+    // ========================================================================
+    // FILE I/O HELPERS (unchanged)
+    // ========================================================================
 
     private async Task WriteToFileAsync(string filePath, BattleSaveData saveData, SaveFormat format)
     {

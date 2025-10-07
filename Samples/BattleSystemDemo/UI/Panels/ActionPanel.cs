@@ -1,8 +1,10 @@
+using ECSReact.Core;
+using System.Collections.Generic;
+using TMPro;
 using Unity.Entities;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using ECSReact.Core;
-using TMPro;
 
 namespace ECSReact.Samples.BattleSystem
 {
@@ -13,11 +15,20 @@ namespace ECSReact.Samples.BattleSystem
     public bool CanUseItems { get; set; }
   }
 
+
+  // ============================================================================
+  // ACTION PANEL - NORMALIZED VERSION
+  // ============================================================================
+
   /// <summary>
-  /// Main action selection panel with Attack, Skills, Items, Defend buttons.
-  /// Demonstrates multi-state subscription and conditional button states.
+  /// Main action selection panel - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState subscription
+  /// - Added CharacterIdentityState, CharacterHealthState subscriptions
+  /// - Replaced loop to find active character with O(1) lookups
   /// </summary>
-  public class ActionPanel : ReactiveUIComponent<BattleState, UIBattleState, PartyState>, IElementChild
+  public class ActionPanel : ReactiveUIComponent<BattleState, UIBattleState, CharacterIdentityState, CharacterHealthState>, IElementChild
   {
     [Header("UI References")]
     [SerializeField] private Button attackButton;
@@ -34,19 +45,25 @@ namespace ECSReact.Samples.BattleSystem
 
     private BattleState battleState;
     private UIBattleState uiState;
-    private PartyState partyState;
+    private CharacterIdentityState identityState;
+    private CharacterHealthState healthState;
     private ActionPanelProps currentProps;
-    private CharacterData activeCharacter;
+
+    // Cached character data
+    private FixedString32Bytes characterName;
+    private bool characterIsAlive;
 
     public void InitializeWithProps(UIProps props)
     {
       currentProps = props as ActionPanelProps;
+      UpdateActiveCharacter();
       UpdateButtonStates();
     }
 
     public void UpdateProps(UIProps props)
     {
       currentProps = props as ActionPanelProps;
+      UpdateActiveCharacter();
       UpdateButtonStates();
     }
 
@@ -60,12 +77,18 @@ namespace ECSReact.Samples.BattleSystem
     public override void OnStateChanged(UIBattleState newState)
     {
       uiState = newState;
-      UpdateSelectionHighlight();
+      UpdateButtonStates();
     }
 
-    public override void OnStateChanged(PartyState newState)
+    public override void OnStateChanged(CharacterIdentityState newState)
     {
-      partyState = newState;
+      identityState = newState;
+      UpdateActiveCharacter();
+    }
+
+    public override void OnStateChanged(CharacterHealthState newState)
+    {
+      healthState = newState;
       UpdateActiveCharacter();
       UpdateButtonStates();
     }
@@ -74,182 +97,84 @@ namespace ECSReact.Samples.BattleSystem
     {
       base.Start();
 
-      // Hook up button click handlers
+      // Wire up button click handlers
       if (attackButton)
-        attackButton.onClick.AddListener(OnAttackClicked);
+        attackButton.onClick.AddListener(() => OnActionSelected(ActionType.Attack));
       if (skillsButton)
-        skillsButton.onClick.AddListener(OnSkillsClicked);
+        skillsButton.onClick.AddListener(() => OnActionSelected(ActionType.Skill));
       if (itemsButton)
-        itemsButton.onClick.AddListener(OnItemsClicked);
+        itemsButton.onClick.AddListener(() => OnActionSelected(ActionType.Item));
       if (defendButton)
-        defendButton.onClick.AddListener(OnDefendClicked);
+        defendButton.onClick.AddListener(() => OnActionSelected(ActionType.Defend));
       if (runButton)
-        runButton.onClick.AddListener(OnRunClicked);
+        runButton.onClick.AddListener(() => OnActionSelected(ActionType.Run));
     }
 
+    /// <summary>
+    /// NEW: Fetch character info using O(1) lookups
+    /// OLD: O(n) loop through PartyState.characters
+    /// </summary>
     private void UpdateActiveCharacter()
     {
-      if (currentProps == null)
+      if (currentProps == null || currentProps.ActiveCharacterEntity == Entity.Null)
         return;
 
-      // Find the active character's data
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == currentProps.ActiveCharacterEntity) {
-          activeCharacter = partyState.characters[i];
+      Entity entity = currentProps.ActiveCharacterEntity;
 
-          if (characterNameText)
-            characterNameText.text = $"{activeCharacter.name}'s Turn";
-          break;
-        }
+      // Lookup name (O(1))
+      if (identityState.names.IsCreated &&
+          identityState.names.TryGetValue(entity, out var name)) {
+        characterName = name;
+
+        if (characterNameText)
+          characterNameText.text = $"{characterName}'s Turn";
+      }
+
+      // Lookup alive status (O(1))
+      if (healthState.health.IsCreated &&
+          healthState.health.TryGetValue(entity, out var healthData)) {
+        characterIsAlive = healthData.isAlive;
       }
     }
 
     private void UpdateButtonStates()
     {
+      bool isPlayerTurn = battleState.currentPhase == BattlePhase.PlayerSelectAction;
+      bool characterCanAct = characterIsAlive && isPlayerTurn;
+
+      // Enable/disable buttons based on state
+      if (attackButton)
+        attackButton.interactable = characterCanAct;
+
+      if (skillsButton)
+        skillsButton.interactable = characterCanAct && (currentProps?.CanUseSkills ?? false);
+
+      if (itemsButton)
+        itemsButton.interactable = characterCanAct && (currentProps?.CanUseItems ?? false);
+
+      if (defendButton)
+        defendButton.interactable = characterCanAct;
+
+      if (runButton)
+        runButton.interactable = characterCanAct;
+    }
+
+    private void OnActionSelected(ActionType actionType)
+    {
       if (currentProps == null)
         return;
 
-      // Enable/disable buttons based on character state and props
-      bool isPlayerTurn = battleState.currentPhase == BattlePhase.PlayerSelectAction;
-
-      if (attackButton) {
-        attackButton.interactable = isPlayerTurn && activeCharacter.isAlive;
-        UpdateButtonVisual(attackButton, attackButton.interactable);
-      }
-
-      if (skillsButton) {
-        bool hasSkills = currentProps.CanUseSkills && activeCharacter.currentMana > 0;
-        skillsButton.interactable = isPlayerTurn && hasSkills && activeCharacter.isAlive;
-        UpdateButtonVisual(skillsButton, skillsButton.interactable);
-      }
-
-      if (itemsButton) {
-        itemsButton.interactable = isPlayerTurn && currentProps.CanUseItems && activeCharacter.isAlive;
-        UpdateButtonVisual(itemsButton, itemsButton.interactable);
-      }
-
-      if (defendButton) {
-        defendButton.interactable = isPlayerTurn && activeCharacter.isAlive;
-        UpdateButtonVisual(defendButton, defendButton.interactable);
-      }
-
-      if (runButton) {
-        // Running might be disabled in boss battles
-        runButton.interactable = isPlayerTurn && !IsBossBattle();
-        UpdateButtonVisual(runButton, runButton.interactable);
-      }
-    }
-
-    private void UpdateButtonVisual(Button button, bool enabled)
-    {
-      var colors = button.colors;
-      colors.normalColor = enabled ? Color.white : disabledButtonColor;
-      button.colors = colors;
-    }
-
-    private void UpdateSelectionHighlight()
-    {
-      if (selectionHighlight == null)
-        return;
-
-      // Move highlight to selected action type
-      switch (uiState.selectedAction) {
-        case ActionType.Attack:
-          MoveHighlightToButton(attackButton);
-          break;
-        case ActionType.Skill:
-          MoveHighlightToButton(skillsButton);
-          break;
-        case ActionType.Item:
-          MoveHighlightToButton(itemsButton);
-          break;
-        case ActionType.Defend:
-          MoveHighlightToButton(defendButton);
-          break;
-        default:
-          selectionHighlight.SetActive(false);
-          break;
-      }
-    }
-
-    private void MoveHighlightToButton(Button button)
-    {
-      if (button == null || selectionHighlight == null)
-        return;
-
-      selectionHighlight.SetActive(true);
-      selectionHighlight.transform.position = button.transform.position;
-    }
-
-    private void OnAttackClicked()
-    {
       DispatchAction(new SelectActionTypeAction
       {
-        actionType = ActionType.Attack,
+        actionType = actionType,
         actingCharacter = currentProps.ActiveCharacterEntity
       });
     }
 
-    private void OnSkillsClicked()
+    protected override IEnumerable<UIElement> DeclareElements()
     {
-      DispatchAction(new SelectActionTypeAction
-      {
-        actionType = ActionType.Skill,
-        actingCharacter = currentProps.ActiveCharacterEntity
-      });
-    }
-
-    private void OnItemsClicked()
-    {
-      DispatchAction(new SelectActionTypeAction
-      {
-        actionType = ActionType.Item,
-        actingCharacter = currentProps.ActiveCharacterEntity
-      });
-    }
-
-    private void OnDefendClicked()
-    {
-      // Defend is immediate - no target selection needed
-      DispatchAction(new SelectActionTypeAction
-      {
-        actionType = ActionType.Defend,
-        actingCharacter = currentProps.ActiveCharacterEntity
-      });
-
-      // Also dispatch next turn action
-      var nextIndex = (battleState.activeCharacterIndex + 1) % battleState.turnOrder.Length;
-      var nextEntity = battleState.turnOrder[nextIndex];
-      bool isPlayer = false;
-
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == nextEntity) {
-          isPlayer = !partyState.characters[i].isEnemy;
-          break;
-        }
-      }
-
-      DispatchAction(new NextTurnAction
-      {
-        skipAnimation = false,
-        isPlayerTurn = isPlayer
-      });
-    }
-
-    private void OnRunClicked()
-    {
-      DispatchAction(new SelectActionTypeAction
-      {
-        actionType = ActionType.Run,
-        actingCharacter = currentProps.ActiveCharacterEntity
-      });
-    }
-
-    private bool IsBossBattle()
-    {
-      // Check if any enemy is a boss type
-      // For demo, we'll just return false
-      return false;
+      // No child elements for this simple panel
+      yield break;
     }
   }
 }

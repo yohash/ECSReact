@@ -7,15 +7,18 @@ using ECSReact.Core;
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// AI Thinking Timer System with Action Enrichment
+  /// AI Thinking Timer System with Action Enrichment - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState dependency
+  /// - Uses CharacterHealthState, CharacterStatusState, CharacterIdentityState, CharacterRosterState
+  /// - BuildDecisionContext now uses O(1) HashMap lookups
+  /// - Iterates roster lists instead of filtering all characters
   /// 
   /// This system follows the "Action Enrichment" pattern:
   /// - Gathers ALL context needed for decision-making
   /// - Enriches AIReadyToDecideAction with complete context
   /// - Reducer can be pure (no state fetching needed)
-  /// 
-  /// The system has access to all states and can build complete context
-  /// once, then pass it to the reducer via the enriched action.
   /// </summary>
   [UpdateInGroup(typeof(SimulationSystemGroup))]
   [UpdateAfter(typeof(ReducerSystemGroup))]
@@ -25,7 +28,10 @@ namespace ECSReact.Samples.BattleSystem
     {
       RequireForUpdate<AIThinkingState>();
       RequireForUpdate<BattleState>();
-      RequireForUpdate<PartyState>();
+      RequireForUpdate<CharacterHealthState>();
+      RequireForUpdate<CharacterStatusState>();
+      RequireForUpdate<CharacterIdentityState>();
+      RequireForUpdate<CharacterRosterState>();
     }
 
     protected override void OnUpdate()
@@ -62,9 +68,24 @@ namespace ECSReact.Samples.BattleSystem
         return;
       }
 
-      // Get party state
-      if (!SystemAPI.TryGetSingleton<PartyState>(out var partyState)) {
-        Debug.LogError("PartyState not found when enriching AIReadyToDecideAction");
+      // NEW: Get normalized states
+      if (!SystemAPI.TryGetSingleton<CharacterHealthState>(out var healthState)) {
+        Debug.LogError("CharacterHealthState not found when enriching AIReadyToDecideAction");
+        return;
+      }
+
+      if (!SystemAPI.TryGetSingleton<CharacterStatusState>(out var statusState)) {
+        Debug.LogError("CharacterStatusState not found when enriching AIReadyToDecideAction");
+        return;
+      }
+
+      if (!SystemAPI.TryGetSingleton<CharacterIdentityState>(out var identityState)) {
+        Debug.LogError("CharacterIdentityState not found when enriching AIReadyToDecideAction");
+        return;
+      }
+
+      if (!SystemAPI.TryGetSingleton<CharacterRosterState>(out var rosterState)) {
+        Debug.LogError("CharacterRosterState not found when enriching AIReadyToDecideAction");
         return;
       }
 
@@ -75,8 +96,14 @@ namespace ECSReact.Samples.BattleSystem
       }
       var behavior = EntityManager.GetComponentData<AIBehavior>(enemyEntity);
 
-      // Build complete decision context
-      var context = BuildDecisionContext(enemyEntity, battleState, partyState);
+      // Build complete decision context using normalized states
+      var context = BuildDecisionContext(
+          enemyEntity,
+          battleState,
+          healthState,
+          statusState,
+          identityState,
+          rosterState);
 
       // Create fully enriched action
       var enrichedAction = new AIReadyToDecideAction
@@ -102,13 +129,20 @@ namespace ECSReact.Samples.BattleSystem
     }
 
     /// <summary>
-    /// Build decision context from current battle state.
+    /// Build decision context from normalized states - NEW VERSION
+    /// 
+    /// OLD: O(n) loop through PartyState.characters array
+    /// NEW: O(1) HashMap lookups + iterate pre-filtered roster lists
+    /// 
     /// This gathers all the information the AI needs to make a decision.
     /// </summary>
     private AIDecisionContext BuildDecisionContext(
         Entity enemy,
         BattleState battleState,
-        PartyState partyState)
+        CharacterHealthState healthState,
+        CharacterStatusState statusState,
+        CharacterIdentityState identityState,
+        CharacterRosterState rosterState)
     {
       var context = new AIDecisionContext
       {
@@ -116,72 +150,131 @@ namespace ECSReact.Samples.BattleSystem
         potentialTargets = new FixedList128Bytes<AITargetInfo>()
       };
 
-      // Find self in party state
-      CharacterData? selfData = null;
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].entity == enemy) {
-          selfData = partyState.characters[i];
-          break;
-        }
-      }
+      // ====================================================================
+      // STEP 1: Get self data using O(1) lookups
+      // ====================================================================
 
-      if (!selfData.HasValue) {
-        Debug.LogWarning($"Enemy {enemy.Index} not found in PartyState");
+      // Get self health (O(1))
+      if (!healthState.health.TryGetValue(enemy, out var selfHealth)) {
+        Debug.LogWarning($"Enemy {enemy.Index} not found in CharacterHealthState");
         return context;
       }
 
-      // Fill self assessment
-      context.currentHealth = selfData.Value.currentHealth;
-      context.maxHealth = selfData.Value.maxHealth;
-      context.healthPercent = selfData.Value.maxHealth > 0
-        ? (float)selfData.Value.currentHealth / selfData.Value.maxHealth
+      context.currentHealth = selfHealth.current;
+      context.maxHealth = selfHealth.max;
+      context.healthPercent = selfHealth.max > 0
+        ? (float)selfHealth.current / selfHealth.max
         : 0f;
-      context.statusEffects = selfData.Value.status;
 
-      // Count allies and build target list
-      int aliveAllies = 0;
-      int aliveEnemies = 0;
+      // Get self status (O(1))
+      if (statusState.statuses.TryGetValue(enemy, out var selfStatus)) {
+        context.statusEffects = selfStatus;
+      }
 
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        var character = partyState.characters[i];
-        if (!character.isAlive)
+      // Get self team affiliation (O(1))
+      bool selfIsEnemy = false;
+      if (identityState.isEnemy.TryGetValue(enemy, out selfIsEnemy)) {
+        // We know our team
+      }
+
+      // ====================================================================
+      // STEP 2: Determine which roster list has targets (opposite team)
+      // ====================================================================
+
+      FixedList32Bytes<Entity> targetRoster;
+      FixedList32Bytes<Entity> allyRoster;
+
+      if (selfIsEnemy) {
+        // We're an enemy, target players
+        targetRoster = rosterState.players;
+        allyRoster = rosterState.enemies;
+      } else {
+        // We're a player, target enemies
+        targetRoster = rosterState.enemies;
+        allyRoster = rosterState.players;
+      }
+
+      // ====================================================================
+      // STEP 3: Build target list by iterating target roster
+      // OLD: Loop ALL characters, filter by team
+      // NEW: Iterate pre-filtered target roster
+      // ====================================================================
+
+      int aliveTargets = 0;
+
+      for (int i = 0; i < targetRoster.Length; i++) {
+        Entity targetEntity = targetRoster[i];
+
+        if (targetEntity == Entity.Null)
           continue;
 
-        // Count allies (same team as self)
-        if (character.isEnemy == selfData.Value.isEnemy) {
-          aliveAllies++;
-        } else {
-          // This is a potential target (opposite team)
-          aliveEnemies++;
+        // Get target health
+        if (!healthState.health.TryGetValue(targetEntity, out var targetHealth))
+          continue;
 
-          // Add to target list if there's room
-          if (context.potentialTargets.Length < context.potentialTargets.Capacity) {
-            var targetInfo = new AITargetInfo
-            {
-              entity = character.entity,
-              currentHealth = character.currentHealth,
-              healthPercent = character.maxHealth > 0
-                ? (float)character.currentHealth / character.maxHealth
-                : 0f,
-              isDefending = character.status.HasFlag(CharacterStatus.Defending),
-              hasDebuffs = character.status.HasFlag(CharacterStatus.Weakened) ||
-                          character.status.HasFlag(CharacterStatus.Poisoned),
-              threatLevel = 50,
-              distance = 1.0f
-            };
+        // Skip dead targets
+        if (!targetHealth.isAlive)
+          continue;
 
-            context.potentialTargets.Add(targetInfo);
-          }
+        aliveTargets++;
+
+        // Add to potential targets list if there's room
+        if (context.potentialTargets.Length < context.potentialTargets.Capacity) {
+          // Get target status
+          CharacterStatus targetStatus = CharacterStatus.None;
+          statusState.statuses.TryGetValue(targetEntity, out targetStatus);
+
+          var targetInfo = new AITargetInfo
+          {
+            entity = targetEntity,
+            currentHealth = targetHealth.current,
+            healthPercent = targetHealth.max > 0
+              ? (float)targetHealth.current / targetHealth.max
+              : 0f,
+            isDefending = (targetStatus & CharacterStatus.Defending) != 0,
+            hasDebuffs = (targetStatus & CharacterStatus.Weakened) != 0 ||
+                        (targetStatus & CharacterStatus.Poisoned) != 0,
+            threatLevel = 50, // Could be calculated based on stats
+            distance = 1.0f   // Could be calculated from positions
+          };
+
+          context.potentialTargets.Add(targetInfo);
         }
       }
 
+      // ====================================================================
+      // STEP 4: Count alive allies by iterating ally roster
+      // OLD: Loop ALL characters, filter by team and alive status
+      // NEW: Iterate pre-filtered ally roster
+      // ====================================================================
+
+      int aliveAllies = 0;
+
+      for (int i = 0; i < allyRoster.Length; i++) {
+        Entity allyEntity = allyRoster[i];
+
+        if (allyEntity == Entity.Null)
+          continue;
+
+        // Get ally health
+        if (!healthState.health.TryGetValue(allyEntity, out var allyHealth))
+          continue;
+
+        // Count if alive
+        if (allyHealth.isAlive)
+          aliveAllies++;
+      }
+
+      // ====================================================================
+      // STEP 5: Fill context with counts
+      // ====================================================================
+
       context.aliveAllies = aliveAllies;
-      context.aliveEnemies = aliveEnemies;
-      context.isOutnumbered = aliveEnemies > aliveAllies;
+      context.aliveEnemies = aliveTargets;
+      context.isOutnumbered = aliveTargets > aliveAllies;
       context.isLastAlly = aliveAllies == 1;
 
       return context;
     }
   }
 }
-

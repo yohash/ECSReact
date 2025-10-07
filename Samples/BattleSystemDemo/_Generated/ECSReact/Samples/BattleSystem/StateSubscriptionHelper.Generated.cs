@@ -39,10 +39,34 @@ namespace ECSReact.Samples.BattleSystem
         subscriber => StateNotificationEvents.OnBattleStateChanged -= subscriber.OnStateChanged
       );
 
-      // Register handlers for PartyState
-      StateSubscriptionHelper.RegisterStateSubscriptionHandlers<PartyState>(
-        subscriber => StateNotificationEvents.OnPartyStateChanged += subscriber.OnStateChanged,
-        subscriber => StateNotificationEvents.OnPartyStateChanged -= subscriber.OnStateChanged
+      // Register handlers for CharacterHealthState
+      StateSubscriptionHelper.RegisterStateSubscriptionHandlers<CharacterHealthState>(
+        subscriber => StateNotificationEvents.OnCharacterHealthStateChanged += subscriber.OnStateChanged,
+        subscriber => StateNotificationEvents.OnCharacterHealthStateChanged -= subscriber.OnStateChanged
+      );
+
+      // Register handlers for CharacterManaState
+      StateSubscriptionHelper.RegisterStateSubscriptionHandlers<CharacterManaState>(
+        subscriber => StateNotificationEvents.OnCharacterManaStateChanged += subscriber.OnStateChanged,
+        subscriber => StateNotificationEvents.OnCharacterManaStateChanged -= subscriber.OnStateChanged
+      );
+
+      // Register handlers for CharacterStatusState
+      StateSubscriptionHelper.RegisterStateSubscriptionHandlers<CharacterStatusState>(
+        subscriber => StateNotificationEvents.OnCharacterStatusStateChanged += subscriber.OnStateChanged,
+        subscriber => StateNotificationEvents.OnCharacterStatusStateChanged -= subscriber.OnStateChanged
+      );
+
+      // Register handlers for CharacterIdentityState
+      StateSubscriptionHelper.RegisterStateSubscriptionHandlers<CharacterIdentityState>(
+        subscriber => StateNotificationEvents.OnCharacterIdentityStateChanged += subscriber.OnStateChanged,
+        subscriber => StateNotificationEvents.OnCharacterIdentityStateChanged -= subscriber.OnStateChanged
+      );
+
+      // Register handlers for CharacterRosterState
+      StateSubscriptionHelper.RegisterStateSubscriptionHandlers<CharacterRosterState>(
+        subscriber => StateNotificationEvents.OnCharacterRosterStateChanged += subscriber.OnStateChanged,
+        subscriber => StateNotificationEvents.OnCharacterRosterStateChanged -= subscriber.OnStateChanged
       );
 
       // Register handlers for SaveState

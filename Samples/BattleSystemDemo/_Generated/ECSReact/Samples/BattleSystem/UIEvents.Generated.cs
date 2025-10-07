@@ -64,15 +64,87 @@ namespace ECSReact.Samples.BattleSystem
   }
 
   /// <summary>
-  /// UI event fired when PartyState from ECSReact.Samples.BattleSystem changes.
+  /// UI event fired when CharacterHealthState from ECSReact.Samples.BattleSystem changes.
   /// </summary>
-  public class PartyStateChangedEvent : UIEvent
+  public class CharacterHealthStateChangedEvent : UIEvent
   {
-    public PartyState newState;
-    public PartyState oldState;
+    public CharacterHealthState newState;
+    public CharacterHealthState oldState;
     public bool hasOldState;
 
-    public PartyStateChangedEvent(PartyState newState, PartyState oldState, bool hasOldState)
+    public CharacterHealthStateChangedEvent(CharacterHealthState newState, CharacterHealthState oldState, bool hasOldState)
+    {
+      this.newState = newState;
+      this.oldState = oldState;
+      this.hasOldState = hasOldState;
+      this.priority = UIEventPriority.Normal;
+    }
+  }
+
+  /// <summary>
+  /// UI event fired when CharacterManaState from ECSReact.Samples.BattleSystem changes.
+  /// </summary>
+  public class CharacterManaStateChangedEvent : UIEvent
+  {
+    public CharacterManaState newState;
+    public CharacterManaState oldState;
+    public bool hasOldState;
+
+    public CharacterManaStateChangedEvent(CharacterManaState newState, CharacterManaState oldState, bool hasOldState)
+    {
+      this.newState = newState;
+      this.oldState = oldState;
+      this.hasOldState = hasOldState;
+      this.priority = UIEventPriority.Normal;
+    }
+  }
+
+  /// <summary>
+  /// UI event fired when CharacterStatusState from ECSReact.Samples.BattleSystem changes.
+  /// </summary>
+  public class CharacterStatusStateChangedEvent : UIEvent
+  {
+    public CharacterStatusState newState;
+    public CharacterStatusState oldState;
+    public bool hasOldState;
+
+    public CharacterStatusStateChangedEvent(CharacterStatusState newState, CharacterStatusState oldState, bool hasOldState)
+    {
+      this.newState = newState;
+      this.oldState = oldState;
+      this.hasOldState = hasOldState;
+      this.priority = UIEventPriority.Normal;
+    }
+  }
+
+  /// <summary>
+  /// UI event fired when CharacterIdentityState from ECSReact.Samples.BattleSystem changes.
+  /// </summary>
+  public class CharacterIdentityStateChangedEvent : UIEvent
+  {
+    public CharacterIdentityState newState;
+    public CharacterIdentityState oldState;
+    public bool hasOldState;
+
+    public CharacterIdentityStateChangedEvent(CharacterIdentityState newState, CharacterIdentityState oldState, bool hasOldState)
+    {
+      this.newState = newState;
+      this.oldState = oldState;
+      this.hasOldState = hasOldState;
+      this.priority = UIEventPriority.Normal;
+    }
+  }
+
+  /// <summary>
+  /// UI event fired when CharacterRosterState from ECSReact.Samples.BattleSystem changes.
+  /// </summary>
+  public class CharacterRosterStateChangedEvent : UIEvent
+  {
+    public CharacterRosterState newState;
+    public CharacterRosterState oldState;
+    public bool hasOldState;
+
+    public CharacterRosterStateChangedEvent(CharacterRosterState newState, CharacterRosterState oldState, bool hasOldState)
     {
       this.newState = newState;
       this.oldState = oldState;

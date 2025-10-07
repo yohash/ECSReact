@@ -1,14 +1,20 @@
 using System.Collections.Generic;
 using UnityEngine;
 using ECSReact.Core;
+using Unity.Entities;
 
 namespace ECSReact.Samples.BattleSystem
 {
   /// <summary>
-  /// Displays all party members' status in a horizontal bar.
-  /// Demonstrates dynamic element creation based on party composition.
+  /// Displays all party members' status in a horizontal bar - NORMALIZED VERSION
+  /// 
+  /// CHANGES FROM OLD:
+  /// - Removed PartyState subscription
+  /// - Added CharacterRosterState subscription
+  /// - Replaced character filtering with direct roster list iteration
+  /// - Now passes Entity to CharacterStatusCard props (card does lookups)
   /// </summary>
-  public class PartyStatusBar : ReactiveUIComponent<PartyState, BattleState>
+  public class PartyStatusBar : ReactiveUIComponent<CharacterRosterState, BattleState>
   {
     [Header("Layout Configuration")]
     [SerializeField] private RectTransform allyHeaderContainer;
@@ -16,17 +22,17 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private RectTransform enemyHeaderContainer;
     [SerializeField] private RectTransform enemyLayoutGroup;
 
-    [Header("Layout Configuration")]
+    [Header("Visual Configuration")]
     [SerializeField] private float cardSpacing = 10f;
     [SerializeField] private bool showEnemies = true;
     [SerializeField] private bool animateChanges = true;
 
-    private PartyState partyState;
+    private CharacterRosterState rosterState;
     private BattleState battleState;
 
-    public override void OnStateChanged(PartyState newState)
+    public override void OnStateChanged(CharacterRosterState newState)
     {
-      partyState = newState;
+      rosterState = newState;
       UpdateElements(); // Trigger reconciliation
     }
 
@@ -38,7 +44,7 @@ namespace ECSReact.Samples.BattleSystem
 
     protected override IEnumerable<UIElement> DeclareElements()
     {
-      // Create section headers
+      // Create party section header
       yield return Mount.Element.FromResources(
           key: "party_header",
           props: new SectionHeaderProps { Title = "Your Party", IsEnemy = false },
@@ -47,29 +53,29 @@ namespace ECSReact.Samples.BattleSystem
           parentTransform: allyHeaderContainer
       );
 
-      // Generate character cards for party members
+      // Generate character cards for PLAYERS from roster
+      // OLD: Loop through all characters, filter by isEnemy flag
+      // NEW: Directly iterate player list - O(n) but n is smaller!
       int cardIndex = 1;
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        var character = partyState.characters[i];
+      for (int i = 0; i < rosterState.players.Length; i++) {
+        Entity playerEntity = rosterState.players[i];
 
-        if (character.isEnemy)
+        // Skip if entity is null (shouldn't happen, but defensive)
+        if (playerEntity == Entity.Null)
           continue;
 
-        // Skip dead characters (unless we want to show them grayed out)
-        if (!character.isAlive && !ShouldShowDeadCharacters())
-          continue;
-
-        // Create character card with props
+        // Create card with Entity reference
+        // Card will look up its own data from normalized states
         yield return Mount.Element.FromResources(
-            key: $"character_{character.entity.Index}_{character.entity.Version}",
+            key: $"player_{playerEntity.Index}_{playerEntity.Version}",
             prefabPath: "UI/CharacterStatusCard",
             props: new CharacterStatusProps
             {
-              Character = character,
-              IsActive = IsCharacterActive(character.entity),
-              IsTargeted = IsCharacterTargeted(character.entity),
+              CharacterEntity = playerEntity,  // NEW: Just Entity, not full data
+              IsActive = IsCharacterActive(playerEntity),
+              IsTargeted = IsCharacterTargeted(playerEntity),
               CardIndex = i,
-              ShowMana = !character.isEnemy, // Only show mana for party
+              ShowMana = true,
               AnimateChanges = animateChanges
             },
             index: cardIndex++,
@@ -77,35 +83,35 @@ namespace ECSReact.Samples.BattleSystem
         );
       }
 
-      // Enemy section header (if showing enemies)
+      // Enemy section (if enabled)
       if (showEnemies && HasEnemies()) {
         yield return Mount.Element.FromResources(
             key: "enemy_header",
-            prefabPath: "UI/StatusSectionHeader",
             props: new SectionHeaderProps { Title = "Enemies", IsEnemy = true },
+            prefabPath: "UI/StatusSectionHeader",
             index: cardIndex++,
             parentTransform: enemyHeaderContainer
         );
 
-        // Generate enemy cards
-        for (int i = 0; i < partyState.characters.Length; i++) {
-          var character = partyState.characters[i];
+        // Generate character cards for ENEMIES from roster
+        // OLD: Loop through all characters, filter by isEnemy flag
+        // NEW: Directly iterate enemy list
+        for (int i = 0; i < rosterState.enemies.Length; i++) {
+          Entity enemyEntity = rosterState.enemies[i];
 
-          if (!character.isEnemy)
-            continue;
-          if (!character.isAlive && !ShouldShowDeadCharacters())
+          if (enemyEntity == Entity.Null)
             continue;
 
           yield return Mount.Element.FromResources(
-              key: $"enemy_{character.entity.Index}_{character.entity.Version}",
+              key: $"enemy_{enemyEntity.Index}_{enemyEntity.Version}",
               prefabPath: "UI/CharacterStatusCard",
               props: new CharacterStatusProps
               {
-                Character = character,
-                IsActive = IsCharacterActive(character.entity),
-                IsTargeted = IsCharacterTargeted(character.entity),
+                CharacterEntity = enemyEntity,  // NEW: Just Entity
+                IsActive = IsCharacterActive(enemyEntity),
+                IsTargeted = IsCharacterTargeted(enemyEntity),
                 CardIndex = i,
-                ShowMana = false,
+                ShowMana = false,  // Enemies don't show mana
                 AnimateChanges = animateChanges
               },
               index: cardIndex++,
@@ -115,7 +121,11 @@ namespace ECSReact.Samples.BattleSystem
       }
     }
 
-    private bool IsCharacterActive(Unity.Entities.Entity entity)
+    // ========================================================================
+    // HELPER METHODS
+    // ========================================================================
+
+    private bool IsCharacterActive(Entity entity)
     {
       if (battleState.activeCharacterIndex < 0 ||
           battleState.activeCharacterIndex >= battleState.turnOrder.Length)
@@ -124,7 +134,7 @@ namespace ECSReact.Samples.BattleSystem
       return battleState.turnOrder[battleState.activeCharacterIndex] == entity;
     }
 
-    private bool IsCharacterTargeted(Unity.Entities.Entity entity)
+    private bool IsCharacterTargeted(Entity entity)
     {
       // Would check UIBattleState.selectedTarget in full implementation
       return false;
@@ -132,23 +142,8 @@ namespace ECSReact.Samples.BattleSystem
 
     private bool HasEnemies()
     {
-      for (int i = 0; i < partyState.characters.Length; i++) {
-        if (partyState.characters[i].isEnemy && partyState.characters[i].isAlive)
-          return true;
-      }
-      return false;
+      // NEW: Simple check using cached count
+      return rosterState.enemyCount > 0;
     }
-
-    private bool ShouldShowDeadCharacters()
-    {
-      // In full implementation, might check a settings state
-      return true; // Show them grayed out
-    }
-  }
-
-  public class SectionHeaderProps : UIProps
-  {
-    public string Title { get; set; }
-    public bool IsEnemy { get; set; }
   }
 }

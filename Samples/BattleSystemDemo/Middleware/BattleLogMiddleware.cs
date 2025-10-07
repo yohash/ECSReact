@@ -108,11 +108,9 @@ namespace ECSReact.Samples.BattleSystem
 
     private FixedString32Bytes GetCharacterName(Entity entity, ref SystemState systemState)
     {
-      if (systemState.TryGetSingleton<PartyState>(out var partyState)) {
-        for (int i = 0; i < partyState.characters.Length; i++) {
-          if (partyState.characters[i].entity == entity)
-            return partyState.characters[i].name;
-        }
+      if (systemState.TryGetSingleton<CharacterIdentityState>(out var identityState)) {
+        if (identityState.names.TryGetValue(entity, out var name))
+          return name;
       }
       return new FixedString32Bytes($"Entity_{entity.Index}");
     }
@@ -160,13 +158,11 @@ namespace ECSReact.Samples.BattleSystem
 
     private FixedString32Bytes GetCharacterName(Entity entity, ref SystemState systemState)
     {
-      if (systemState.TryGetSingleton<PartyState>(out var partyState)) {
-        for (int i = 0; i < partyState.characters.Length; i++) {
-          if (partyState.characters[i].entity == entity)
-            return partyState.characters[i].name;
-        }
+      if (systemState.TryGetSingleton<CharacterIdentityState>(out var identityState)) {
+        if (identityState.names.TryGetValue(entity, out var name))
+          return name;
       }
-      return "Unknown";
+      return new FixedString32Bytes($"Entity_{entity.Index}");
     }
   }
 }
