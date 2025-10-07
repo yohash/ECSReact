@@ -183,5 +183,5 @@ namespace ECSReact.Samples.BattleSystem
       return context;
     }
   }
-
 }
+
