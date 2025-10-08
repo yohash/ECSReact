@@ -53,7 +53,7 @@ namespace ECSReact.Samples.BattleSystem
       await Task.Yield();
 
       // Additional safety delay to ensure all state updates complete
-      await Task.Delay(100);
+      await Task.Delay(2000);
 
       // ========================================================================
       // STEP 2: Fetch created entities from CharacterRosterState
@@ -93,6 +93,7 @@ namespace ECSReact.Samples.BattleSystem
     {
       // Create player characters
       foreach (var name in playerNames) {
+        Debug.Log("Adding player " + name);
         Store.Instance.Dispatch(new AddCharacterAction()
         {
           name = new FixedString32Bytes(name),
@@ -105,6 +106,7 @@ namespace ECSReact.Samples.BattleSystem
 
       // Create enemy characters
       foreach (var name in enemyNames) {
+        Debug.Log("Adding enemy " + name);
         Store.Instance.Dispatch(new AddCharacterAction()
         {
           name = new FixedString32Bytes(name),

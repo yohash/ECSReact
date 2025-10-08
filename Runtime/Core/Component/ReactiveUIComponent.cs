@@ -121,7 +121,7 @@ namespace ECSReact.Core
       } catch (OperationCanceledException) {
         // Expected when component is destroyed
       } catch (Exception ex) {
-        Debug.LogError($"Error updating elements in {GetType().Name}: {ex.Message}");
+        Debug.LogError($"Error updating elements in {GetType().Name}: {ex.Message}\n{ex.StackTrace}");
       } finally {
         _updateSemaphore.Release();
       }
@@ -185,7 +185,7 @@ namespace ECSReact.Core
           element.GameObject.transform.SetSiblingIndex(element.Index);
         }
       } catch (Exception ex) {
-        Debug.LogError($"{GetType()} failed to mount element {element.Key}: {ex.Message}");
+        Debug.LogError($"{GetType()} failed to mount element {element.Key}: {ex.Message}\n{ex.StackTrace}");
 
         // Remove from children if mount failed
         _children.Remove(element.Key);
