@@ -91,7 +91,6 @@ namespace ECSReact.Samples.BattleSystem
         // Target confirmed - store it and prepare for execution
         state.selectedTarget = action.targetEntity;
         state.showTargetingMode = false;
-        state.activePanel = MenuPanel.None;
         state.lastMessage = "Executing action...";
 
         // The UI or middleware will now dispatch the actual attack/skill action
