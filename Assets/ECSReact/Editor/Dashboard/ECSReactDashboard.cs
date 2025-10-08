@@ -231,45 +231,45 @@ namespace ECSReact.Editor
 
     private void RefreshSingleState(EntityManager entityManager, Type stateType, IStateInfo stateInfo)
     {
-      try {
-        // Get or create query for this state type
-        if (!stateQueries.ContainsKey(stateType)) {
-          var queryDesc = new EntityQueryDesc
-          {
-            All = new[] { ComponentType.ReadOnly(stateType) }
-          };
-          stateQueries[stateType] = entityManager.CreateEntityQuery(queryDesc);
-        }
+      //try {
+      // Get or create query for this state type
+      if (!stateQueries.ContainsKey(stateType)) {
+        var queryDesc = new EntityQueryDesc
+        {
+          All = new[] { ComponentType.ReadOnly(stateType) }
+        };
+        stateQueries[stateType] = entityManager.CreateEntityQuery(queryDesc);
+      }
 
-        var query = stateQueries[stateType];
-        if (query.CalculateEntityCount() > 0) {
-          var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
-          if (entities.Length > 0) {
-            var entity = entities[0]; // Singleton state
-            var currentValue = stateInfo.GetComponent(entityManager, entity);
+      var query = stateQueries[stateType];
+      if (query.CalculateEntityCount() > 0) {
+        var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
+        if (entities.Length > 0) {
+          var entity = entities[0]; // Singleton state
+          var currentValue = stateInfo.GetComponent(entityManager, entity);
 
-            if (!stateCache.ContainsKey(stateType)) {
-              stateCache[stateType] = new StateDebugInfo
-              {
-                stateType = stateType,
-                entity = entity,
-                currentValue = currentValue,
-                previousValue = currentValue
-              };
-            } else {
-              var info = stateCache[stateType];
-              if (!AreValuesEqual(info.currentValue, currentValue)) {
-                info.previousValue = info.currentValue;
-                info.currentValue = currentValue;
-                info.RecordChange(Time.realtimeSinceStartup);
-              }
+          if (!stateCache.ContainsKey(stateType)) {
+            stateCache[stateType] = new StateDebugInfo
+            {
+              stateType = stateType,
+              entity = entity,
+              currentValue = currentValue,
+              previousValue = currentValue
+            };
+          } else {
+            var info = stateCache[stateType];
+            if (!AreValuesEqual(info.currentValue, currentValue)) {
+              info.previousValue = info.currentValue;
+              info.currentValue = currentValue;
+              info.RecordChange(Time.realtimeSinceStartup);
             }
           }
-          entities.Dispose();
         }
-      } catch (Exception e) {
-        Debug.LogError($"Failed to query state {stateType.Name}: {e.Message}");
+        entities.Dispose();
       }
+      //} catch (Exception e) {
+      //  Debug.LogError($"Failed to query state {stateType.Name}: {e.Message}");
+      //}
     }
 
     private bool AreValuesEqual(object a, object b)
@@ -548,6 +548,7 @@ namespace ECSReact.Editor
     private bool IsExpandableType(Type type)
     {
       return IsFixedList(type) ||
+             IsNativeHashMap(type) ||  // ← ADD THIS LINE
              IsCustomStruct(type) ||
              (type.IsValueType && !type.IsPrimitive && !type.IsEnum &&
               type != typeof(Entity) && !type.Name.StartsWith("FixedString"));
@@ -556,6 +557,12 @@ namespace ECSReact.Editor
     private bool IsFixedList(Type type)
     {
       return type.IsValueType && type.Name.StartsWith("FixedList");
+    }
+
+    private bool IsNativeHashMap(Type type)
+    {
+      return type.IsGenericType &&
+             type.GetGenericTypeDefinition() == typeof(NativeHashMap<,>);
     }
 
     private bool IsCustomStruct(Type type)
@@ -642,6 +649,21 @@ namespace ECSReact.Editor
         }
       }
 
+      // ADD THIS BLOCK FOR NATIVE HASHMAP
+      if (IsNativeHashMap(type)) {
+        var isCreatedProp = type.GetProperty("IsCreated");
+        var countProp = type.GetProperty("Count");
+
+        if (isCreatedProp != null && countProp != null) {
+          var isCreated = (bool)isCreatedProp.GetValue(value);
+          if (!isCreated) {
+            return "[Not Created]";
+          }
+          var count = (int)countProp.GetValue(value);
+          return $"[{count} entries]";
+        }
+      }
+
       return "[Complex]";
     }
 
@@ -653,6 +675,8 @@ namespace ECSReact.Editor
 
       if (IsFixedList(type)) {
         DrawFixedListContents(type, value, foldouts, path);
+      } else if (IsNativeHashMap(type)) {  // ← ADD THIS BLOCK
+        DrawNativeHashMapContents(type, value, foldouts, path);
       } else if (IsCustomStruct(type)) {
         DrawComplexObjectFields(value, foldouts, path);
       }
@@ -716,6 +740,169 @@ namespace ECSReact.Editor
           EditorGUI.indentLevel--;
         }
       }
+    }
+
+    private void DrawNativeHashMapContents(Type hashMapType, object hashMapValue, Dictionary<string, bool> foldouts, string path)
+    {
+      // Get generic arguments (TKey, TValue)
+      var genericArgs = hashMapType.GetGenericArguments();
+      if (genericArgs.Length != 2) {
+        EditorGUILayout.LabelField("  Invalid NativeHashMap type");
+        return;
+      }
+
+      var keyType = genericArgs[0];
+      var valueType = genericArgs[1];
+
+      // Check if created
+      var isCreatedProp = hashMapType.GetProperty("IsCreated");
+      if (isCreatedProp == null || !(bool)isCreatedProp.GetValue(hashMapValue)) {
+        EditorGUILayout.LabelField("  [Not Created]", EditorStyles.miniLabel);
+        return;
+      }
+
+      // Get count
+      var countProp = hashMapType.GetProperty("Count");
+      if (countProp == null) {
+        EditorGUILayout.LabelField("  [Cannot read count]", EditorStyles.miniLabel);
+        return;
+      }
+
+      int count = (int)countProp.GetValue(hashMapValue);
+      if (count == 0) {
+        EditorGUILayout.LabelField("  [Empty]", EditorStyles.miniLabel);
+        return;
+      }
+
+      float windowWidth = position.width;
+
+      // Get keys using GetKeyArray
+      var getKeyArrayMethod = hashMapType.GetMethod("GetKeyArray");
+      if (getKeyArrayMethod == null) {
+        EditorGUILayout.LabelField("  [Cannot enumerate keys]", EditorStyles.miniLabel);
+        return;
+      }
+
+      // Create NativeArray<TKey> to hold keys
+      var nativeArrayType = typeof(NativeArray<>).MakeGenericType(keyType);
+
+      // Handle Unity version compatibility - parameter type changed from Allocator to AllocatorHandle
+      var parameters = getKeyArrayMethod.GetParameters();
+      object allocatorParam;
+      if (parameters.Length > 0 && parameters[0].ParameterType.Name == "AllocatorHandle") {
+        // Newer Unity versions use AllocatorManager.AllocatorHandle
+        allocatorParam = (AllocatorManager.AllocatorHandle)Allocator.Temp;
+      } else {
+        // Older Unity versions use Allocator enum directly
+        allocatorParam = Allocator.Temp;
+      }
+
+      var keyArray = getKeyArrayMethod.Invoke(hashMapValue, new object[] { allocatorParam });
+
+      try {
+        // Get indexer for the key array
+        var arrayIndexer = nativeArrayType.GetProperty("Item");
+        var lengthProp = nativeArrayType.GetProperty("Length");
+
+        if (arrayIndexer == null || lengthProp == null) {
+          EditorGUILayout.LabelField("  [Cannot read keys]", EditorStyles.miniLabel);
+          return;
+        }
+
+        int keyCount = (int)lengthProp.GetValue(keyArray);
+
+        // Get the indexer for the hashmap to retrieve values
+        var hashMapIndexer = hashMapType.GetProperty("Item");
+        if (hashMapIndexer == null) {
+          EditorGUILayout.LabelField("  [Cannot read values]", EditorStyles.miniLabel);
+          return;
+        }
+
+        // Draw each key-value pair
+        for (int i = 0; i < keyCount; i++) {
+          var key = arrayIndexer.GetValue(keyArray, new object[] { i });
+          var value = hashMapIndexer.GetValue(hashMapValue, new object[] { key });
+
+          var entryPath = $"{path}[{i}]";
+
+          EditorGUILayout.BeginHorizontal();
+
+          // Determine if this entry is expandable based on the value type
+          bool isValueExpandable = IsExpandableType(valueType);
+
+          if (isValueExpandable) {
+            if (!foldouts.ContainsKey(entryPath)) {
+              foldouts[entryPath] = false;
+            }
+
+            foldouts[entryPath] = EditorGUILayout.Foldout(
+              foldouts[entryPath],
+              $"  [{FormatKeyPreview(keyType, key)}]",
+              true
+            );
+          } else {
+            EditorGUILayout.LabelField(
+              $"  [{FormatKeyPreview(keyType, key)}]",
+              GUILayout.Width(windowWidth / 3.5f)
+            );
+          }
+
+          // Show value type if types are enabled
+          if (showDataTypes) {
+            var typeName = GetFriendlyTypeName(valueType);
+            EditorGUILayout.LabelField(typeName, EditorStyles.miniLabel, GUILayout.Width(windowWidth / 3.5f));
+          }
+
+          // Show value
+          if (isValueExpandable) {
+            EditorGUILayout.LabelField(
+              GetComplexTypePreview(valueType, value),
+              GUILayout.Width(windowWidth / 3.5f)
+            );
+          } else {
+            DrawInlineValue(valueType, value);
+          }
+
+          EditorGUILayout.EndHorizontal();
+
+          // Draw expanded value if foldout is open
+          if (isValueExpandable && foldouts.ContainsKey(entryPath) && foldouts[entryPath]) {
+            EditorGUI.indentLevel++;
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            DrawExpandedComplexType(valueType, value, foldouts, entryPath);
+            EditorGUILayout.EndVertical();
+            EditorGUI.indentLevel--;
+          }
+        }
+      } finally {
+        // Dispose the temporary key array
+        var disposeMethod = nativeArrayType.GetMethod("Dispose", new Type[0]);
+        if (disposeMethod != null) {
+          disposeMethod.Invoke(keyArray, null);
+        }
+      }
+    }
+
+
+    private string FormatKeyPreview(Type keyType, object key)
+    {
+      if (key == null) {
+        return "null";
+      }
+
+      // Special handling for Entity keys
+      if (keyType == typeof(Entity)) {
+        var entity = (Entity)key;
+        return entity == Entity.Null ? "Entity.Null" : $"Entity({entity.Index}:{entity.Version})";
+      }
+
+      // Special handling for FixedString types
+      if (keyType.Name.StartsWith("FixedString")) {
+        return $"\"{key}\"";
+      }
+
+      // For other types, use default ToString
+      return key.ToString();
     }
 
     private Type GetFixedListElementType(Type listType)

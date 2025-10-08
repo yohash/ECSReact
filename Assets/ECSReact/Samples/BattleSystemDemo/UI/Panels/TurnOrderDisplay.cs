@@ -83,6 +83,7 @@ namespace ECSReact.Samples.BattleSystem
         float targetY = (i == 0) ? currentTurnYOffset : 0f;
         Vector2 targetScale = (i == 0) ? currentTurnScale : normalTurnScale;
 
+        UnityEngine.Debug.Log($"Turn Slot {i}: Entity {characterEntity.Index} at Position ({targetX}, {targetY}) with Scale {targetScale}");
         // Create turn slot with specific parent transform
         yield return Mount.Element.FromResources(
             key: $"turn_slot_{characterEntity.Index}_{characterEntity.Version}",

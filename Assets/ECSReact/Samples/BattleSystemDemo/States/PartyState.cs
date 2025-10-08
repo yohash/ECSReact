@@ -37,7 +37,7 @@ namespace ECSReact.Samples.BattleSystem
         return true;
       if (health.IsCreated != other.health.IsCreated)
         return false;
-      if (health.Count() != other.health.Count())
+      if (health.Count != other.health.Count)
         return false;
 
       var keys = health.GetKeyArray(Allocator.Temp);
@@ -84,7 +84,7 @@ namespace ECSReact.Samples.BattleSystem
         return true;
       if (mana.IsCreated != other.mana.IsCreated)
         return false;
-      if (mana.Count() != other.mana.Count())
+      if (mana.Count != other.mana.Count)
         return false;
 
       var keys = mana.GetKeyArray(Allocator.Temp);
@@ -129,7 +129,7 @@ namespace ECSReact.Samples.BattleSystem
         return true;
       if (statuses.IsCreated != other.statuses.IsCreated)
         return false;
-      if (statuses.Count() != other.statuses.Count())
+      if (statuses.Count != other.statuses.Count)
         return false;
 
       var keys = statuses.GetKeyArray(Allocator.Temp);
@@ -175,7 +175,7 @@ namespace ECSReact.Samples.BattleSystem
       // Compare names
       if (!names.IsCreated && !other.names.IsCreated) { /* continue */ } else if (names.IsCreated != other.names.IsCreated)
         return false;
-      else if (names.Count() != other.names.Count())
+      else if (names.Count != other.names.Count)
         return false;
       else {
         var keys = names.GetKeyArray(Allocator.Temp);
@@ -193,7 +193,7 @@ namespace ECSReact.Samples.BattleSystem
         return true;
       if (isEnemy.IsCreated != other.isEnemy.IsCreated)
         return false;
-      if (isEnemy.Count() != other.isEnemy.Count())
+      if (isEnemy.Count != other.isEnemy.Count)
         return false;
 
       var enemyKeys = isEnemy.GetKeyArray(Allocator.Temp);

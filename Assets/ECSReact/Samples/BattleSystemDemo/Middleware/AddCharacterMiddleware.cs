@@ -1,6 +1,7 @@
 using Unity.Entities;
 using Unity.Collections;
 using ECSReact.Core;
+using System.Diagnostics;
 
 namespace ECSReact.Samples.BattleSystem
 {
@@ -24,7 +25,7 @@ namespace ECSReact.Samples.BattleSystem
       // Create the character entity
       var entityManager = systemState.EntityManager;
       var newEntity = entityManager.CreateEntity();
-
+      UnityEngine.Debug.Log("adding character middleware");
       // Dispatch enriched internal action with the created entity
       dispatcher.DispatchAction(sortKey,
         new CharacterCreatedAction

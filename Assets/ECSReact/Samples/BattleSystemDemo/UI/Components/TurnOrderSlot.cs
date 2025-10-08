@@ -9,7 +9,7 @@ namespace ECSReact.Samples.BattleSystem
   /// <summary>
   /// Individual turn slot that displays a character portrait and animates position changes.
   /// </summary>
-  public class TurnOrderSlot : ReactiveUIComponent<BattleState>, IElementChild
+  public class TurnOrderSlot : ReactiveUIComponent<BattleState, CharacterIdentityState>, IElementChild
   {
     [Header("UI References")]
     [SerializeField] private Image portraitImage;
@@ -24,7 +24,6 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private Color allyFrameColor = new Color(0.2f, 0.5f, 1f);
     [SerializeField] private Color enemyFrameColor = new Color(1f, 0.2f, 0.2f);
     [SerializeField] private Color currentTurnColor = Color.yellow;
-    [SerializeField] private Sprite[] characterPortraits; // Temp portraits for demo
 
     private TurnOrderSlotProps currentProps;
     private Vector3 currentPosition;
@@ -32,6 +31,7 @@ namespace ECSReact.Samples.BattleSystem
     private Coroutine animationCoroutine;
 
     private BattleState battleState;
+    private CharacterIdentityState identityState;
 
     public void InitializeWithProps(UIProps props)
     {
@@ -77,6 +77,12 @@ namespace ECSReact.Samples.BattleSystem
       battleState = newState;
     }
 
+    public override void OnStateChanged(CharacterIdentityState newState)
+    {
+      identityState = newState;
+      UpdateDisplay();
+    }
+
     private void UpdateDisplay()
     {
       if (currentProps == null)
@@ -85,10 +91,12 @@ namespace ECSReact.Samples.BattleSystem
       var character = currentProps.Character;
 
       // Update portrait (using temp sprites for demo)
-      if (portraitImage && characterPortraits.Length > 0) {
+      if (portraitImage) {
         int portraitIndex = character.isEnemy ? 0 : 1;
-        if (portraitIndex < characterPortraits.Length)
-          portraitImage.sprite = characterPortraits[portraitIndex];
+        var entity = currentProps.Character.entity;
+        if (identityState.names.IsCreated && identityState.names.TryGetValue(entity, out var name)) {
+          SetPortrait(name.ToString());
+        }
       }
 
       // Update frame color
@@ -132,6 +140,34 @@ namespace ECSReact.Samples.BattleSystem
         if (!canvasGroup)
           canvasGroup = gameObject.AddComponent<CanvasGroup>();
         canvasGroup.alpha = 0.5f;
+      }
+    }
+    private void SetPortrait(string characterName)
+    {
+      switch (characterName.ToLower()) {
+        case "hero":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/hero");
+          break;
+        case "mage":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/wizard");
+          break;
+        case "warrior":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/warrior");
+          break;
+        case "goblin":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/goblin");
+          break;
+        case "orc":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/orc");
+          break;
+
+        default:
+          break;
       }
     }
 

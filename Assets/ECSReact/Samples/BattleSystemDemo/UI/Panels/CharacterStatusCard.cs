@@ -209,6 +209,7 @@ namespace ECSReact.Samples.BattleSystem
       if (nameText && identityState.names.IsCreated) {
         if (identityState.names.TryGetValue(entity, out var name)) {
           nameText.text = name.ToString();
+          SetPortrait(name.ToString());
         }
       }
 
@@ -263,6 +264,35 @@ namespace ECSReact.Samples.BattleSystem
 
       // Update targeting visuals
       UpdateTargetingVisuals();
+    }
+
+    private void SetPortrait(string characterName)
+    {
+      switch (characterName.ToLower()) {
+        case "hero":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/hero");
+          break;
+        case "mage":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/wizard");
+          break;
+        case "warrior":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/warrior");
+          break;
+        case "goblin":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/goblin");
+          break;
+        case "orc":
+          if (portraitImage)
+            portraitImage.sprite = Resources.Load<Sprite>("Sprites/Characters/orc");
+          break;
+
+        default:
+          break;
+      }
     }
 
     // ========================================================================
