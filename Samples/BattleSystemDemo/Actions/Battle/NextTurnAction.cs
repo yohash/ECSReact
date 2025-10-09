@@ -7,7 +7,7 @@ namespace ECSReact.Samples.BattleSystem
   /// </summary>
   public struct NextTurnAction : IGameAction
   {
-    public bool skipAnimation;
+    public int nextCharacterIndex;
     public bool isPlayerTurn;
   }
 

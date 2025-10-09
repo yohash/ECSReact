@@ -65,7 +65,7 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Find the active enemy entity
-      Entity activeEnemy = GetActiveEnemy(battleState, identityState, healthState, ref systemState);
+      Entity activeEnemy = GetActiveEnemy(ref action, battleState, identityState, healthState, ref systemState);
       if (activeEnemy == Entity.Null) {
         return true;
       }
@@ -115,13 +115,14 @@ namespace ECSReact.Samples.BattleSystem
     /// OLD: O(n) loop through PartyState.characters array.
     /// </summary>
     private Entity GetActiveEnemy(
+        ref NextTurnAction action,
         BattleState battleState,
         CharacterIdentityState identityState,
         CharacterHealthState healthState,
         ref SystemState systemState)
     {
       // Calculate next index (wraps around)
-      int nextIndex = (battleState.activeCharacterIndex + 1) % battleState.turnOrder.Length;
+      int nextIndex = action.nextCharacterIndex;
       Entity activeEntity = battleState.turnOrder[nextIndex];
 
       if (activeEntity == Entity.Null)

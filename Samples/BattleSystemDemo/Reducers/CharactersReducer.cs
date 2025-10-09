@@ -139,9 +139,6 @@ namespace ECSReact.Samples.BattleSystem
         state.playerCount++;
       }
 
-      // New characters start alive
-      state.aliveCharacters.Add(action.entity);
-
       // Update total count
       state.totalCharacterCount++;
     }

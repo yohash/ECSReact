@@ -227,10 +227,6 @@ namespace ECSReact.Samples.BattleSystem
     public FixedList32Bytes<Entity> players;
     public FixedList32Bytes<Entity> enemies;
 
-    // Status categorization (for quick filtering)
-    public FixedList128Bytes<Entity> aliveCharacters;
-    public FixedList128Bytes<Entity> deadCharacters;
-
     // Cached counts for UI display
     public int totalCharacterCount;
     public int playerCount;
@@ -266,22 +262,6 @@ namespace ECSReact.Samples.BattleSystem
         return false;
       for (int i = 0; i < enemies.Length; i++) {
         if (enemies[i] != other.enemies[i])
-          return false;
-      }
-
-      // Compare alive characters
-      if (aliveCharacters.Length != other.aliveCharacters.Length)
-        return false;
-      for (int i = 0; i < aliveCharacters.Length; i++) {
-        if (aliveCharacters[i] != other.aliveCharacters[i])
-          return false;
-      }
-
-      // Compare dead characters
-      if (deadCharacters.Length != other.deadCharacters.Length)
-        return false;
-      for (int i = 0; i < deadCharacters.Length; i++) {
-        if (deadCharacters[i] != other.deadCharacters[i])
           return false;
       }
 

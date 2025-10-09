@@ -28,7 +28,7 @@ namespace ECSReact.Samples.BattleSystem
   /// - Added CharacterIdentityState, CharacterHealthState subscriptions
   /// - Replaced loop to find active character with O(1) lookups
   /// </summary>
-  public class ActionPanel : ReactiveUIComponent<BattleState, UIBattleState, CharacterIdentityState, CharacterHealthState, CharacterRosterState, CharacterManaState>, IElementChild
+  public class ActionPanel : ReactiveUIComponent<BattleState, UIBattleState, CharacterIdentityState, CharacterHealthState, CharacterManaState>, IElementChild
   {
     [Header("UI References")]
     [SerializeField] private Button attackButton;
@@ -47,7 +47,6 @@ namespace ECSReact.Samples.BattleSystem
     private UIBattleState uiState;
     private CharacterIdentityState identityState;
     private CharacterHealthState healthState;
-    private CharacterRosterState rosterState;
     private CharacterManaState manaState;
     private ActionPanelProps currentProps;
 
@@ -87,12 +86,6 @@ namespace ECSReact.Samples.BattleSystem
       UpdateButtonStates();
     }
 
-    public override void OnStateChanged(CharacterRosterState newState)
-    {
-      rosterState = newState;
-      UpdateButtonStates();
-    }
-
     public override void OnStateChanged(CharacterManaState newState)
     {
       manaState = newState;
@@ -125,7 +118,10 @@ namespace ECSReact.Samples.BattleSystem
       characterNameText.text = hasName ? name.ToString() : "Unknown";
 
       bool isPlayerTurn = battleState.currentPhase == BattlePhase.PlayerSelectAction;
-      bool isAlive = rosterState.aliveCharacters.Contains(currentProps.ActiveCharacterEntity);
+
+      bool isAlive = healthState.health.IsCreated
+        && healthState.health.TryGetValue(currentProps.ActiveCharacterEntity, out var healthData)
+        && healthData.isAlive;
 
       bool characterCanAct = isAlive && isPlayerTurn;
       int activeMana = manaState.mana.IsCreated
