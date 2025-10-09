@@ -84,7 +84,7 @@ namespace ECSReact.Samples.BattleSystem
     {
       // Get current battle state to determine whose turn it is
       if (systemState.TryGetSingleton<BattleState>(out var battleState)) {
-        var nextCharacter = GetNextCharacterName(battleState, ref systemState);
+        var nextCharacter = GetNextCharacterName(ref action, battleState, ref systemState);
 
         ECSActionDispatcher.Dispatch(new BattleLogAction
         {
@@ -100,10 +100,10 @@ namespace ECSReact.Samples.BattleSystem
       return true;
     }
 
-    private FixedString32Bytes GetNextCharacterName(BattleState battleState, ref SystemState systemState)
+    private FixedString32Bytes GetNextCharacterName(ref NextTurnAction action, BattleState battleState, ref SystemState systemState)
     {
       // Get next character in turn order
-      int nextIndex = (battleState.activeCharacterIndex + 1) % battleState.turnOrder.Length;
+      int nextIndex = action.nextCharacterIndex;
       if (nextIndex < battleState.turnOrder.Length) {
         var entity = battleState.turnOrder[nextIndex];
         return GetCharacterName(entity, ref systemState);

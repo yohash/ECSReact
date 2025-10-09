@@ -37,7 +37,7 @@ namespace ECSReact.Samples.BattleSystem
         return;
 
       // Advance to next character in turn order
-      state.activeCharacterIndex = (state.activeCharacterIndex + 1) % state.turnOrder.Length;
+      state.activeCharacterIndex = action.nextCharacterIndex;
       state.turnCount++;
       state.turnTimer = 0f;
 
