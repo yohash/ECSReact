@@ -41,17 +41,8 @@ namespace ECSReact.Samples.BattleSystem
 
     public override void OnStateChanged(BattleLogState newState)
     {
-      // Check if new entries were added
-      bool hasNewEntries = newState.entries.Length > logState.entries.Length;
-
       logState = newState;
       UpdateElements();
-
-      // Auto-scroll to bottom if enabled and new entries added
-      if (autoScroll && hasNewEntries) {
-        Canvas.ForceUpdateCanvases();
-        scrollRect.verticalNormalizedPosition = 0f;
-      }
     }
 
     protected override void Start()
@@ -104,13 +95,9 @@ namespace ECSReact.Samples.BattleSystem
         );
       }
 
-      // Empty state message
-      if (entriesToShow.Count == 0) {
-        //yield return UIElement.FromComponent<EmptyLogMessage>(
-        //    key: "empty_log",
-        //    parentTransform: logEntryContainer
-        //);
-      }
+      // Auto-scroll to bottom -- if this section runs, it's due to an update
+      Canvas.ForceUpdateCanvases();
+      scrollRect.verticalNormalizedPosition = 0f;
     }
 
     private List<BattleLogEntry> GetFilteredEntries()

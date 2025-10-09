@@ -26,8 +26,6 @@ namespace ECSReact.Samples.BattleSystem
 
     [Header("Animation Settings")]
     [SerializeField] private float slotSpacing = 80f;
-    [SerializeField] private float animationDuration = 0.3f;
-    [SerializeField] private AnimationCurve movementCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
     [Header("Visual Settings")]
     [SerializeField] private Vector2 currentTurnScale = new Vector2(1.2f, 1.2f);
@@ -37,9 +35,6 @@ namespace ECSReact.Samples.BattleSystem
     private BattleState battleState;
     private CharacterIdentityState identityState;
     private CharacterHealthState healthState;
-
-    private Dictionary<Entity, TurnSlotAnimationData> animationData = new Dictionary<Entity, TurnSlotAnimationData>();
-    private int previousActiveIndex = -1;
 
     public override void OnStateChanged(BattleState newState)
     {
@@ -83,7 +78,6 @@ namespace ECSReact.Samples.BattleSystem
         float targetY = (i == 0) ? currentTurnYOffset : 0f;
         Vector2 targetScale = (i == 0) ? currentTurnScale : normalTurnScale;
 
-        UnityEngine.Debug.Log($"Turn Slot {i}: Entity {characterEntity.Index} at Position ({targetX}, {targetY}) with Scale {targetScale}");
         // Create turn slot with specific parent transform
         yield return Mount.Element.FromResources(
             key: $"turn_slot_{characterEntity.Index}_{characterEntity.Version}",
