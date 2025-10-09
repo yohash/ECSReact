@@ -235,6 +235,9 @@ namespace ECSReact.Samples.BattleSystem
         if (healthText)
           healthText.text = $"{healthData.current}/{healthData.max}";
 
+        if (healthBar)
+          healthBar.value = (float)healthData.current / healthData.max;
+
         // Update death overlay
         if (deathOverlay)
           deathOverlay.SetActive(!healthData.isAlive);
@@ -257,6 +260,9 @@ namespace ECSReact.Samples.BattleSystem
 
         if (manaText)
           manaText.text = $"{manaData.current}/{manaData.max}";
+
+        if (manaBar)
+          manaBar.value = (float)manaData.current / manaData.max;
       }
 
       // Update elements (for status effects)

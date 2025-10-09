@@ -1,7 +1,6 @@
 using Unity.Entities;
 using Unity.Collections;
 using ECSReact.Core;
-using System.Diagnostics;
 
 namespace ECSReact.Samples.BattleSystem
 {

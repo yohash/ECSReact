@@ -10,4 +10,9 @@ namespace ECSReact.Samples.BattleSystem
     public bool skipAnimation;
     public bool isPlayerTurn;
   }
+
+  /// <summary>
+  /// Dispatch this when we're ready to advance our turn
+  /// </summary>
+  public struct ReadyForNextTurn : IGameAction { }
 }

@@ -20,15 +20,18 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private GameObject speedIndicator;
     [SerializeField] private TextMeshProUGUI speedText;
 
+
     [Header("Visual Configuration")]
     [SerializeField] private Color allyFrameColor = new Color(0.2f, 0.5f, 1f);
     [SerializeField] private Color enemyFrameColor = new Color(1f, 0.2f, 0.2f);
     [SerializeField] private Color currentTurnColor = Color.yellow;
+    [SerializeField] private float animateDuration = 0.3f;
 
     private TurnOrderSlotProps currentProps;
     private Vector3 currentPosition;
     private Vector2 currentScale;
     private Coroutine animationCoroutine;
+    private Coroutine pulseCoroutine;
 
     private BattleState battleState;
     private CharacterIdentityState identityState;
@@ -182,9 +185,8 @@ namespace ECSReact.Samples.BattleSystem
     private IEnumerator AnimateTransform(Vector3 targetPos, Vector2 targetScale)
     {
       Vector3 startPos = transform.localPosition;
-      Vector2 startScale = transform.localScale;
       float elapsed = 0f;
-      float duration = 0.3f;
+      float duration = animateDuration;
 
       while (elapsed < duration) {
         elapsed += Time.deltaTime;
@@ -194,15 +196,12 @@ namespace ECSReact.Samples.BattleSystem
         t = Mathf.SmoothStep(0, 1, t);
 
         transform.localPosition = Vector3.Lerp(startPos, targetPos, t);
-        transform.localScale = Vector2.Lerp(startScale, targetScale, t);
 
         yield return null;
       }
 
       transform.localPosition = targetPos;
-      transform.localScale = targetScale;
       currentPosition = targetPos;
-      currentScale = targetScale;
     }
 
     private void StartSlideAnimation()
@@ -210,18 +209,23 @@ namespace ECSReact.Samples.BattleSystem
       // Called by parent when turn changes
       // Could add special effects here
       if (currentProps != null && currentProps.SlotIndex == 0) {
+        if (pulseCoroutine != null)
+          StopCoroutine(pulseCoroutine);
+
         // Animate out the current turn
-        StartCoroutine(PulseAnimation());
+        pulseCoroutine = StartCoroutine(PulseAnimation());
       }
     }
 
     private IEnumerator PulseAnimation()
     {
-      Vector2 originalScale = transform.localScale;
+      Vector2 originalScale = Vector3.one;
       Vector2 pulseScale = originalScale * 1.3f;
 
+      transform.localScale = originalScale;
+
       // Quick pulse
-      float duration = 0.2f;
+      float duration = animateDuration;
       float elapsed = 0f;
 
       while (elapsed < duration) {

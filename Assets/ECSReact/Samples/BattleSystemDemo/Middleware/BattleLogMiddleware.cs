@@ -19,8 +19,8 @@ namespace ECSReact.Samples.BattleSystem
     )
     {
       // Get character names for the log message
-      var attackerName = GetCharacterName(action.attackerEntity);
-      var targetName = GetCharacterName(action.targetEntity);
+      var attackerName = GetCharacterName(action.attackerEntity, ref systemState);
+      var targetName = GetCharacterName(action.targetEntity, ref systemState);
 
       // Create descriptive log message
       FixedString128Bytes message;
@@ -56,11 +56,16 @@ namespace ECSReact.Samples.BattleSystem
       return true; // Continue processing the action
     }
 
-    private FixedString32Bytes GetCharacterName(Entity entity)
+    private FixedString32Bytes GetCharacterName(Entity entity, ref SystemState systemState)
     {
-      // In real implementation, would query PartyState
-      // For demo, return placeholder
-      return new FixedString32Bytes($"Entity_{entity.Index}");
+      var name = new FixedString32Bytes($"Entity_{entity.Index}");
+      if (systemState.TryGetSingleton<CharacterIdentityState>(out var idState)) {
+        var hasName = idState.names.IsCreated && idState.names.TryGetValue(entity, out name);
+        if (!hasName) {
+          UnityEngine.Debug.LogWarning($"Entity {entity.Index} has no name in CharacterIdentityState");
+        }
+      }
+      return name;
     }
   }
 

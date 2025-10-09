@@ -8,6 +8,7 @@ namespace ECSReact.Samples.BattleSystem
     public Unity.Collections.FixedList4096Bytes<BattleLogEntry> entries;
     public int totalEntriesLogged;
 
+
     public bool Equals(BattleLogState other)
     {
       if (totalEntriesLogged != other.totalEntriesLogged)

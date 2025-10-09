@@ -256,26 +256,57 @@ namespace ECSReact.Samples.BattleSystem
       // Dispatch the actual combat action based on type
       switch (currentProps.ActionType) {
         case ActionType.Attack:
-          int damage = CalculateBaseDamage(currentProps.ActiveCharacter);
-          bool isCrit = Random.value < GetCriticalChance(currentProps.ActiveCharacter);
-
-          DispatchAction(new AttackAction
-          {
-            attackerEntity = currentProps.ActiveCharacter,
-            targetEntity = selectedTarget,
-            baseDamage = damage,
-            isCritical = isCrit
-          });
+          DispatchAttackAction();
           break;
 
         case ActionType.Skill:
-          // Would dispatch skill action with currentProps.SelectedSkillId
+          DispatchSkillAction();
           break;
 
         case ActionType.Item:
-          // Would dispatch item action
+          DispatchItemAction();
           break;
       }
+    }
+
+    private void DispatchAttackAction()
+    {
+      int damage = CalculateBaseDamage(currentProps.ActiveCharacter);
+      bool isCrit = Random.value < GetCriticalChance(currentProps.ActiveCharacter);
+
+      DispatchAction(new AttackAction
+      {
+        attackerEntity = currentProps.ActiveCharacter,
+        targetEntity = selectedTarget,
+        baseDamage = damage,
+        isCritical = isCrit
+      });
+
+      // Auto-advance turn after attack
+      DispatchTurnAdvance();
+    }
+
+    private void DispatchSkillAction()
+    {
+      // Skill execution would go here
+      Debug.Log($"Using skill {currentProps.SelectedSkillId} on target");
+
+      // For now, just advance turn
+      DispatchTurnAdvance();
+    }
+
+    private void DispatchItemAction()
+    {
+      // Item usage would go here
+      Debug.Log("Using item on target");
+
+      // For now, just advance turn
+      DispatchTurnAdvance();
+    }
+
+    private void DispatchTurnAdvance()
+    {
+      DispatchAction(new ReadyForNextTurn());
     }
 
     private void OnCancelClicked()
