@@ -23,7 +23,6 @@ namespace ECSReact.Samples.BattleSystem
     [SerializeField] private RectTransform enemyLayoutGroup;
 
     [Header("Visual Configuration")]
-    [SerializeField] private float cardSpacing = 10f;
     [SerializeField] private bool showEnemies = true;
     [SerializeField] private bool animateChanges = true;
 

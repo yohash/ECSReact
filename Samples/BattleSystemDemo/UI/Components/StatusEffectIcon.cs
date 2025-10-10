@@ -51,7 +51,6 @@ namespace ECSReact.Samples.BattleSystem
     private StatusEffectProps currentProps;
     private Coroutine tooltipCoroutine;
     private Coroutine pulseCoroutine;
-    private bool isNewEffect = true;
 
     // Status effect metadata
     private readonly System.Collections.Generic.Dictionary<CharacterStatus, StatusEffectInfo> statusInfo =
@@ -105,7 +104,6 @@ namespace ECSReact.Samples.BattleSystem
     {
       currentProps = props as StatusEffectProps;
       if (currentProps != null) {
-        isNewEffect = true;
         UpdateDisplay();
 
         if (animateOnApply) {
@@ -120,12 +118,9 @@ namespace ECSReact.Samples.BattleSystem
       if (newProps != null) {
         // Check if this is a newly applied effect
         if (currentProps == null || currentProps.StatusType != newProps.StatusType) {
-          isNewEffect = true;
           if (animateOnApply) {
             PlayApplyAnimation();
           }
-        } else {
-          isNewEffect = false;
         }
 
         currentProps = newProps;

@@ -16,7 +16,6 @@ namespace ECSReact.Samples.BattleSystem
   public class BattleUIRoot : ReactiveUIComponent<BattleState, CharacterManaState, CharacterRosterState, UIBattleState>
   {
     [Header("UI Configuration")]
-    [SerializeField] private bool showDebugPanels = false;
     [SerializeField] private bool enableTutorialMode = false;
 
     [SerializeField] private RectTransform leftColumn;
