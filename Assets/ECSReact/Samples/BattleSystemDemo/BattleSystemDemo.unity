@@ -3064,7 +3064,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 163b7f5d691551d4a85db8021a026a68, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  showDebugPanels: 0
   enableTutorialMode: 0
   leftColumn: {fileID: 95118248}
 --- !u!1 &2020276020
