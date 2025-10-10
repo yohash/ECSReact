@@ -92,7 +92,6 @@ namespace ECSReact.Samples.BattleSystem
 
     // Interaction state
     private bool isHovered = false;
-    private bool isValidTarget = false;
     private bool isSelected = false;
 
     // For animations

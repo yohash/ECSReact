@@ -22,9 +22,7 @@ namespace ECSReact.Samples.BattleSystem
 
     [Header("Display Settings")]
     [SerializeField] private int maxLogEntries = 50;
-    [SerializeField] private float entrySpacing = 5f;
     [SerializeField] private bool autoScroll = true;
-    [SerializeField] private float fadeInDuration = 0.3f;
 
     [Header("Filter Options")]
     [SerializeField] private Toggle showActionsToggle;
