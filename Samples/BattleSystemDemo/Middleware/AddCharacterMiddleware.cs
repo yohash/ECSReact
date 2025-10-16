@@ -18,15 +18,14 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       ref AddCharacterAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter dispatcher,
+      EntityCommandBuffer.ParallelWriter ecb,
       int sortKey)
     {
       // Create the character entity
-      var entityManager = systemState.EntityManager;
-      var newEntity = entityManager.CreateEntity();
-      UnityEngine.Debug.Log("adding character middleware");
+      var newEntity = ecb.CreateEntity(sortKey);
+
       // Dispatch enriched internal action with the created entity
-      dispatcher.DispatchAction(sortKey,
+      ecb.DispatchAction(sortKey + 1,
         new CharacterCreatedAction
         {
           entity = newEntity,

@@ -14,7 +14,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       ref AttackAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter dispatcher,
+      EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
     )
     {
@@ -78,7 +78,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       ref NextTurnAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter dispatcher,
+      EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
     )
     {
@@ -130,7 +130,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       ref SelectActionTypeAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter dispatcher,
+      EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
     )
     {

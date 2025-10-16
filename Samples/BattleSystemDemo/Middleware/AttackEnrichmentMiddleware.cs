@@ -21,7 +21,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       ref AttackAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter dispatcher,
+      EntityCommandBuffer.ParallelWriter ecb,
       int sortKey)
     {
       // Get required states for damage calculation
@@ -57,7 +57,7 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Dispatch enriched action with calculated damage
-      dispatcher.DispatchAction(sortKey,
+      ecb.DispatchAction(sortKey,
         new ApplyDamageAction
         {
           targetEntity = action.targetEntity,

@@ -52,12 +52,12 @@ namespace ECSReact.Core
     /// </summary>
     /// <param name="action">The action to process (can be modified)</param>
     /// <param name="systemState">The system state providing access to SystemAPI</param>
-    /// <param name="dispatcher">ECB ParallelWriter for Burst-compatible action dispatching</param>
+    /// <param name="ecb">ECB ParallelWriter for Burst-compatible action dispatching</param>
     /// <param name="sortKey">Unique index for deterministic command buffer ordering</param>
     bool Process(
       ref TAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter dispatcher,
+      EntityCommandBuffer.ParallelWriter ecb,
       int sortKey);
   }
 }
