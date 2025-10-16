@@ -22,7 +22,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       ref SaveBattleAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter dispatcher,
+      EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
     )
     {
