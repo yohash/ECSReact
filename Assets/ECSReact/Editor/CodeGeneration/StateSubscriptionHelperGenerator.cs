@@ -8,15 +8,15 @@ using UnityEditor;
 using UnityEngine;
 using Unity.Entities;
 
-namespace ECSReact.CodeGen
+namespace ECSReact.Editor.CodeGeneration
 {
   public class StateSubscriptionHelperGenerator : EditorWindow
   {
     private Vector2 scrollPosition;
-    private Dictionary<string, NamespaceGroup> namespaceGroups = new Dictionary<string, NamespaceGroup>();
-    private string outputPath = "Assets/Generated/";
+    private Dictionary<string, NamespaceGroup> namespaceGroups = new();
     private bool autoRefreshDiscovery = false;
     private bool generateDebugLogs = false;
+    private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
 
     [MenuItem("ECS React/Generate StateSubscriptionHelper", priority = 202)]
     public static void ShowWindow()
@@ -71,7 +71,7 @@ namespace ECSReact.CodeGen
       if (totalStates > 0) {
         EditorGUILayout.LabelField($"Discovered {totalStates} IGameState types in {namespaceGroups.Count} namespaces:", EditorStyles.boldLabel);
 
-        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Height(300));
+        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
 
         foreach (var kvp in namespaceGroups.OrderBy(n => n.Key)) {
           drawNamespaceGroup(kvp.Key, kvp.Value);
@@ -157,7 +157,9 @@ namespace ECSReact.CodeGen
         }
       }
 
+      EditorGUILayout.BeginHorizontal();
       group.isExpanded = EditorGUILayout.Foldout(group.isExpanded, $"  {namespaceName} ({group.states.Count} states)", true);
+      EditorGUILayout.EndHorizontal();
 
       // Show namespace-level IEquatable summary
       int equatableCount = group.states.Count(s => s.implementsIEquatable);
@@ -174,18 +176,18 @@ namespace ECSReact.CodeGen
           EditorGUILayout.BeginHorizontal();
 
           state.includeInGeneration = EditorGUILayout.Toggle(state.includeInGeneration, GUILayout.Width(40));
-          EditorGUILayout.LabelField(state.typeName, GUILayout.Width(150));
-          EditorGUILayout.LabelField(state.assemblyName, EditorStyles.miniLabel, GUILayout.Width(120));
+          EditorGUILayout.LabelField(state.typeName, GUILayout.Width(180));
+          EditorGUILayout.LabelField(state.assemblyName, EditorStyles.miniLabel, GUILayout.Width(80), GUILayout.ExpandWidth(true));
 
           // Show if it implements IEquatable (required for state change detection)
           bool hasEquatable = state.implementsIEquatable;
+          if (!hasEquatable) {
+            EditorGUILayout.LabelField("⚠️", EditorStyles.boldLabel, GUILayout.Width(36));
+          }
           GUI.enabled = false;
-          EditorGUILayout.Toggle("IEquatable", hasEquatable, GUILayout.Width(80));
+          EditorGUILayout.Toggle("IEquatable", hasEquatable, GUILayout.Width(180));
           GUI.enabled = true;
 
-          if (!hasEquatable) {
-            EditorGUILayout.LabelField("⚠️", EditorStyles.boldLabel, GUILayout.Width(20));
-          }
 
           EditorGUILayout.EndHorizontal();
         }
@@ -207,10 +209,10 @@ namespace ECSReact.CodeGen
       foreach (var assembly in assemblies) {
         try {
           var types = assembly.GetTypes()
-              .Where(t => t.IsValueType && !t.IsEnum && !t.IsGenericType)
-              .Where(t => typeof(IComponentData).IsAssignableFrom(t))
-              .Where(t => t.GetInterfaces().Any(i => i.Name == "IGameState"))
-              .ToList();
+            .Where(t => t.IsValueType && !t.IsEnum && !t.IsGenericType)
+            .Where(t => typeof(IComponentData).IsAssignableFrom(t))
+            .Where(t => t.GetInterfaces().Any(i => i.Name == "IGameState"))
+            .ToList();
 
           foreach (var type in types) {
             string namespaceName = type.Namespace ?? "Global";
@@ -301,13 +303,13 @@ namespace ECSReact.CodeGen
 
       // Generate list of initialization methods to call
       string initMethods = string.Join("\n• ", selectedNamespaces.Select(ns =>
-          $"StateSubscriptionHelper.Initialize{ns.namespaceName.Replace(".", "").Replace(" ", "")}Subscriptions()"));
+        $"StateSubscriptionHelper.Initialize{ns.namespaceName.Replace(".", "").Replace(" ", "")}Subscriptions()"));
 
       EditorUtility.DisplayDialog("Generation Complete",
-            $"Generated StateSubscriptionHelper extensions for {totalStatesGenerated} states across {selectedNamespaces.Count} namespaces.\n\n" +
-            $"Files created:\n• {fileList}\n\n" +
-            $"Remember to call these initialization methods in your startup code:\n• {initMethods}\n\n" +
-            "Note: Make sure UIStateNotifier extensions are also generated for complete functionality.", "OK");
+        $"Generated StateSubscriptionHelper extensions for {totalStatesGenerated} states across {selectedNamespaces.Count} namespaces.\n\n" +
+        $"Files created:\n• {fileList}\n\n" +
+        $"Remember to call these initialization methods in your startup code:\n• {initMethods}\n\n" +
+        "Note: Make sure UIStateNotifier extensions are also generated for complete functionality.", "OK");
     }
 
     public void GenerateStateSubscriptionHelperCodeForNamespace(NamespaceGroup namespaceGroup, ref List<string> generatedFiles)

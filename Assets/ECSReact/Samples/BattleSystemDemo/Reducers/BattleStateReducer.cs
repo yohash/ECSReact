@@ -1,0 +1,66 @@
+using Unity.Entities;
+using Unity.Collections;
+using ECSReact.Core;
+
+namespace ECSReact.Samples.BattleSystem
+{
+  /// <summary>
+  /// Handles turn progression and battle phase transitions
+  /// </summary>
+  [Reducer]
+  public struct TurnOrderReducer : IReducer<BattleState, InitializeTurnOrderAction>
+  {
+    public void Execute(ref BattleState state, in InitializeTurnOrderAction action, ref SystemState systemState)
+    {
+      state.battleActive = true;
+      state.turnCount = 1;
+      state.turnTimer = 0f;
+      state.activeCharacterIndex = 0;
+      state.currentPhase = BattlePhase.PlayerSelectAction;
+      state.turnOrder = new FixedList128Bytes<Entity>();
+
+      foreach (var entity in action.turnOrder) {
+        state.turnOrder.Add(entity);
+      }
+    }
+  }
+
+  /// <summary>
+  /// Handles turn progression and battle phase transitions
+  /// </summary>
+  [Reducer]
+  public struct BattleStateReducer : IReducer<BattleState, NextTurnAction>
+  {
+    public void Execute(ref BattleState state, in NextTurnAction action, ref SystemState systemState)
+    {
+      if (!state.battleActive)
+        return;
+
+      // Advance to next character in turn order
+      state.activeCharacterIndex = action.nextCharacterIndex;
+      state.turnCount++;
+      state.turnTimer = 0f;
+
+      // Determine next phase based on whose turn it is
+      state.currentPhase = action.isPlayerTurn
+          ? BattlePhase.PlayerSelectAction
+          : BattlePhase.EnemyTurn;
+    }
+  }
+
+  /// <summary>
+  /// Handles attack execution and damage application
+  /// </summary>
+  [Reducer]
+  public struct AttackExecutionReducer : IReducer<BattleState, AttackAction>
+  {
+    public void Execute(ref BattleState state, in AttackAction action, ref SystemState systemState)
+    {
+      // Set phase to executing
+      state.currentPhase = BattlePhase.ExecutingAction;
+
+      // In a real implementation, we'd trigger animation here
+      // For demo, we'll auto-advance after "execution"
+    }
+  }
+}

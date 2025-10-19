@@ -9,13 +9,13 @@ using UnityEngine;
 using Unity.Entities;
 using ECSReact.Core;
 
-namespace ECSReact.CodeGen
+namespace ECSReact.Editor.CodeGeneration
 {
   public class UIStateNotifierGenerator : EditorWindow
   {
     private Vector2 scrollPosition;
     private Dictionary<string, NamespaceGroup> namespaceGroups = new Dictionary<string, NamespaceGroup>();
-    private string outputPath = "Assets/Generated/";
+    private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
     private bool autoRefreshDiscovery = false;
 
     [MenuItem("ECS React/Generate UIStateNotifier", priority = 201)]
@@ -151,7 +151,7 @@ namespace ECSReact.CodeGen
 
           state.includeInGeneration = EditorGUILayout.Toggle(state.includeInGeneration, GUILayout.Width(40));
           EditorGUILayout.LabelField(state.typeName, GUILayout.Width(200));
-          EditorGUILayout.LabelField(state.assemblyName, EditorStyles.miniLabel, GUILayout.Width(120));
+          EditorGUILayout.LabelField(state.assemblyName, EditorStyles.miniLabel, GUILayout.Width(120), GUILayout.ExpandWidth(true));
 
           // Priority selection
           state.eventPriority = (UIEventPriority)EditorGUILayout.EnumPopup(state.eventPriority, GUILayout.Width(80));
@@ -246,7 +246,7 @@ namespace ECSReact.CodeGen
         return;
       }
 
-      List<string> generatedFiles = new List<string>();
+      var generatedFiles = new List<string>();
       int totalStatesGenerated = 0;
 
       foreach (var namespaceGroup in selectedNamespaces) {
@@ -447,7 +447,7 @@ namespace ECSReact.CodeGen
       string eventsCode = generateUIEventClasses(selectedStates, firstNamespace.namespaceName);
 
       // Create a preview window
-      var previewWindow = GetWindow<CodePreviewWindow>("Generated Code Preview");
+      var previewWindow = GetWindow<UIStateNotifierCodePreviewWindow>("Generated Code Preview");
 
       string title = selectedNamespaces.Count > 1 ?
           $"Preview for {firstNamespace.namespaceName} (+{selectedNamespaces.Count - 1} more namespaces)" :
@@ -460,7 +460,7 @@ namespace ECSReact.CodeGen
     }
   }
 
-  public class CodePreviewWindow : EditorWindow
+  public class UIStateNotifierCodePreviewWindow : EditorWindow
   {
     private Vector2 scrollPosition;
     private string content1Title;

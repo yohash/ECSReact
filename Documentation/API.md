@@ -1,10 +1,14 @@
 # API Reference
 
-## Core Dispatch
+## Store Dispatch
 
 ```csharp
 Store.Dispatch<T>(T action)                          // Dispatch action to ECS
 Store.Instance.Dispatch<T>(T action)                 // Singleton access
+
+ECSActionDispatcher
+├── Dispatch<T>(EntityCommandBuffer commandBuffer, T action)       // Helper: dispatch from ECS world
+└── DispatchImmediate<T>(EntityManager entityManager, T action)    // Helper: dispatch from ECS world
 ```
 
 ## UI Components
@@ -14,8 +18,8 @@ ReactiveUIComponent
 ├── SubscribeToStateChanges()                        // Override: define subscriptions
 ├── UnsubscribeFromStateChanges()                    // Override: cleanup subscriptions    
 ├── DispatchAction<T>(T action)                      // Helper: dispatch from UI
-├── DeclareElements()                                 // Override: define child elements
-└── UpdateElements()                                  // Call: trigger element reconciliation
+├── DeclareElements()                                // Override: define child elements
+└── UpdateElements()                                 // Call: trigger element reconciliation
 
 ReactiveUIComponent<T>
 └── OnStateChanged(T newState)                       // Override: handle state updates
@@ -76,29 +80,58 @@ StateSubscriptionHelper
 └── RegisterStateSubscriptionHandlers<T>()           // Generated: register handlers
 
 SceneStateManager
-├── DiscoverStates()                                 // Find all IGameState types
-├── CreateEnabledSingletons()                        // Create state entities    
-├── RemoveDisabledSingletons()                       // Remove state entities
-├── VerifySingletonStates()                          // Debug: check existence
-└── GetStatesByNamespace()                           // Get discovered states by namespace
+├── GetStateEntity<T>()                              // Helper: Return the state's Entity or Entity.Null
+├── GetState<T>()                                    // Helper: Get the state type from the retrieved Entity
+├── SetState<T>(T state)                             // Helper: Set the entities component data via Entity Manager
+├── GetStateEntity(Type stateType)                   // Helper: Return the state's Entity or Entity.Null
+├── GetState(Type stateType)                         // Helper: Get the state type from the State Registry
+├── SetState(Type stateType, object state)           // Helper: Set the state using the State Registry
+├── HasState<T>()                                    // Query: Check the state entities for a contained Type
+├── HasState(Type stateType)                         // Query: Check the state entities for a contained Type
+└── GetAllStateEntities()                            // Query: Returns the IReadOnlyDictionary<Type, Entity> of entities
 ```
 
 ## System Base Classes
 
 ```csharp
-StateReducerSystem<TState, TAction>
-└── ReduceState(ref TState state, TAction action)    // Override: pure state logic
+IReducer<TState, TAction>
+└── Execute(ref TState state, in TAction action, ref SystemState systemState)
+                                                     // Implement: mutate state with SystemAPI access via SystemState
 
-MiddlewareSystem<T>    
-├── ProcessAction(T action, Entity entity)           // Override: side effects
-└── DispatchAction<TNew>(TNew newAction)             // Helper: dispatch additional actions
+IParallelReducer<TState, TAction, TData>
+├── PrepareData(ref SystemState systemState)         // Main thread: prepare lookup data
+│   └── Returns struct TData
+└── Execute(ref TState state, in TAction action, in TData data)
+                                                     // Implement: Burst-compiled mutate state logic using prepared data
 
-BurstMiddlewareSystem<T>    
-├── ProcessAction(T action, Entity entity)           // Override: burst-compatible side effects
-└── DispatchAction<TNew>(TNew newAction)             // Helper: dispatch additional actions
+IMiddleware<TAction>
+└── bool Process(ref TAction action, ref SystemState systemState)
+                                                     // Implement: Sequential processing, validate, transform, or filter actions
+                                                     // Return false to prevent action from reaching reducers
 
+IParallelMiddleware<TAction, TData>
+├── PrepareData(ref SystemState systemState)         // Main thread: prepare lookup data
+│   └── Returns TData struct
+└── Process(ref TAction action, in TData data)       // Implement: Parallel processing, transform action data only
+   
 StateChangeNotificationSystem<T>
 └── CreateStateChangeEvent(T new, T old, bool hasOld) // Override: create UI events
+```
+
+## Attributes
+
+```csharp
+[Reducer(
+    Order = 100,                                      // Execution order (lower runs first)
+    SystemName = "CustomName",                        // Optional: override generated system name
+    DisableBurst = false                              // Optional: disable Burst compilation
+)]
+
+[Middleware(
+    Order = 50,                                       // Execution order (lower runs first)
+    SystemName = "CustomName",                        // Optional: override generated system name  
+    DisableBurst = false                              // Optional: disable Burst compilation
+)]
 ```
 
 ## UI Events
@@ -157,40 +190,6 @@ IElement.UpdateProps(newProps)                      // Implement: receive prop u
 element.unmount()                                    // Internal: cleanup and destroy
 ```
 
-## Usage Patterns
-
-```csharp
-// Single State Component
-public class HealthDisplay : ReactiveUIComponent<HealthState>
-{
-    public override void OnStateChanged(HealthState state) { /* update UI */ }
-}
-
-// Multi-State Component  
-public class GameHUD : ReactiveUIComponent<GameState, PlayerState>
-{
-    public override void OnStateChanged(GameState state) { /* update game UI */ }
-    public override void OnStateChanged(PlayerState state) { /* update player UI */ }
-}
-
-// Dynamic Element Composition
-public class InventoryGrid : ReactiveUIComponent<InventoryState>
-{
-    protected override IEnumerable<UIElement> DeclareElements()
-    {
-        foreach (var item in state.items)
-            yield return UIElement.FromPrefab($"item_{item.id}", "UI/Item", itemProps);
-    }
-}
-
-// Props-Based Communication
-public class ItemDisplay : ReactiveUIComponent<InventoryState>, IElement
-{
-    public void InitializeWithProps(UIProps props) { /* setup with initial data */ }
-    public void UpdateProps(UIProps props) { /* handle props changes */ }
-}
-```
-
 ## Next
 
 1. [Overview](Overview.md)
@@ -199,3 +198,5 @@ public class ItemDisplay : ReactiveUIComponent<InventoryState>, IElement
 4. API
 5. [Debugging Tools](Debugging.md)
 6. [Examples & Patterns](Examples.md)
+7. [Best Practices](BestPractices.md)
+8. [Performance Optimization Guide](Performance.md)

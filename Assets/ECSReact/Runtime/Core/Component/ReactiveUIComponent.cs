@@ -13,14 +13,13 @@ namespace ECSReact.Core
   /// </summary>
   public abstract class ReactiveUIComponent : MonoBehaviour
   {
-    private readonly Dictionary<string, UIElement> _children = new Dictionary<string, UIElement>();
+    private readonly Dictionary<string, UIElement> _children = new();
     private readonly SemaphoreSlim _updateSemaphore = new SemaphoreSlim(1, 1);
-    private CancellationTokenSource _cancellationTokenSource;
+    private CancellationTokenSource _cancellationTokenSource = new();
     private Task _currentUpdateTask;
 
     protected virtual void Start()
     {
-      _cancellationTokenSource = new CancellationTokenSource();
       SubscribeToStateChanges();
 
       // Trigger initial element update
@@ -118,11 +117,11 @@ namespace ECSReact.Core
       await _updateSemaphore.WaitAsync(cancellationToken);
 
       try {
-        await updateElementsInternalAsync(cancellationToken);
+        await updateElementsAsync(cancellationToken);
       } catch (OperationCanceledException) {
         // Expected when component is destroyed
       } catch (Exception ex) {
-        Debug.LogError($"Error updating elements in {GetType().Name}: {ex.Message}");
+        Debug.LogError($"Error updating elements in {GetType().Name}: {ex.Message}\n{ex.StackTrace}");
       } finally {
         _updateSemaphore.Release();
       }
@@ -131,7 +130,7 @@ namespace ECSReact.Core
     /// <summary>
     /// Internal implementation of element updates
     /// </summary>
-    private async Task updateElementsInternalAsync(CancellationToken cancellationToken)
+    internal async Task updateElementsAsync(CancellationToken cancellationToken)
     {
       var desiredElements = DeclareElements()?.ToList() ?? new List<UIElement>();
       var desiredKeys = new HashSet<string>(desiredElements.Select(e => e.Key));
@@ -139,8 +138,9 @@ namespace ECSReact.Core
       // Remove elements that are no longer desired
       var keysToRemove = _children.Keys.Where(k => !desiredKeys.Contains(k)).ToList();
       foreach (var key in keysToRemove) {
-        if (cancellationToken.IsCancellationRequested)
+        if (cancellationToken.IsCancellationRequested) {
           break;
+        }
 
         var element = _children[key];
         _children.Remove(key);
@@ -151,8 +151,9 @@ namespace ECSReact.Core
       var mountTasks = new List<Task>();
 
       foreach (var element in desiredElements) {
-        if (cancellationToken.IsCancellationRequested)
+        if (cancellationToken.IsCancellationRequested) {
           break;
+        }
 
         if (_children.TryGetValue(element.Key, out var existing)) {
           // Update existing element
@@ -184,7 +185,7 @@ namespace ECSReact.Core
           element.GameObject.transform.SetSiblingIndex(element.Index);
         }
       } catch (Exception ex) {
-        Debug.LogError($"Failed to mount element {element.Key}: {ex.Message}");
+        Debug.LogError($"{GetType()} failed to mount element {element.Key}: {ex.Message}\n{ex.StackTrace}");
 
         // Remove from children if mount failed
         _children.Remove(element.Key);

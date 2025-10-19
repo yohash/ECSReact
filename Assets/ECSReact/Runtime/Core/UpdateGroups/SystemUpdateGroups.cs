@@ -13,8 +13,8 @@ namespace ECSReact.Core
   /// Middleware handles cross-cutting concerns like validation, logging, and async operations.
   /// Runs in InitializationSystemGroup to process actions as early as possible.
   /// </summary>
-  [UpdateInGroup(typeof(InitializationSystemGroup))]
-  [UpdateAfter(typeof(BeginInitializationEntityCommandBufferSystem))]
+  [UpdateInGroup(typeof(SimulationSystemGroup))]
+  [UpdateBefore(typeof(ReducerSystemGroup))]
   public partial class MiddlewareSystemGroup : ComponentSystemGroup
   {
     protected override void OnCreate()
@@ -49,7 +49,7 @@ namespace ECSReact.Core
   /// Runs after simulation systems to ensure actions can be processed by multiple reducers.
   /// This is where ActionCleanupSystem runs to destroy all ActionTag entities.
   /// </summary>
-  [UpdateAfter(typeof(SimulationSystemGroup))]
+  [UpdateAfter(typeof(ReducerSystemGroup))]
   public partial class ActionCleanupSystemGroup : ComponentSystemGroup
   {
     protected override void OnCreate()
@@ -105,9 +105,18 @@ namespace ECSReact.Core
   /// Attribute for reducer systems that process actions and update state.
   /// Ensures reducers run in SimulationSystemGroup after middleware but before cleanup.
   /// </summary>
-  public class ReducerSystemAttribute : UpdateInGroupAttribute
+  public class ReducerUpdateGroupAttribute : UpdateInGroupAttribute
   {
-    public ReducerSystemAttribute() : base(typeof(ReducerSystemGroup)) { }
+    public ReducerUpdateGroupAttribute() : base(typeof(ReducerSystemGroup)) { }
+  }
+
+  /// <summary>
+  /// Attribute for general middleware systems that process actions before reducers.
+  /// Ensures middleware runs early in the pipeline.
+  /// </summary>
+  public class MiddlewareUpdateGroupAttribute : UpdateInGroupAttribute
+  {
+    public MiddlewareUpdateGroupAttribute() : base(typeof(MiddlewareSystemGroup)) { }
   }
 
   /// <summary>

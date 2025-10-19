@@ -1,4 +1,4 @@
-﻿using ECSReact.Tools;
+﻿using ECSReact.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,14 +9,13 @@ using Unity.Entities;
 using UnityEditor;
 using UnityEngine;
 
-namespace ECSReact.CodeGen
+namespace ECSReact.Editor.CodeGeneration
 {
   public class StoreExtensionsGenerator : EditorWindow
   {
     private Vector2 scrollPosition;
     private Dictionary<string, NamespaceGroup> namespaceGroups = new();
-    private string outputPath = "Assets/Generated/";
-    private bool autoRefreshDiscovery = false;
+    private string outputPath = Constants.DEFAULT_OUTPUT_PATH;
     private bool generateXmlDocs = true;
     private bool useFluentNaming = true; // SpendMatter vs SpendMatterAction
 
@@ -28,7 +27,7 @@ namespace ECSReact.CodeGen
 
     private void OnEnable()
     {
-      discoverActionTypes();
+      DiscoverActionTypes();
     }
 
     private void OnGUI()
@@ -52,14 +51,20 @@ namespace ECSReact.CodeGen
       EditorGUILayout.Space();
 
       // Options
-      autoRefreshDiscovery = EditorGUILayout.Toggle("Auto-refresh Discovery", autoRefreshDiscovery);
-      generateXmlDocs = EditorGUILayout.Toggle("Generate XML Documentation", generateXmlDocs);
-      useFluentNaming = EditorGUILayout.Toggle("Use Fluent Naming (remove 'Action' suffix)", useFluentNaming);
+      EditorGUILayout.BeginHorizontal();
+      generateXmlDocs = EditorGUILayout.Toggle("", generateXmlDocs, GUILayout.Width(30));
+      EditorGUILayout.LabelField("Generate XML Documentation");
+      EditorGUILayout.EndHorizontal();
+
+      EditorGUILayout.BeginHorizontal();
+      useFluentNaming = EditorGUILayout.Toggle("", useFluentNaming, GUILayout.Width(30));
+      EditorGUILayout.LabelField("Use Fluent Naming (remove 'Action' suffix)");
+      EditorGUILayout.EndHorizontal();
 
       // Discovery controls
       EditorGUILayout.BeginHorizontal();
       if (GUILayout.Button("Discover Action Types")) {
-        discoverActionTypes();
+        DiscoverActionTypes();
       }
       if (GUILayout.Button("Clear Discovery")) {
         namespaceGroups.Clear();
@@ -72,7 +77,7 @@ namespace ECSReact.CodeGen
       int totalActions = namespaceGroups.Values.Sum(g => g.actions.Count);
 
       if (totalActions > 0) {
-        EditorGUILayout.LabelField($"Discovered {totalActions} IGameAction types in {namespaceGroups.Count} namespaces:", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField($"Discovered ({totalActions}) actions in {namespaceGroups.Count} namespaces:", EditorStyles.boldLabel);
 
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
 
@@ -120,11 +125,6 @@ namespace ECSReact.CodeGen
           "• Files organized in namespace-specific folders\n" +
           "• Generated methods are static extensions on the Store class",
           MessageType.Info);
-
-      // Auto-refresh
-      if (autoRefreshDiscovery && Event.current.type == EventType.Layout) {
-        discoverActionTypes();
-      }
     }
 
     private void drawNamespaceGroup(string namespaceName, NamespaceGroup group)
@@ -144,7 +144,9 @@ namespace ECSReact.CodeGen
         }
       }
 
+      EditorGUILayout.BeginHorizontal();
       group.isExpanded = EditorGUILayout.Foldout(group.isExpanded, $"  {namespaceName} ({group.actions.Count} actions)", true);
+      EditorGUILayout.EndHorizontal();
 
       // Show namespace-level field summary
       int totalFields = group.actions.Sum(a => a.fields.Count);
@@ -224,7 +226,7 @@ namespace ECSReact.CodeGen
       return actionTypeName;
     }
 
-    private void discoverActionTypes()
+    private void DiscoverActionTypes()
     {
       var previousGroups = namespaceGroups.ToDictionary(a => a.Key, a => a.Value);
       namespaceGroups.Clear();
@@ -237,7 +239,7 @@ namespace ECSReact.CodeGen
           var types = assembly.GetTypes()
               .Where(t => t.IsValueType && !t.IsEnum && !t.IsGenericType)
               .Where(t => typeof(IComponentData).IsAssignableFrom(t))
-              .Where(t => t.GetInterfaces().Any(i => i.Name == "IGameAction"))
+              .Where(t => typeof(IGameAction).IsAssignableFrom(t))
               .ToList();
 
           foreach (var type in types) {
@@ -320,13 +322,13 @@ namespace ECSReact.CodeGen
       int totalStatesGenerated = 0;
 
       foreach (var namespaceGroup in selectedNamespaces) {
-        var selectedStates = namespaceGroup.actions.Where(s => s.includeInGeneration).ToList();
-        if (selectedStates.Count == 0) {
+        var selectedActions = namespaceGroup.actions.Where(s => s.includeInGeneration).ToList();
+        if (selectedActions.Count == 0) {
           continue;
         }
 
         GenerateStoreExtensionsForNamespace(namespaceGroup, ref generatedFiles);
-        totalStatesGenerated += selectedStates.Count;
+        totalStatesGenerated += selectedActions.Count;
       }
 
       // Refresh Unity to recognize the new files
@@ -336,19 +338,18 @@ namespace ECSReact.CodeGen
 
       EditorUtility.DisplayDialog("Generation Complete",
           $"Generated Store extensions for {selectedNamespaces.Count} actions.\n\n" +
-          $"Files created:\n• {fileList}\n\n" +
-          "You can now use typed dispatch methods like Store.Instance.SpendMatter(100) in your UI code!", "OK");
+          $"Files created:\n• {fileList}\n\n", "OK");
     }
 
     public void GenerateStoreExtensionsForNamespace(NamespaceGroup namespaceGroup, ref List<string> generatedFiles)
     {
-      if (namespaceGroup.states.Count == 0) {
-        Debug.LogWarning($"No states found for namespace {namespaceGroup.namespaceName}");
+      if (namespaceGroup.actions.Count == 0) {
+        Debug.LogWarning($"No actions found for namespace {namespaceGroup.namespaceName}");
         return;
       }
-      var selectedStates = namespaceGroup.actions.Where(s => s.includeInGeneration).ToList();
-      if (selectedStates.Count == 0) {
-        Debug.LogWarning($"No states selected for generation in namespace {namespaceGroup.namespaceName}");
+      var selectedActions = namespaceGroup.actions.Where(s => s.includeInGeneration).ToList();
+      if (selectedActions.Count == 0) {
+        Debug.LogWarning($"No actions selected for generation in namespace {namespaceGroup.namespaceName}");
         return;
       }
 
@@ -356,7 +357,7 @@ namespace ECSReact.CodeGen
       string namespaceOutputPath = createNamespaceOutputPath(namespaceGroup.namespaceName);
 
       // Generate UIStateNotifier partial class for this namespace
-      string code = generateStoreExtensionsCode(selectedStates, namespaceGroup.namespaceName);
+      string code = generateStoreExtensionsCode(selectedActions, namespaceGroup.namespaceName);
       string path = Path.Combine(namespaceOutputPath, "StoreExtensions.Generated.cs");
       File.WriteAllText(path, code);
       generatedFiles.Add(path);
@@ -385,6 +386,7 @@ namespace ECSReact.CodeGen
       sb.AppendLine("// Do not modify this file directly - it will be overwritten");
       sb.AppendLine("// </auto-generated>");
       sb.AppendLine();
+      sb.AppendLine("using System;");
       sb.AppendLine("using Unity.Entities;");
       sb.AppendLine("using Unity.Mathematics;");
       sb.AppendLine("using Unity.Collections;");

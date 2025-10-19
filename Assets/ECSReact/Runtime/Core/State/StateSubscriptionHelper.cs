@@ -39,6 +39,11 @@ namespace ECSReact.Core
         Debug.LogWarning($"No subscription handler registered for state type {typeof(T).Name}. " +
           "Make sure code generation has run or manually register handlers.");
       }
+
+      // Get current state and invoke immediately to initialize
+      if (SceneStateManager.Instance.GetState(out T currentState)) {
+        subscriber.OnStateChanged(currentState);
+      }
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using UnityEngine;
+using ECSReact.Core;
 
-namespace ECSReact.Core
+namespace ECSReact.Editor
 {
   /// <summary>
   /// Debug helper component that can be added to GameObjects to monitor UI event flow.

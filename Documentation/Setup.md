@@ -7,16 +7,14 @@
 * `Store` - Action dispatch singleton from UI to ECS
 * `UIEventQueue` - Frame-budgeted UI event processing
 * `SceneStateManager` - State singleton discovery and creation
-  * Enable "Auto Discover On Awake"
-  * Enable "Create Singletons On Start"
 
 ### 2. **Code Generation (one-time setup)**
 
 * Run **ECSReact → Auto Generate All** from Unity menu
-* Select your namespaces (avoid `ECSReact.Core`)
-* Generates all required glue code automatically
+* Select your namespaces
+* Generates all required code automatically
 
-### 3. **Initialization Code (2 method calls)**
+### 3. **Initialize Code (2 method calls)**
 
 After running code generation, call these in your startup script:
 
@@ -31,9 +29,36 @@ void Start()
 }
 ```
 
+### 4. **State Bootstrapping**
+
+To get your state into the ECS world, there are two options:
+
+1. **`SceneStateManager`** - State singleton discovery and creation
+    1. Place this `MonoBehaviour` into your scene
+    2. Run State Discovery
+    3. Check-box select the state that you'd like in your scene
+    4. (optional) Edit the default values of your state
+    5. The manager will load your state into the ECS world on start
+
+2. **Manual code** - Use this pattern to initialize your desired state
+
+```csharp
+    private void InitializeState(EntityManager entityManager)
+    {
+      var uiState = new UIState
+      {
+        activePanel = MenuPanel.None,
+        selectedTarget = Entity.Null,
+        selectedItemId = -1,
+      };
+
+      var entity = entityManager.CreateSingleton(uiState, "UI State");
+    }
+```
+
 ### **Finish**
 
-With these 3 MonoBehaviours in scene + 2 initialization calls + code generation, you have:
+With these 3 MonoBehaviours in scene + 2 initialization calls + code generation + state bootstrapping, you have:
 
 * **Action dispatch** from UI to ECS  
 * **State change detection** and UI updates  
@@ -57,7 +82,7 @@ public struct GameState : IGameState, IEquatable<GameState>
 {
     public int health;
     public int score;
-    
+
     public bool Equals(GameState other) => health == other.health && score == other.score;
 }
 ```
@@ -74,12 +99,92 @@ public struct TakeDamageAction : IGameAction
 
 ### 3. Create Reducers
 
+#### Option A: Standard Reducer (Simple, Flexible)
+
+Use for general game logic that needs flexibility:
+
 ```csharp
-public partial class GameReducer : StateReducerSystem<GameState, TakeDamageAction>
+[Reducer]  // Burst-compiled by default
+public struct GameReducer : IReducer<GameState, TakeDamageAction>
 {
-    protected override void ReduceState(ref GameState state, TakeDamageAction action)
+    public void Execute(ref GameState state, in TakeDamageAction action, ref SystemState systemState)
     {
-        state.health = math.max(0, state.health - action.damage);
+        // Access time through systemState
+        float time = systemState.WorldUnmanaged.Time.ElapsedTime;
+        
+        // Access singletons using extension methods
+        var config = systemState.GetSingleton<GameConfig>();
+        
+        // Apply state mutation
+        state.health = math.max(0, state.health - action.damage * config.damageMultiplier);
+    }
+}
+```
+
+#### Option B: Sequential with Entity Creation
+
+Use when you need to create/destroy entities:
+
+
+```csharp
+[Reducer(DisableBurst = true)]  // Required for EntityManager access
+public struct SpawnReducer : IReducer<GameState, SpawnEnemyAction>
+{
+    public void Execute(ref GameState state, in SpawnEnemyAction action, ref SystemState systemState)
+    {
+        // Create entity (requires DisableBurst = true)
+        var entity = systemState.EntityManager.CreateEntity();
+        systemState.EntityManager.AddComponentData(entity, new Enemy
+        {
+            health = action.health,
+            damage = action.damage
+        });
+
+        // UnityEngine calls (requires DisableBurst = true)
+        UnityEngine.Debug.Log($"Created entity: {entity}");  
+
+        state.enemyCount++;
+    }
+}
+```
+
+#### Option C: Parallel Reducer (Maximum Performance)
+
+Use for math-heavy operations that run frequently:
+
+```csharp
+[Reducer]  // Burst-compiled for 10-100x performance
+public struct PhysicsReducer : IParallelReducer<PhysicsState, ForceAction, PhysicsReducer.FrameData>
+{
+    // Data prepared once per frame on main thread
+    public struct FrameData
+    {
+        public float deltaTime;
+        public float3 gravity;
+        public ComponentLookup<Mass> massLookup;
+    }
+    
+    public FrameData PrepareData(ref SystemState systemState)
+    {
+        // Full SystemAPI access here
+        var config = systemState.GetSingleton<PhysicsConfig>();
+        
+        return new FrameData
+        {
+            deltaTime = systemState.WorldUnmanaged.Time.DeltaTime,
+            gravity = config.gravity,
+            massLookup = SystemAPI.GetComponentLookup<Mass>(true)
+        };
+    }
+    
+    public void Execute(ref PhysicsState state, in ForceAction action, in FrameData data)
+    {
+        // Pure parallel computation - no SystemAPI access
+        var mass = data.massLookup[action.targetEntity];
+        var acceleration = (action.force + data.gravity) / mass.value;
+        
+        state.velocity += acceleration * data.deltaTime;
+        state.position += state.velocity * data.deltaTime;
     }
 }
 ```
@@ -92,7 +197,7 @@ public partial class GameReducer : StateReducerSystem<GameState, TakeDamageActio
 public class HealthBar : ReactiveUIComponent<GameState>
 {
     [SerializeField] private Slider healthSlider;
-    
+
     public override void OnStateChanged(GameState newState)
     {
         healthSlider.value = (float)newState.health / 100f;
@@ -105,15 +210,15 @@ public class HealthBar : ReactiveUIComponent<GameState>
 ```csharp
 public class HUD : ReactiveUIComponent<GameState, PlayerState>
 {      
-    public override void OnStateChanged(GameState state) 
-    { 
+    public override void OnStateChanged(GameState state)
+    {
         // Update health, score displays
         UpdateHealthDisplay(state.health);
         UpdateScoreDisplay(state.score);
     }
-    
-    public override void OnStateChanged(PlayerState state) 
-    { 
+
+    public override void OnStateChanged(PlayerState state)
+    {
         // Update level, XP displays
         UpdateLevelDisplay(state.level);
         UpdateXPBar(state.experience);
@@ -127,17 +232,17 @@ public class HUD : ReactiveUIComponent<GameState, PlayerState>
 public class InventoryPanel : ReactiveUIComponent<InventoryState>
 {
     private InventoryState currentState;
-    
+
     public override void OnStateChanged(InventoryState newState)
     {
         currentState = newState;
         UpdateElements(); // Trigger element reconciliation
     }
-    
+
     protected override IEnumerable<UIElement> DeclareElements()
     {
         if (currentState.items == null) yield break;
-        
+
         // Create element for each inventory item
         int index = 0;
         foreach (var item in currentState.items)
@@ -145,14 +250,14 @@ public class InventoryPanel : ReactiveUIComponent<InventoryState>
             yield return UIElement.FromPrefab(
                 key: $"item_{item.id}",
                 prefabPath: "UI/InventoryItemPrefab",
-                props: new ItemProps { 
-                    ItemName = item.name, 
-                    ItemCount = item.count 
+                props: new ItemProps {
+                    ItemName = item.name,
+                    ItemCount = item.count
                 },
                 index: index++
             );
         }
-        
+
         // Show empty message when no items
         if (currentState.items.Count == 0)
         {
@@ -178,30 +283,32 @@ public class InventoryItemDisplay : ReactiveUIComponent<InventoryState>, IElemen
 {
     [SerializeField] private Text nameText;
     [SerializeField] private Text countText;
-    
+
     private ItemProps itemProps;
-    
+    private InventoryState inventoryState;
+
     public void InitializeWithProps(UIProps props)
     {
         itemProps = props as ItemProps;
         UpdateDisplay();
     }
-    
+
     public void UpdateProps(UIProps props)
     {
         itemProps = props as ItemProps;
         UpdateDisplay();
     }
-    
+
     public override void OnStateChanged(InventoryState newState)
     {
-        // Can also respond to global state if needed
+        inventoryState = newState;
+        UpdateDisplay();
     }
-    
+
     private void UpdateDisplay()
     {
         if (itemProps == null) return;
-        
+
         nameText.text = itemProps.ItemName;
         countText.text = itemProps.ItemCount.ToString();
     }
@@ -211,15 +318,28 @@ public class InventoryItemDisplay : ReactiveUIComponent<InventoryState>, IElemen
 ### 5. Optional: Add Middleware
 
 ```csharp
-public partial class DamageValidation : MiddlewareSystem<TakeDamageAction>
+[Middleware(DisableBurst = true)]  // Allows managed operations
+public struct DamageValidation : IMiddleware<TakeDamageAction>
 {
-    protected override void ProcessAction(TakeDamageAction action, Entity entity)
+    public bool Process(ref TakeDamageAction action, ref SystemState systemState)
     {
-        if (action.damage < 0) 
+        // Validate action
+        if (action.damage < 0)
         {
-            EntityManager.AddComponent<InvalidActionTag>(entity);
-            DispatchAction(new ShowErrorAction { message = "Invalid damage value" });
+            // Dispatch error feedback
+            ECSActionDispatcher.Dispatch(new ShowErrorAction 
+            { 
+                message = "Invalid damage value" 
+            });
+            
+            return false;  // Filter out this action - reducers won't see it
         }
+        
+        // Clamp damage to max
+        var config = systemState.GetSingleton<GameConfig>();
+        action.damage = math.min(action.damage, config.maxDamage);
+        
+        return true;  // Action continues to reducers
     }
 }
 ```
@@ -232,3 +352,5 @@ public partial class DamageValidation : MiddlewareSystem<TakeDamageAction>
 4. [API](API.md)
 5. [Debugging Tools](Debugging.md)
 6. [Examples & Patterns](Examples.md)
+7. [Best Practices](BestPractices.md)
+8. [Performance Optimization Guide](Performance.md)

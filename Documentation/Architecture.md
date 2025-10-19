@@ -33,21 +33,21 @@ State Changes   →   StateSubscriptionHelper   →   UI Components
 
 **Components:**
 
-* `MiddlewareSystem<T>.cs` - Abstract base processing actions without consuming them
-* `BurstMiddlewareSystem<T>.cs` - High-performance variant for simple operations
+* `IMiddleware<TAction>.cs` - Sequential processing with filtering capability
+* `IParallelMiddleware<TAction, TData>.cs` - High-performance parallel processing with PrepareData pattern
 
 **Internal Flow:**
 
 ```
-Action Created   →   Middleware Pipeline     →   Continue to Reducers
-     ↓                       ↓                            ↓
-   Entity             Side Effects Only              Unmodified
-                    [Validation] [Logging]           Action Entity
-                    [Analytics] [Async Ops]        
-                             ↓                     
-                    (Additional Actions,
-                      Error Handling,
-                      External Calls)
+Action Created   →   Middleware Pipeline     →   Continue/Filter to Reducers
+     ↓                       ↓                               ↓
+   Entity             Sequential:                     Can Return false
+                    [Validation] [Logging]             to Filter Out
+                    [Dispatching] [Side Effects]       Action
+                             ↓
+                       Parallel:               →      Cannot Filter
+                    [High-Speed Validation]            
+                    [Data Transformation]
 ```
 
 **Middleware** intercepts and processes actions for cross-cutting concerns before they reach business logic, without blocking the core state update flow.
@@ -58,22 +58,21 @@ Action Created   →   Middleware Pipeline     →   Continue to Reducers
 
 **Components:**
 
-* `ReducerSystem<TState, TAction>.cs` - State transformation logic with no side effects
+* `IReducer<TState, TAction>.cs` - State transformation logic with no side effects
+* `IParallelReducer<TState, TAction, TData>.cs` - High-performance parallel state updates
 * `StateChangeNotificationSystem<T>.cs` - Detects changes and generates UI events
 
 **Internal Flow:**
 
 ```
-Action Entities    →     ReducerSystem        →       Updated Singleton State
-     ↓                        ↓                               ↓
- Type-Filtered           Mutate State                     New State
-  ECS Query             (No Side Effects)                in ECS World
+Action Entities    →     Reducer Pipeline     →    Updated Singleton State
+     ↓                        ↓                             ↓
+Type-Filtered             Sequential:                  Direct State
+ ECS Query               Full SystemAPI Access           Mutation
+                         Time, Singletons, etc.
                               ↓
-                         StateChangeNotificationSystem
-                              ↓
-                         Compare with Previous
-                              ↓
-                         Queue UI Events
+                          Parallel:
+                         PrepareData + Execute 
 ```
 
 **Reducers** are the core business logic layer that transforms actions into state changes and triggers the UI update pipeline.
@@ -195,3 +194,5 @@ Each component has clear responsibilities and clean interfaces, making the syste
 4. [API](API.md)
 5. [Debugging Tools](Debugging.md)
 6. [Examples & Patterns](Examples.md)
+7. [Best Practices](BestPractices.md)
+8. [Performance Optimization Guide](Performance.md)

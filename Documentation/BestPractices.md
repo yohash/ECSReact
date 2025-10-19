@@ -4,24 +4,144 @@
 
 ### Action Design
 
-- **Actions are Events** - Name them as past-tense events: `CharacterAttacked`, not `AttackCharacter`
+- **Single Responsibility** - Each action represents one logical event
 - **Complete Context** - Include all data needed by reducers to process the action
 - **Immutable Data** - Use value types and fixed collections for action data
-- **Single Responsibility** - Each action represents one logical event
+- **Serializable Payload** - Actions must be serializable for debugging, replay, and networking
+- **Actions are Events** - Name them as past-tense events: `CharacterAttacked`, not `AttackCharacter`
+- **Domain Language** - Name actions after business events (`PlayerLeveledUp`) not technical operations (`IncrementLevel`)
+- **Failure Actions** - For every async action, consider corresponding failure/error actions
 
 ### Reducer Design
 
 - **Pure Functions** - No side effects, no external dependencies
+- **Avoid Reducer Logic** - Business logic belongs in middleware, reducers just apply updates
+- **Compose Small Reducers** - Break complex state updates into smaller, focused reducers
 - **Defensive Copying** - Always work with copies of state data
 - **Predictable Updates** - Same state + same action = same result
 - **Fast Execution** - Keep reducers lightweight, defer heavy computation
+- **Batch-Friendly** - Design reducers to handle multiple similar actions efficiently
 
 ### State Design
 
+- **Minimal State** - Store only essential data, compute derived values as needed
 - **Normalized Structure** - Avoid deeply nested state trees
+- **Avoid Circular References** - Use Entity IDs, not object references, to prevent serialization issues
+- **Separate Concerns** - Domain state (game data) vs UI state (menu selections) vs Meta state (settings)
 - **Fixed-Size Collections** - Use `FixedList` types for predictable memory layout
 - **Value Equality** - Implement `IEquatable<T>` for efficient change detection
-- **Minimal State** - Store only essential data, compute derived values as needed
+- **Serialization-Ready** - State must be serializable for save/load and networking
+- **Version Your Schema** - Include version fields for migration compatibility
+- **Design for Undo** - Structure state to support undo/redo and replay systems
+
+### Component Design
+
+- **Local State Ownership** - Components manage their own UI state and interactions, communicating through actions
+- **Props Down, Actions Up** - Receive data via props/state-subscriptions, communicate changes only through dispatched actions
+- **Single UI Responsibility** - Each component renders one logical piece of UI and handles its specific interactions
+- **Declarative Rendering** - Describe what the UI should look like for a given state, not how to manipulate it
+- **Composition Over Inheritance** - Build complex UIs by composing simple components, not through deep inheritance
+- **Controlled Inputs** - Form inputs and interactive elements should be controlled by state, not self-managed
+- **Effect Isolation** - Side effects (animations, external calls) belong in lifecycle methods, not render logic
+  - **Render Logic** is the code that directly maps state to UI properties. This happens in `OnStateChanged` and `DeclareElements`
+  - **Lifecycle Methods** are the Unity MonoBehaviour hooks like `Start`, `OnEnable`, `Update`, etc.
+  - This makes the UI updates deterministic and testable while still allowing visual feedback
+- **Memoize Expensive Views** - Cache computed visual data when the underlying state hasn't changed
+- **Stateless When Possible** - Prefer stateless components that just transform props into UI
+- **Clear Data Dependencies** - Explicitly declare which states a component subscribes to
+
+## State Normalization
+
+### The Problem
+
+A common anti-pattern in state management occurs when complex data structures are embedded directly within state, leading to duplicate data, inefficient lookups, and difficult updates. For example, when `PartyState` contains a `FixedList<CharacterData>` where each `CharacterData` includes an Entity reference, finding a specific character requires O(n) iteration. Meanwhile, `BattleState` maintains its own `turnOrder` list of the same entities, creating redundancy and potential synchronization issues.
+
+This creates multiple problems: how do we efficiently look up entity data? Should we duplicate entity information across states? How do we handle relationships between entities without creating deeply nested structures?
+
+### React Best Practices for State Normalization
+
+In React/Redux architecture, state should be **normalized like a database** - flat structure with entities stored in lookup tables and relationships expressed through IDs. Redux documentation explicitly recommends:
+
+1. **Store entities in objects keyed by ID** - Enables O(1) lookups instead of array searches
+2. **Store relationships as arrays of IDs** - Prevents duplication and ensures single source of truth
+3. **Keep state shape flat** - Avoid nested data structures that are hard to update immutably
+4. **Derive computed data in selectors** - Don't store values that can be calculated from existing state
+
+The principle is: **"Store state in a normalized shape, then denormalize as needed for the UI"** - the storage format optimizes for updates, while views compute the shape they need.
+
+### Unity ECS Performance Best Practices
+
+For optimal ECS performance with normalized state:
+
+- **Use Entity as the natural primary key** - Entities are already unique, stable identifiers perfect for lookups
+- **Prefer NativeHashMap for lookups** - O(1) access with excellent cache performance for small key types
+- **Keep data structures small and focused** - Better cache locality when iterating related data
+- **Minimize component lookups in hot paths** - Store frequently accessed data in dedicated lookup tables
+- **Leverage Burst compilation** - NativeHashMap operations are Burst-compatible for maximum performance
+
+### Entity-as-Key Normalization
+
+The optimal pattern that leverages both React principles and ECS strengths is **Entity-as-Key Normalization**. States store data in NativeHashMaps keyed by Entity, with separate states for different aspects of the data.
+
+#### Example Implementation
+
+```csharp
+// ❌ BAD: Embedded data with linear lookups
+public struct PartyState : IGameState
+{
+    public FixedList512Bytes<CharacterData> characters; // Large embedded structs
+
+    // Finding a character requires O(n) iteration
+    public CharacterData? GetCharacter(Entity entity)
+    {
+        for (int i = 0; i < characters.Length; i++)
+            if (characters[i].entity == entity)
+                return characters[i];
+        return null;
+    }
+}
+
+// ✅ GOOD: Normalized with entity lookups
+public struct CharacterHealthState : IGameState
+{
+    public NativeHashMap<Entity, Health> healths;      // O(1) lookup
+    public FixedList32Bytes<Entity> aliveCharacters;   // Categorization only
+}
+
+public struct CharacterStatsState : IGameState
+{
+    public NativeHashMap<Entity, Stats> stats;         // Separate concerns
+    public FixedList32Bytes<Entity> playerCharacters;  // Just IDs
+    public FixedList32Bytes<Entity> enemyCharacters;   // Just IDs
+}
+
+// Reducer works with normalized state efficiently
+public partial class DamageReducer : StateReducerSystem<CharacterHealthState, DealDamageAction>
+{
+    protected override void ReduceState(ref CharacterHealthState state, DealDamageAction action)
+    {
+        // Direct O(1) lookup and update
+        if (state.healths.TryGetValue(action.target, out var health))
+        {
+            health.current = math.max(0, health.current - action.damage);
+            state.healths[action.target] = health;
+
+            // Update categorization if needed
+            if (health.current == 0)
+                state.aliveCharacters.Remove(action.target);
+        }
+    }
+}
+```
+
+#### Why This Pattern?
+
+1. **Optimal Performance** - O(1) lookups instead of O(n) searches through lists
+2. **Single Source of Truth** - Each piece of data exists in exactly one place
+3. **Cache-Friendly Updates** - Small focused structures improve memory access patterns
+4. **Composable States** - Different aspects can be updated independently by different systems
+5. **Natural ECS Integration** - Entity is already the perfect unique identifier
+6. **Scalability** - Adding new data aspects doesn't affect existing state structures
 
 ## Cross-Reducer State Dependencies
 
@@ -64,7 +184,7 @@ public partial class BattleStateReducer : ReducerSystem<BattleState, NextTurnAct
     protected override void ReduceState(ref BattleState state, NextTurnAction action)
     {
         // Anti-pattern: Reducer reaching out to find information
-        var partyState = SceneStateManager.Instance.GetState<PartyState>(); 
+        var partyState = SceneStateManager.Instance.GetState<PartyState>();
         bool isPlayer = LookupIfPlayer(action.nextEntity, partyState);
         state.currentPhase = isPlayer ? BattlePhase.PlayerTurn : BattlePhase.EnemyTurn;
     }
@@ -83,8 +203,8 @@ public partial class BattleStateReducer : ReducerSystem<BattleState, NextTurnAct
     protected override void ReduceState(ref BattleState state, NextTurnAction action)
     {
         // Pure function: only uses state and action parameters
-        state.currentPhase = action.isPlayerTurn 
-            ? BattlePhase.PlayerTurn 
+        state.currentPhase = action.isPlayerTurn
+            ? BattlePhase.PlayerTurn
             : BattlePhase.EnemyTurn;
         state.currentTurnIndex = action.turnIndex;
     }
@@ -110,3 +230,4 @@ public partial class BattleStateReducer : ReducerSystem<BattleState, NextTurnAct
 5. [Debugging Tools](Debugging.md)
 6. [Examples & Patterns](Examples.md)
 7. Best Practices
+8. [Performance Optimization Guide](Performance.md)
