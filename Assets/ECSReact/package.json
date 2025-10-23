@@ -19,9 +19,14 @@
   ],
   "samples": [
     {
-      "displayName": "Basic UI Sample",
-      "description": "A simple UI setup, demonstrating state, reduction, and how to build a store to manage UI.",
-      "path": "Samples~/SetupBasicUI"
+      "displayName": "Battle System Demo",
+      "description": "A simple RPG-like battle system to demonstrates many core patterns of ECS-React.",
+      "path": "Samples~/BattleSystemDemo"
+    },
+    {
+      "displayName": "Addressable Mounters",
+      "description": "A collection of `Element` mounting functions working with Unity's Addressable Assets.",
+      "path": "Samples~/AddressableMounters"
     }
   ],
   "author": {
