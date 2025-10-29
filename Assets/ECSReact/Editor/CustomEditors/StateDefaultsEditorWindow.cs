@@ -742,7 +742,7 @@ namespace ECSReact.Editor
       return type.Name;
     }
 
-    private void SaveChanges()
+    public override void SaveChanges()
     {
       try {
         var json = JsonUtility.ToJson(currentValue);
@@ -753,6 +753,7 @@ namespace ECSReact.Editor
       } catch (Exception e) {
         EditorUtility.DisplayDialog("Error", $"Failed to save: {e.Message}", "OK");
       }
+      base.SaveChanges();
     }
   }
 }

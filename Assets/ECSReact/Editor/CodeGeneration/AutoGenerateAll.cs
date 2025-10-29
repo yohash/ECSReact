@@ -69,8 +69,7 @@ namespace ECSReact.Editor.CodeGeneration
         "• ISystem Bridges (for new IReducer/IParallelReducer/IMiddleware/IParallelMiddleware)\n" +
         "• State Registry\n" +
         "• UIStateNotifier extensions\n" +
-        "• StateSubscriptionHelper extensions\n" +
-        "• Store action dispatch extensions",
+        "• StateSubscriptionHelper extensions",
         MessageType.Info);
 
       EditorGUILayout.Space();
@@ -428,7 +427,6 @@ namespace ECSReact.Editor.CodeGeneration
           "• State Registry\n" +
           "• UIStateNotifier extensions\n" +
           "• StateSubscriptionHelper extensions\n" +
-          "• Store action dispatch extensions\n\n" +
           "Selected namespaces:\n• " + string.Join("\n• ", selectedNamespaces.Select(ns => ns.namespaceName)) + "\n\n" +
           "Continue?",
           "Generate",
@@ -456,10 +454,6 @@ namespace ECSReact.Editor.CodeGeneration
         // Generate StateSubscriptionHelper
         EditorUtility.DisplayProgressBar("Auto Generate All", "Generating StateSubscriptionHelper extensions...", 0.7f);
         results.Add(generateStateSubscriptionForNamespaces(selectedNamespaces));
-
-        // Generate Store Extensions
-        EditorUtility.DisplayProgressBar("Auto Generate All", "Generating Store extensions...", 0.9f);
-        results.Add(generateStoreExtensionsForNamespaces(selectedNamespaces));
 
         EditorUtility.ClearProgressBar();
 
@@ -628,41 +622,6 @@ namespace ECSReact.Editor.CodeGeneration
         {
           success = false,
           summary = $"❌ StateSubscriptionHelper: Generation failed - {ex.Message}"
-        };
-      }
-    }
-
-    private GenerationResult generateStoreExtensionsForNamespaces(List<NamespaceGroup> namespaces)
-    {
-      try {
-        var namespacesWithActions = namespaces.Where(ns => ns.ActionCount > 0).ToList();
-
-        if (namespacesWithActions.Count == 0) {
-          return new GenerationResult
-          {
-            success = false,
-            summary = "❌ Store Extensions: No actions found in selected namespaces"
-          };
-        }
-
-        foreach (var ns in namespacesWithActions) {
-          var gen = new StoreExtensionsGenerator();
-          var files = new List<string>();
-          gen.GenerateStoreExtensionsForNamespace(ns, ref files);
-        }
-        int totalActions = namespacesWithActions.Sum(ns => ns.ActionCount);
-
-        return new GenerationResult
-        {
-          success = true,
-          summary = $"✅ Store Extensions: Generated for {totalActions} actions across {namespacesWithActions.Count} namespaces"
-        };
-      } catch (Exception ex) {
-        Debug.LogError($"Failed to generate Store extensions: {ex.Message}");
-        return new GenerationResult
-        {
-          success = false,
-          summary = $"❌ Store Extensions: Generation failed - {ex.Message}"
         };
       }
     }
