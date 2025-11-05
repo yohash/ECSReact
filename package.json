@@ -1,6 +1,6 @@
 {
   "name": "com.ecsreact.core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "ECSReact",
   "description": "A React-inspired unidirectional data flow architecture built on Unity's Entity Component System (ECS)",
   "unity": "6000.2",
