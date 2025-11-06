@@ -99,9 +99,7 @@ public struct TakeDamageAction : IGameAction
 
 ### 3. Create Reducers
 
-#### Option A: Standard Reducer (Simple, Flexible)
-
-Use for general game logic that needs flexibility:
+For general game logic that needs flexibility:
 
 ```csharp
 [Reducer]  // Burst-compiled by default
@@ -111,80 +109,9 @@ public struct GameReducer : IReducer<GameState, TakeDamageAction>
     {
         // Access time through systemState
         float time = systemState.WorldUnmanaged.Time.ElapsedTime;
-        
-        // Access singletons using extension methods
-        var config = systemState.GetSingleton<GameConfig>();
-        
-        // Apply state mutation
-        state.health = math.max(0, state.health - action.damage * config.damageMultiplier);
-    }
-}
-```
-
-#### Option B: Sequential with Entity Creation
-
-Use when you need to create/destroy entities:
-
-
-```csharp
-[Reducer(DisableBurst = true)]  // Required for EntityManager access
-public struct SpawnReducer : IReducer<GameState, SpawnEnemyAction>
-{
-    public void Execute(ref GameState state, in SpawnEnemyAction action, ref SystemState systemState)
-    {
-        // Create entity (requires DisableBurst = true)
-        var entity = systemState.EntityManager.CreateEntity();
-        systemState.EntityManager.AddComponentData(entity, new Enemy
-        {
-            health = action.health,
-            damage = action.damage
-        });
-
-        // UnityEngine calls (requires DisableBurst = true)
-        UnityEngine.Debug.Log($"Created entity: {entity}");  
-
-        state.enemyCount++;
-    }
-}
-```
-
-#### Option C: Parallel Reducer (Maximum Performance)
-
-Use for math-heavy operations that run frequently:
-
-```csharp
-[Reducer]  // Burst-compiled for 10-100x performance
-public struct PhysicsReducer : IParallelReducer<PhysicsState, ForceAction, PhysicsReducer.FrameData>
-{
-    // Data prepared once per frame on main thread
-    public struct FrameData
-    {
-        public float deltaTime;
-        public float3 gravity;
-        public ComponentLookup<Mass> massLookup;
-    }
-    
-    public FrameData PrepareData(ref SystemState systemState)
-    {
-        // Full SystemAPI access here
-        var config = systemState.GetSingleton<PhysicsConfig>();
-        
-        return new FrameData
-        {
-            deltaTime = systemState.WorldUnmanaged.Time.DeltaTime,
-            gravity = config.gravity,
-            massLookup = SystemAPI.GetComponentLookup<Mass>(true)
-        };
-    }
-    
-    public void Execute(ref PhysicsState state, in ForceAction action, in FrameData data)
-    {
-        // Pure parallel computation - no SystemAPI access
-        var mass = data.massLookup[action.targetEntity];
-        var acceleration = (action.force + data.gravity) / mass.value;
-        
-        state.velocity += acceleration * data.deltaTime;
-        state.position += state.velocity * data.deltaTime;
+                
+        // Mutate state
+        state.health = math.max(0, state.health - action.damage);
     }
 }
 ```
@@ -334,11 +261,16 @@ public struct DamageValidation : IMiddleware<TakeDamageAction>
             
             return false;  // Filter out this action - reducers won't see it
         }
-        
-        // Clamp damage to max
-        var config = systemState.GetSingleton<GameConfig>();
-        action.damage = math.min(action.damage, config.maxDamage);
-        
+
+        // Fetch other state using SystemState extensions
+        if (!systemState.TryGetSingleton<ConfigState>(out var config))
+        {
+          // We cannot find the ConfigState, optionally, perform error
+          // alerting or other actions here
+          return true; 
+        }
+
+        action.damage = math.min(action.damage, config.maxDamage);        
         return true;  // Action continues to reducers
     }
 }
