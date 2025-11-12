@@ -1,0 +1,276 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &217358947086532912
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2558976960378434543}
+  - component: {fileID: 7337234151672367901}
+  m_Layer: 0
+  m_Name: InitializationScript
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2558976960378434543
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 217358947086532912}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -1043.342, y: -505.06027, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1157276360773342147}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7337234151672367901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 217358947086532912}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b17f761ad8de714fa9231dcfacdd69e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ECSReact.Samples.SimpleSetup.Runtime::InitializationScript
+--- !u!1 &394846715314837409
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4424965729329948138}
+  - component: {fileID: 3774934431694058735}
+  m_Layer: 0
+  m_Name: Store
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4424965729329948138
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394846715314837409}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -1043.342, y: -505.06027, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1157276360773342147}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3774934431694058735
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394846715314837409}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b6dda25ccb92ac47b229c6e7731041f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ECSReact.Core.Runtime::ECSReact.Core.Store
+--- !u!1 &1496155227389995265
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3840949883757329299}
+  - component: {fileID: 2479247090550607866}
+  m_Layer: 0
+  m_Name: UIEventQueue
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3840949883757329299
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496155227389995265}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -1043.342, y: -505.06027, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1157276360773342147}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2479247090550607866
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496155227389995265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b00d7cd54b0cad48961843f06a0b6c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ECSReact.Core.Runtime::ECSReact.Core.UIEventQueue
+  maxProcessingTimePerFrame: 0.5
+  enableDebugLogging: 0
+--- !u!1 &3009899091181632770
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1157276360773342147}
+  m_Layer: 0
+  m_Name: ECSReact
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1157276360773342147
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3009899091181632770}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1043.342, y: 505.06027, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1298572853039806633}
+  - {fileID: 3840949883757329299}
+  - {fileID: 4424965729329948138}
+  - {fileID: 2558976960378434543}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8495703292878545010
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1298572853039806633}
+  - component: {fileID: 8623114286716595638}
+  m_Layer: 0
+  m_Name: SceneStateManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1298572853039806633
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8495703292878545010}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -1043.342, y: -505.06027, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1157276360773342147}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8623114286716595638
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8495703292878545010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 41a9d6b6bba1fba4e9211a1de5b64b1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ECSReact.Core.Runtime::ECSReact.Core.SceneStateManager
+  stateConfigurations:
+  - typeName: ECSReact.Samples.BattleSystem.AIThinkingState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: AIThinkingState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.BattleLogState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: BattleLogState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.BattleState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: BattleState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterHealthState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterHealthState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterManaState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterManaState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterStatusState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterStatusState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterIdentityState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterIdentityState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.CharacterRosterState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: CharacterRosterState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.SaveState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: SaveState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.BattleSystem.UIBattleState
+    namespaceName: ECSReact.Samples.BattleSystem
+    displayName: UIBattleState
+    enabled: 0
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.SimpleSetup.Namespace2.State.StateNamespace2
+    namespaceName: ECSReact.Samples.SimpleSetup.Namespace2.State
+    displayName: StateNamespace2
+    enabled: 1
+    serializedDefaults: 
+  - typeName: ECSReact.Samples.SimpleSetup.Namespace1.State.StateNamespace1
+    namespaceName: ECSReact.Samples.SimpleSetup.Namespace1.State
+    displayName: StateNamespace1
+    enabled: 1
+    serializedDefaults: 

@@ -1,6 +1,6 @@
 {
   "name": "com.ecsreact.core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "displayName": "ECSReact",
   "description": "A React-inspired unidirectional data flow architecture built on Unity's Entity Component System (ECS)",
   "unity": "6000.2",
@@ -29,8 +29,13 @@
       "path": "Samples~/AddressableMounters"
     },
     {
+      "displayName": "Simple Setup",
+      "description": "A simple UI with state and actions to demonstrates the core patterns of ECS-React.",
+      "path": "Samples~/SimpleSetup"
+    },
+    {
       "displayName": "Battle System Demo",
-      "description": "A simple RPG-like battle system to demonstrates many core patterns of ECS-React.",
+      "description": "A basic RPG-like battle system to demonstrates more advanced patterns of ECS-React.",
       "path": "Samples~/BattleSystemDemo"
     }
   ],

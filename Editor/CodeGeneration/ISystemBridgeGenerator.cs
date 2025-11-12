@@ -133,9 +133,7 @@ namespace ECSReact.Editor.CodeGeneration
         string label = "";
         string state = "State";
         string action = "Action";
-        string typeLabel = "Thread";
         string burstLabel = "Burst";
-        string filterLabel = "Filters";
 
         // Draw reducers
         if (group.reducers.Count > 0) {
@@ -145,8 +143,6 @@ namespace ECSReact.Editor.CodeGeneration
           EditorGUILayout.LabelField("", GUILayout.Width(40)); // fill the checkbox column
           EditorGUILayout.LabelField(state, EditorStyles.miniBoldLabel, GUILayout.ExpandWidth(true));
           EditorGUILayout.LabelField(action, EditorStyles.miniBoldLabel, GUILayout.ExpandWidth(true));
-          EditorGUILayout.LabelField(filterLabel, EditorStyles.miniBoldLabel, GUILayout.Width(100));
-          EditorGUILayout.LabelField(typeLabel, EditorStyles.miniBoldLabel, GUILayout.Width(100));
           EditorGUILayout.LabelField(burstLabel, EditorStyles.miniBoldLabel, GUILayout.Width(100));
           EditorGUILayout.EndHorizontal();
 
@@ -164,8 +160,6 @@ namespace ECSReact.Editor.CodeGeneration
           EditorGUILayout.LabelField("", GUILayout.Width(40)); // fill the checkbox column
           EditorGUILayout.LabelField(state, EditorStyles.miniBoldLabel, GUILayout.ExpandWidth(true));
           EditorGUILayout.LabelField(action, EditorStyles.miniBoldLabel, GUILayout.ExpandWidth(true));
-          EditorGUILayout.LabelField(filterLabel, EditorStyles.miniBoldLabel, GUILayout.Width(100));
-          EditorGUILayout.LabelField(typeLabel, EditorStyles.miniBoldLabel, GUILayout.Width(100));
           EditorGUILayout.LabelField(burstLabel, EditorStyles.miniBoldLabel, GUILayout.Width(100));
           EditorGUILayout.EndHorizontal();
           foreach (var middleware in group.middleware) {
@@ -187,19 +181,11 @@ namespace ECSReact.Editor.CodeGeneration
       string label = $"{reducer.structName}";
       string state = $"→ {reducer.stateType} ";
       string action = $"→ {reducer.actionType}";
-      string typeLabel = reducer.isParallel ? "[Parallel]" : "[Sequential]";
       string burstLabel = reducer.disableBurst ? "[No Burst]" : "[Burst]";
-      string filterLabel = "";
-
-      if (reducer.isParallel && !string.IsNullOrEmpty(reducer.dataType)) {
-        label += $" + {reducer.dataType}";
-      }
 
       EditorGUILayout.LabelField(label, GUILayout.ExpandWidth(true));
       EditorGUILayout.LabelField(state, GUILayout.ExpandWidth(true));
       EditorGUILayout.LabelField(action, GUILayout.ExpandWidth(true));
-      EditorGUILayout.LabelField(filterLabel, GUILayout.Width(100));
-      EditorGUILayout.LabelField(typeLabel, GUILayout.Width(100));
       EditorGUILayout.LabelField(burstLabel, GUILayout.Width(100));
 
       EditorGUILayout.EndHorizontal();
@@ -213,19 +199,11 @@ namespace ECSReact.Editor.CodeGeneration
       string label = $"{middleware.structName}";
       string state = "";
       string action = $"→ {middleware.actionType}";
-      string typeLabel = middleware.isParallel ? "[Parallel]" : "[Sequential]";
       string burstLabel = middleware.disableBurst ? "[No Burst]" : "[Burst]";
-      string filterLabel = !middleware.isParallel ? "[Can Filter]" : "[Transform Only]";
-
-      if (middleware.isParallel && !string.IsNullOrEmpty(middleware.dataType)) {
-        label += $" + {middleware.dataType})";
-      }
 
       EditorGUILayout.LabelField(label, GUILayout.ExpandWidth(true));
       EditorGUILayout.LabelField(state, GUILayout.ExpandWidth(true));
       EditorGUILayout.LabelField(action, GUILayout.ExpandWidth(true));
-      EditorGUILayout.LabelField(filterLabel, GUILayout.Width(100));
-      EditorGUILayout.LabelField(typeLabel, GUILayout.Width(100));
       EditorGUILayout.LabelField(burstLabel, GUILayout.Width(100));
 
       EditorGUILayout.EndHorizontal();
@@ -268,6 +246,7 @@ namespace ECSReact.Editor.CodeGeneration
             // Find Reducers
             var reducerAttr = type.GetCustomAttribute<ReducerAttribute>();
             if (reducerAttr != null && type.IsValueType) {
+
               var interfaces = type.GetInterfaces();
               foreach (var iface in interfaces) {
                 if (iface.IsGenericType) {
@@ -283,27 +262,12 @@ namespace ECSReact.Editor.CodeGeneration
                       structName = type.Name,
                       namespaceName = type.Namespace ?? "Global",
                       stateType = genericArgs[0].Name,
+                      stateNamespaceName = genericArgs[0].Namespace ?? "Global",
                       actionType = genericArgs[1].Name,
-                      dataType = null,
+                      actionNamespaceName = genericArgs[1].Namespace ?? "Global",
                       disableBurst = reducerAttr.DisableBurst,
                       order = reducerAttr.Order,
                       systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
-                      isParallel = false,
-                      shouldGenerate = true
-                    };
-                  } else if (genDef == typeof(IParallelReducer<,,>)) {
-                    reducerInfo = new ReducerInfo
-                    {
-                      structType = type,
-                      structName = type.Name,
-                      namespaceName = type.Namespace ?? "Global",
-                      stateType = genericArgs[0].Name,
-                      actionType = genericArgs[1].Name,
-                      dataType = genericArgs[2].Name,
-                      disableBurst = reducerAttr.DisableBurst,
-                      order = reducerAttr.Order,
-                      systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
-                      isParallel = true,
                       shouldGenerate = true
                     };
                   }
@@ -357,25 +321,10 @@ namespace ECSReact.Editor.CodeGeneration
                       structName = type.Name,
                       namespaceName = type.Namespace ?? "Global",
                       actionType = genericArgs[0].Name,
-                      dataType = null,
+                      actionNamespaceName = genericArgs[0].Namespace ?? "Global",
                       disableBurst = middlewareAttr.DisableBurst,
                       order = middlewareAttr.Order,
                       systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
-                      isParallel = false,
-                      shouldGenerate = true
-                    };
-                  } else if (genDef == typeof(IParallelMiddleware<,>)) {
-                    middlewareInfo = new MiddlewareInfo
-                    {
-                      structType = type,
-                      structName = type.Name,
-                      namespaceName = type.Namespace ?? "Global",
-                      actionType = genericArgs[0].Name,
-                      dataType = genericArgs[1].Name,
-                      disableBurst = middlewareAttr.DisableBurst,
-                      order = middlewareAttr.Order,
-                      systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
-                      isParallel = true,
                       shouldGenerate = true
                     };
                   }
@@ -509,7 +458,7 @@ namespace ECSReact.Editor.CodeGeneration
       var sb = new StringBuilder();
 
       // Header
-      GenerateFileHeader(sb, reducer.structName, reducer.isParallel ? "IParallelReducer" : "IReducer");
+      GenerateFileHeader(sb, reducer.structName, "IReducer");
 
       // Usings
       sb.AppendLine("using Unity.Entities;");
@@ -527,10 +476,8 @@ namespace ECSReact.Editor.CodeGeneration
       if (generateXmlDocs) {
         sb.AppendLine("  /// <summary>");
         sb.AppendLine($"  /// Generated ISystem implementation for {reducer.structName}.");
-        sb.AppendLine($"  /// Type: {(reducer.isParallel ? "IParallelReducer" : "IReducer")}");
-        sb.AppendLine($"  /// State: {reducer.stateType}, Action: {reducer.actionType}");
-        if (reducer.isParallel)
-          sb.AppendLine($"  /// Data: {reducer.structName}.{reducer.dataType}");
+        sb.AppendLine($"  /// State: {reducer.stateNamespaceName}.{reducer.stateType}");
+        sb.AppendLine($"  /// Action: {reducer.actionNamespaceName}.{reducer.actionType}");
         sb.AppendLine("  /// </summary>");
       }
 
@@ -543,12 +490,8 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine($"    private {reducer.structName} logic;");
       sb.AppendLine("    private EntityQuery actionQuery;");
 
-      if (reducer.isParallel) {
-        sb.AppendLine($"    private {reducer.structName}.{reducer.dataType} preparedData;");
-      } else {
-        // Sequential reducers need ComponentLookup field
-        sb.AppendLine($"    private ComponentLookup<{reducer.actionType}> actionLookup;");
-      }
+      // reducers need ComponentLookup field
+      sb.AppendLine($"    private ComponentLookup<{reducer.actionNamespaceName}.{reducer.actionType}> actionLookup;");
       sb.AppendLine();
 
       // OnCreate
@@ -560,19 +503,17 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine();
       sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
       sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
-      sb.AppendLine($"        .WithAll<{reducer.actionType}, ActionTag>();");
+      sb.AppendLine($"        .WithAll<{reducer.actionNamespaceName}.{reducer.actionType}, ActionTag>();");
       sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
       sb.AppendLine("      queryBuilder.Dispose();");
       sb.AppendLine();
 
-      if (!reducer.isParallel) {
-        // Sequential reducers: create ComponentLookup once in OnCreate
-        sb.AppendLine("      // Create ComponentLookup once for reuse");
-        sb.AppendLine($"      actionLookup = state.GetComponentLookup<{reducer.actionType}>(isReadOnly: true);");
-        sb.AppendLine();
-      }
+      // create ComponentLookup once in OnCreate
+      sb.AppendLine("      // Create ComponentLookup once for reuse");
+      sb.AppendLine($"      actionLookup = state.GetComponentLookup<{reducer.actionNamespaceName}.{reducer.actionType}>(isReadOnly: true);");
+      sb.AppendLine();
 
-      sb.AppendLine($"      state.RequireForUpdate<{reducer.stateType}>();");
+      sb.AppendLine($"      state.RequireForUpdate<{reducer.stateNamespaceName}.{reducer.stateType}>();");
       sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
       sb.AppendLine("    }");
       sb.AppendLine();
@@ -580,83 +521,48 @@ namespace ECSReact.Editor.CodeGeneration
       // OnUpdate
       sb.AppendLine("    public void OnUpdate(ref SystemState state)");
       sb.AppendLine("    {");
-      sb.AppendLine($"      var gameState = SystemAPI.GetSingletonRW<{reducer.stateType}>();");
+      sb.AppendLine($"      var gameState = SystemAPI.GetSingletonRW<{reducer.stateNamespaceName}.{reducer.stateType}>();");
       sb.AppendLine();
 
-      if (reducer.isParallel) {
-        // Parallel processing with PrepareData
-        sb.AppendLine("      // Prepare data from SystemAPI on main thread");
-        sb.AppendLine("      preparedData = logic.PrepareData(ref state);");
-        sb.AppendLine();
-        sb.AppendLine("      // Schedule parallel job with prepared data");
-        sb.AppendLine("      state.Dependency = new ProcessActionsJob");
-        sb.AppendLine("      {");
-        sb.AppendLine("        State = gameState,");
-        sb.AppendLine("        Logic = logic,");
-        sb.AppendLine("        Data = preparedData");
-        sb.AppendLine("      }.ScheduleParallel(actionQuery, state.Dependency);");
-        sb.AppendLine("    }");
-      } else {
-        // Sequential processing with ComponentLookup
-        sb.AppendLine("      // Update ComponentLookup to latest data");
-        sb.AppendLine("      actionLookup.Update(ref state);");
-        sb.AppendLine("      ");
-        sb.AppendLine("      // Call Burst-compiled processing");
-        sb.AppendLine("      ProcessActions(ref state, gameState, actionLookup);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
-        // Add Burst-compiled helper method
-        if (!reducer.disableBurst)
-          sb.AppendLine("    [BurstCompile]");
-        sb.AppendLine("    private void ProcessActions(");
-        sb.AppendLine("      ref SystemState state,");
-        sb.AppendLine($"      RefRW<{reducer.stateType}> gameState,");
-        sb.AppendLine($"      ComponentLookup<{reducer.actionType}> actionLookup)");
-        sb.AppendLine("    {");
-        sb.AppendLine("      // Process all actions sequentially - uses cached query");
-        sb.AppendLine("      var entities = actionQuery.ToEntityArray(Allocator.Temp);");
-        sb.AppendLine();
-        sb.AppendLine("      // ✅ Check once per frame if component is zero-sized");
-        sb.AppendLine($"      var type = new ComponentType(typeof({reducer.actionType}));");
-        sb.AppendLine("      bool isZeroSized = type.IsZeroSized;");
-        sb.AppendLine();
-        sb.AppendLine("      foreach (var entity in entities)");
-        sb.AppendLine("      {");
-        sb.AppendLine("        if (isZeroSized) {");
-        sb.AppendLine("          // ✅ Zero-sized: use default value");
-        sb.AppendLine($"          var action = default({reducer.actionType});");
-        sb.AppendLine("          logic.Execute(ref gameState.ValueRW, in action, ref state);");
-        sb.AppendLine("        } else {");
-        sb.AppendLine("          var action =  actionLookup.GetRefRO(entity);");
-        sb.AppendLine("          logic.Execute(ref gameState.ValueRW, in action.ValueRO, ref state);");
-        sb.AppendLine("        }");
-        sb.AppendLine("      }");
-        sb.AppendLine("      ");
-        sb.AppendLine("      entities.Dispose();");
-        sb.AppendLine("    }");
-      }
-
+      // Sequential processing with ComponentLookup
+      sb.AppendLine("      // Update ComponentLookup to latest data");
+      sb.AppendLine("      actionLookup.Update(ref state);");
+      sb.AppendLine("      ");
+      sb.AppendLine("      // Call Burst-compiled processing");
+      sb.AppendLine("      ProcessActions(ref state, gameState, actionLookup);");
+      sb.AppendLine("    }");
       sb.AppendLine();
 
-      // Job struct for parallel processing
-      if (reducer.isParallel) {
-        if (!reducer.disableBurst)
-          sb.AppendLine("    [BurstCompile]");
-        sb.AppendLine($"    private partial struct ProcessActionsJob : IJobEntity");
-        sb.AppendLine("    {");
-        sb.AppendLine($"      public RefRW<{reducer.stateType}> State;");
-        sb.AppendLine($"      [ReadOnly] public {reducer.structName} Logic;");
-        sb.AppendLine($"      [ReadOnly] public {reducer.structName}.{reducer.dataType} Data;");
-        sb.AppendLine();
-        sb.AppendLine($"      public void Execute(in {reducer.actionType} action, in ActionTag tag)");
-        sb.AppendLine("      {");
-        sb.AppendLine("        // Parallel execution with prepared data");
-        sb.AppendLine("        Logic.Execute(ref State.ValueRW, in action, in Data);");
-        sb.AppendLine("      }");
-        sb.AppendLine("    }");
-      }
-
+      // Add Burst-compiled helper method
+      if (!reducer.disableBurst)
+        sb.AppendLine("    [BurstCompile]");
+      sb.AppendLine("    private void ProcessActions(");
+      sb.AppendLine("      ref SystemState state,");
+      sb.AppendLine($"      RefRW<{reducer.stateNamespaceName}.{reducer.stateType}> gameState,");
+      sb.AppendLine($"      ComponentLookup<{reducer.actionNamespaceName}.{reducer.actionType}> actionLookup)");
+      sb.AppendLine("    {");
+      sb.AppendLine("      // Process all actions sequentially - uses cached query");
+      sb.AppendLine("      var entities = actionQuery.ToEntityArray(Allocator.Temp);");
+      sb.AppendLine();
+      sb.AppendLine("      // ✅ Check once per frame if component is zero-sized");
+      sb.AppendLine($"      var type = new ComponentType(typeof({reducer.actionNamespaceName}.{reducer.actionType}));");
+      sb.AppendLine("      bool isZeroSized = type.IsZeroSized;");
+      sb.AppendLine();
+      sb.AppendLine("      foreach (var entity in entities)");
+      sb.AppendLine("      {");
+      sb.AppendLine("        if (isZeroSized) {");
+      sb.AppendLine("          // ✅ Zero-sized: use default value");
+      sb.AppendLine($"          var action = default({reducer.actionNamespaceName}.{reducer.actionType});");
+      sb.AppendLine("          logic.Execute(ref gameState.ValueRW, in action, ref state);");
+      sb.AppendLine("        } else {");
+      sb.AppendLine("          var action =  actionLookup.GetRefRO(entity);");
+      sb.AppendLine("          logic.Execute(ref gameState.ValueRW, in action.ValueRO, ref state);");
+      sb.AppendLine("        }");
+      sb.AppendLine("      }");
+      sb.AppendLine("      ");
+      sb.AppendLine("      entities.Dispose();");
+      sb.AppendLine("    }");
+      sb.AppendLine();
       sb.AppendLine("  }");
       sb.AppendLine("}");
 
@@ -668,7 +574,7 @@ namespace ECSReact.Editor.CodeGeneration
       var sb = new StringBuilder();
 
       // Header
-      GenerateFileHeader(sb, middleware.structName, middleware.isParallel ? "IParallelMiddleware" : "IMiddleware");
+      GenerateFileHeader(sb, middleware.structName, "IMiddleware");
 
       // Usings
       sb.AppendLine("using Unity.Entities;");
@@ -686,11 +592,7 @@ namespace ECSReact.Editor.CodeGeneration
       if (generateXmlDocs) {
         sb.AppendLine("  /// <summary>");
         sb.AppendLine($"  /// Generated ISystem implementation for {middleware.structName}.");
-        sb.AppendLine($"  /// Type: {(middleware.isParallel ? "IParallelMiddleware" : "IMiddleware")}");
-        sb.AppendLine($"  /// Action: {middleware.actionType}");
-        if (middleware.isParallel)
-          sb.AppendLine($"  /// Data: {middleware.structName}.{middleware.dataType}");
-        sb.AppendLine($"  /// {(middleware.isParallel ? "Transform-only (cannot filter)" : "Can filter actions")}");
+        sb.AppendLine($"  /// Action: {middleware.actionNamespaceName}.{middleware.actionType}");
         sb.AppendLine("  /// </summary>");
       }
 
@@ -703,172 +605,113 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine($"    private {middleware.structName} logic;");
       sb.AppendLine("    private EntityQuery actionQuery;");
 
-      if (middleware.isParallel) {
-        // Parallel middleware - existing implementation (unchanged)
-        sb.AppendLine($"    private {middleware.structName}.{middleware.dataType} preparedData;");
-        sb.AppendLine();
+      // Sequential middleware with filtering capability
+      sb.AppendLine();
+      sb.AppendLine("    // ECB writer for Burst-compatible action dispatching");
+      sb.AppendLine("    private EntityCommandBuffer.ParallelWriter ecbWriter;");
+      sb.AppendLine($"    private ComponentLookup<{middleware.actionNamespaceName}.{middleware.actionType}> actionLookup;");
+      sb.AppendLine();
 
-        // OnCreate
-        if (!middleware.disableBurst)
-          sb.AppendLine("    [BurstCompile]");
-        sb.AppendLine("    public void OnCreate(ref SystemState state)");
-        sb.AppendLine("    {");
-        sb.AppendLine($"      logic = new {middleware.structName}();");
-        sb.AppendLine();
-        sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
-        sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
-        sb.AppendLine($"        .WithAll<{middleware.actionType}, ActionTag>();");
-        sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
-        sb.AppendLine("      queryBuilder.Dispose();");
-        sb.AppendLine();
-        sb.AppendLine("      // Create ComponentLookup once for reuse");
-        sb.AppendLine($"      actionLookup = state.GetComponentLookup<{middleware.actionType}>(isReadOnly: false);");
-        sb.AppendLine();
-        sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
-        sb.AppendLine($"      state.RequireForUpdate<{middleware.actionType}>();");
-        sb.AppendLine("    }");
-        sb.AppendLine();
+      // OnCreate
+      if (!middleware.disableBurst)
+        sb.AppendLine("    [BurstCompile]");
+      sb.AppendLine("    public void OnCreate(ref SystemState state)");
+      sb.AppendLine("    {");
+      sb.AppendLine($"      logic = new {middleware.structName}();");
+      sb.AppendLine();
+      sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
+      sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
+      sb.AppendLine($"        .WithAll<{middleware.actionNamespaceName}.{middleware.actionType}, ActionTag>();");
+      sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
+      sb.AppendLine("      queryBuilder.Dispose();");
+      sb.AppendLine();
+      sb.AppendLine($"      actionLookup = state.GetComponentLookup<{middleware.actionNamespaceName}.{middleware.actionType}>(isReadOnly: false);");
+      sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
+      sb.AppendLine($"      state.RequireForUpdate<{middleware.actionNamespaceName}.{middleware.actionType}>();");
+      sb.AppendLine("    }");
+      sb.AppendLine();
 
-        // OnUpdate for parallel
-        sb.AppendLine("    public void OnUpdate(ref SystemState state)");
-        sb.AppendLine("    {");
-        sb.AppendLine("      // Prepare data from SystemAPI on main thread");
-        sb.AppendLine("      preparedData = logic.PrepareData(ref state);");
-        sb.AppendLine();
-        sb.AppendLine("      // Schedule parallel job - transform only, cannot filter");
-        sb.AppendLine("      state.Dependency = new ProcessActionsJob");
-        sb.AppendLine("      {");
-        sb.AppendLine("        Logic = logic,");
-        sb.AppendLine("        Data = preparedData");
-        sb.AppendLine("      }.ScheduleParallel(actionQuery, state.Dependency);");
-        sb.AppendLine("    }");
-      } else {
-        // Sequential middleware with filtering capability
-        sb.AppendLine();
-        sb.AppendLine("    // ECB writer for Burst-compatible action dispatching");
-        sb.AppendLine("    private EntityCommandBuffer.ParallelWriter ecbWriter;");
-        sb.AppendLine($"    private ComponentLookup<{middleware.actionType}> actionLookup;");
-        sb.AppendLine();
+      // OnUpdate - Create lookup on main thread, call Burst helper
+      sb.AppendLine("    public void OnUpdate(ref SystemState state)");
+      sb.AppendLine("    {");
+      sb.AppendLine("      // Pre-fetch ECB writer on main thread");
+      sb.AppendLine("      ecbWriter = ECSActionDispatcher.GetJobCommandBuffer(state.World);");
+      sb.AppendLine();
+      sb.AppendLine("      // Update ComponentLookup to latest data");
+      sb.AppendLine("      actionLookup.Update(ref state);");
+      sb.AppendLine();
+      sb.AppendLine("      // Call Burst-compiled middleware processing");
+      sb.AppendLine("      ProcessMiddleware(ref state, actionLookup);");
+      sb.AppendLine();
+      sb.AppendLine("      // Register job handle for proper synchronization");
+      sb.AppendLine("      ECSActionDispatcher.RegisterJobHandle(state.Dependency, state.World);");
+      sb.AppendLine("    }");
+      sb.AppendLine();
 
-        // OnCreate
-        if (!middleware.disableBurst)
-          sb.AppendLine("    [BurstCompile]");
-        sb.AppendLine("    public void OnCreate(ref SystemState state)");
-        sb.AppendLine("    {");
-        sb.AppendLine($"      logic = new {middleware.structName}();");
-        sb.AppendLine();
-        sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
-        sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
-        sb.AppendLine($"        .WithAll<{middleware.actionType}, ActionTag>();");
-        sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
-        sb.AppendLine("      queryBuilder.Dispose();");
-        sb.AppendLine();
-        sb.AppendLine($"      actionLookup = state.GetComponentLookup<{middleware.actionType}>(isReadOnly: false);");
-        sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
-        sb.AppendLine($"      state.RequireForUpdate<{middleware.actionType}>();");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
-        // OnUpdate - Create lookup on main thread, call Burst helper
-        sb.AppendLine("    public void OnUpdate(ref SystemState state)");
-        sb.AppendLine("    {");
-        sb.AppendLine("      // Pre-fetch ECB writer on main thread");
-        sb.AppendLine("      ecbWriter = ECSActionDispatcher.GetJobCommandBuffer(state.World);");
-        sb.AppendLine();
-        sb.AppendLine("      // Update ComponentLookup to latest data");
-        sb.AppendLine("      actionLookup.Update(ref state);");
-        sb.AppendLine();
-        sb.AppendLine("      // Call Burst-compiled middleware processing");
-        sb.AppendLine("      ProcessMiddleware(ref state, actionLookup);");
-        sb.AppendLine();
-        sb.AppendLine("      // Register job handle for proper synchronization");
-        sb.AppendLine("      ECSActionDispatcher.RegisterJobHandle(state.Dependency, state.World);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
-        // ProcessMiddleware - Burst compiled helper
-        if (!middleware.disableBurst)
-          sb.AppendLine("    [BurstCompile]");
-        sb.AppendLine("    private void ProcessMiddleware(");
-        sb.AppendLine("      ref SystemState state,");
-        sb.AppendLine($"      ComponentLookup<{middleware.actionType}> actionLookup)");
-        sb.AppendLine("    {");
-        sb.AppendLine("      // ECB for filtering actions (destroy entity if filtered)");
-        sb.AppendLine("      var ecb = new EntityCommandBuffer(Allocator.TempJob);");
-        sb.AppendLine();
-        sb.AppendLine("      // Process all actions sequentially - uses cached query");
-        sb.AppendLine("      var entities = actionQuery.ToEntityArray(Allocator.Temp);");
-        sb.AppendLine("      int sortKey = 0;");
-        sb.AppendLine("      ");
-        sb.AppendLine("      // Check if action is zero-sized (no fields)");
-        sb.AppendLine($"      var type = new ComponentType(typeof({middleware.actionType}));");
-        sb.AppendLine($"      bool isZeroSized = type.IsZeroSized;");
-        sb.AppendLine("      ");
-        sb.AppendLine("      foreach (var entity in entities)");
-        sb.AppendLine("      {");
-        sb.AppendLine("        bool shouldContinue;");
-        sb.AppendLine("        ");
-        sb.AppendLine("        if (isZeroSized)");
-        sb.AppendLine("        {");
-        sb.AppendLine("          // Zero-sized components: use default value");
-        sb.AppendLine($"          var action = default({middleware.actionType});");
-        sb.AppendLine("          shouldContinue = logic.Process(");
-        sb.AppendLine("            ref action,");
-        sb.AppendLine("            ref state,");
-        sb.AppendLine("            ecbWriter,");
-        sb.AppendLine("            sortKey");
-        sb.AppendLine("          );");
-        sb.AppendLine("        }");
-        sb.AppendLine("        else");
-        sb.AppendLine("        {");
-        sb.AppendLine("          // Normal components: use ComponentLookup");
-        sb.AppendLine("          var action =  actionLookup.GetRefRW(entity);");
-        sb.AppendLine("          shouldContinue = logic.Process(");
-        sb.AppendLine("            ref action.ValueRW,");
-        sb.AppendLine("            ref state,");
-        sb.AppendLine("            ecbWriter,");
-        sb.AppendLine("            sortKey");
-        sb.AppendLine("          );");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-        sb.AppendLine("        if (!shouldContinue)");
-        sb.AppendLine("        {");
-        sb.AppendLine("          // Middleware filtered this action - destroy it");
-        sb.AppendLine("          ecb.DestroyEntity(entity);");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-        sb.AppendLine("        sortKey++;");
-        sb.AppendLine("      }");
-        sb.AppendLine("      ");
-        sb.AppendLine("      entities.Dispose();");
-        sb.AppendLine("      ecb.Playback(state.EntityManager);");
-        sb.AppendLine("      ecb.Dispose();");
-        sb.AppendLine("    }");
-      }
+      // ProcessMiddleware - Burst compiled helper
+      if (!middleware.disableBurst)
+        sb.AppendLine("    [BurstCompile]");
+      sb.AppendLine("    private void ProcessMiddleware(");
+      sb.AppendLine("      ref SystemState state,");
+      sb.AppendLine($"      ComponentLookup<{middleware.actionNamespaceName}.{middleware.actionType}> actionLookup)");
+      sb.AppendLine("    {");
+      sb.AppendLine("      // ECB for filtering actions (destroy entity if filtered)");
+      sb.AppendLine("      var ecb = new EntityCommandBuffer(Allocator.TempJob);");
+      sb.AppendLine();
+      sb.AppendLine("      // Process all actions sequentially - uses cached query");
+      sb.AppendLine("      var entities = actionQuery.ToEntityArray(Allocator.Temp);");
+      sb.AppendLine("      int sortKey = 0;");
+      sb.AppendLine("      ");
+      sb.AppendLine("      // Check if action is zero-sized (no fields)");
+      sb.AppendLine($"      var type = new ComponentType(typeof({middleware.actionNamespaceName}.{middleware.actionType}));");
+      sb.AppendLine($"      bool isZeroSized = type.IsZeroSized;");
+      sb.AppendLine("      ");
+      sb.AppendLine("      foreach (var entity in entities)");
+      sb.AppendLine("      {");
+      sb.AppendLine("        bool shouldContinue;");
+      sb.AppendLine("        ");
+      sb.AppendLine("        if (isZeroSized)");
+      sb.AppendLine("        {");
+      sb.AppendLine("          // Zero-sized components: use default value");
+      sb.AppendLine($"          var action = default({middleware.actionNamespaceName}.{middleware.actionType});");
+      sb.AppendLine("          shouldContinue = logic.Process(");
+      sb.AppendLine("            ref action,");
+      sb.AppendLine("            ref state,");
+      sb.AppendLine("            ecbWriter,");
+      sb.AppendLine("            sortKey");
+      sb.AppendLine("          );");
+      sb.AppendLine("        }");
+      sb.AppendLine("        else");
+      sb.AppendLine("        {");
+      sb.AppendLine("          // Normal components: use ComponentLookup");
+      sb.AppendLine("          var action =  actionLookup.GetRefRW(entity);");
+      sb.AppendLine("          shouldContinue = logic.Process(");
+      sb.AppendLine("            ref action.ValueRW,");
+      sb.AppendLine("            ref state,");
+      sb.AppendLine("            ecbWriter,");
+      sb.AppendLine("            sortKey");
+      sb.AppendLine("          );");
+      sb.AppendLine("        }");
+      sb.AppendLine();
+      sb.AppendLine("        if (!shouldContinue)");
+      sb.AppendLine("        {");
+      sb.AppendLine("          // Middleware filtered this action - destroy it");
+      sb.AppendLine("          ecb.DestroyEntity(entity);");
+      sb.AppendLine("        }");
+      sb.AppendLine();
+      sb.AppendLine("        sortKey++;");
+      sb.AppendLine("      }");
+      sb.AppendLine("      ");
+      sb.AppendLine("      entities.Dispose();");
+      sb.AppendLine("      ecb.Playback(state.EntityManager);");
+      sb.AppendLine("      ecb.Dispose();");
+      sb.AppendLine("    }");
 
       sb.AppendLine();
 
       // OnDestroy
       sb.AppendLine("    public void OnDestroy(ref SystemState state) { }");
       sb.AppendLine();
-
-      // Job struct for parallel processing (if parallel middleware)
-      if (middleware.isParallel) {
-        if (!middleware.disableBurst)
-          sb.AppendLine("    [BurstCompile]");
-        sb.AppendLine($"    private partial struct ProcessActionsJob : IJobEntity");
-        sb.AppendLine("    {");
-        sb.AppendLine($"      [ReadOnly] public {middleware.structName} Logic;");
-        sb.AppendLine($"      [ReadOnly] public {middleware.structName}.{middleware.dataType} Data;");
-        sb.AppendLine();
-        sb.AppendLine($"      public void Execute(ref {middleware.actionType} action, in ActionTag tag)");
-        sb.AppendLine("      {");
-        sb.AppendLine("        // Transform only - parallel middleware cannot filter");
-        sb.AppendLine("        Logic.Process(ref action, in Data);");
-        sb.AppendLine("      }");
-        sb.AppendLine("    }");
-      }
-
       sb.AppendLine("  }");
       sb.AppendLine("}");
 
