@@ -76,26 +76,6 @@ namespace ECSReact.Editor.CodeGeneration
     public bool isOptional;
   }
 
-  [Serializable]
-  public class SystemTypeInfo
-  {
-    public string typeName;
-    public string fullTypeName;
-    public bool includeInGeneration;
-  }
-
-  public enum SystemType
-  {
-    // ReducerSystem<TState, TAction>
-    StandardReducer,
-    // BurstReducerSystem<TState, TAction, TLogic>
-    BurstReducer,
-    // MiddlewareSystem<TAction>
-    StandardMiddleware,
-    // BurstMiddlewareSystem<TAction, TLogic>
-    BurstMiddleware
-  }
-
   public class SystemInfo
   {
     public Type systemType;
@@ -115,12 +95,12 @@ namespace ECSReact.Editor.CodeGeneration
     public string structName;
     public string namespaceName;
     public string stateType;
+    public string stateNamespaceName;
     public string actionType;
-    public string dataType;  // For IParallelReducer<,,> third type param
+    public string actionNamespaceName;
     public bool disableBurst;
     public int order;
     public string systemName;
-    public bool isParallel;
     public bool shouldGenerate;
   }
 
@@ -132,11 +112,10 @@ namespace ECSReact.Editor.CodeGeneration
     public string structName;
     public string namespaceName;
     public string actionType;
-    public string dataType;  // For IParallelMiddleware<,> second type param
+    public string actionNamespaceName;
     public bool disableBurst;
     public int order;
     public string systemName;
-    public bool isParallel;
     public bool shouldGenerate;
   }
 

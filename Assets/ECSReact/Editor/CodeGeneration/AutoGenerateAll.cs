@@ -49,6 +49,9 @@ namespace ECSReact.Editor.CodeGeneration
 
       if (!hasDiscovered) {
         EditorGUILayout.HelpBox("Discovering namespaces...", MessageType.Info);
+        if (GUILayout.Button("Refresh Discovery")) {
+          discoverNamespaces();
+        }
         return;
       }
 
@@ -266,11 +269,12 @@ namespace ECSReact.Editor.CodeGeneration
               }
             }
 
-            // Discover IReducer/IParallelReducer/IMiddleware/IParallelMiddleware types
+            // Discover IReducer/IMiddleware types
             foreach (var type in types) {
               // Find Reducers
               var reducerAttr = type.GetCustomAttribute<ReducerAttribute>();
               if (reducerAttr != null && type.IsValueType) {
+
                 var interfaces = type.GetInterfaces();
                 foreach (var iface in interfaces) {
                   if (iface.IsGenericType) {
@@ -286,27 +290,12 @@ namespace ECSReact.Editor.CodeGeneration
                         structName = type.Name,
                         namespaceName = type.Namespace ?? "Global",
                         stateType = genericArgs[0].Name,
+                        stateNamespaceName = genericArgs[0].Namespace ?? "Global",
                         actionType = genericArgs[1].Name,
-                        dataType = null,
+                        actionNamespaceName = genericArgs[1].Namespace ?? "Global",
                         disableBurst = reducerAttr.DisableBurst,
                         order = reducerAttr.Order,
                         systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
-                        isParallel = false,
-                        shouldGenerate = true
-                      };
-                    } else if (genDef == typeof(IParallelReducer<,,>)) {
-                      reducerInfo = new ReducerInfo
-                      {
-                        structType = type,
-                        structName = type.Name,
-                        namespaceName = type.Namespace ?? "Global",
-                        stateType = genericArgs[0].Name,
-                        actionType = genericArgs[1].Name,
-                        dataType = genericArgs[2].Name,
-                        disableBurst = reducerAttr.DisableBurst,
-                        order = reducerAttr.Order,
-                        systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
-                        isParallel = true,
                         shouldGenerate = true
                       };
                     }
@@ -350,25 +339,10 @@ namespace ECSReact.Editor.CodeGeneration
                         structName = type.Name,
                         namespaceName = type.Namespace ?? "Global",
                         actionType = genericArgs[0].Name,
-                        dataType = null,
+                        actionNamespaceName = genericArgs[0].Namespace ?? "Global",
                         disableBurst = middlewareAttr.DisableBurst,
                         order = middlewareAttr.Order,
                         systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
-                        isParallel = false,
-                        shouldGenerate = true
-                      };
-                    } else if (genDef == typeof(IParallelMiddleware<,>)) {
-                      middlewareInfo = new MiddlewareInfo
-                      {
-                        structType = type,
-                        structName = type.Name,
-                        namespaceName = type.Namespace ?? "Global",
-                        actionType = genericArgs[0].Name,
-                        dataType = genericArgs[1].Name,
-                        disableBurst = middlewareAttr.DisableBurst,
-                        order = middlewareAttr.Order,
-                        systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
-                        isParallel = true,
                         shouldGenerate = true
                       };
                     }

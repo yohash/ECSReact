@@ -1,5 +1,4 @@
 using ECSReact.Core;
-using System.Collections;
 using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Entities;
