@@ -5,7 +5,6 @@
         "Unity.Entities",
         "Unity.Burst",
         "Unity.Mathematics",
-        "Unity.Physics",
         "Unity.Collections",
         "ECSReact.Core.Runtime"
     ],

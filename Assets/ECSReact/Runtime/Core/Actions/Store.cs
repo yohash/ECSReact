@@ -23,10 +23,7 @@ namespace ECSReact.Core
       } else {
         Destroy(gameObject);
       }
-    }
 
-    void Start()
-    {
       var world = World.DefaultGameObjectInjectionWorld;
       commandBufferSystem = world.GetOrCreateSystemManaged<BeginInitializationEntityCommandBufferSystem>();
     }
