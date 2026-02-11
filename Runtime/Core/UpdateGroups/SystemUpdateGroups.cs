@@ -1,5 +1,4 @@
 ﻿using Unity.Entities;
-using Unity.Physics.Systems;
 
 namespace ECSReact.Core
 {
@@ -74,24 +73,6 @@ namespace ECSReact.Core
       base.OnCreate();
 
       // UI notifications should be processed in consistent order
-      EnableSystemSorting = true;
-    }
-  }
-
-  /// <summary>
-  /// Specialized system group for physics-related middleware.
-  /// Provides a dedicated update group for physics preprocessing that runs
-  /// before the main physics simulation but after regular middleware.
-  /// </summary>
-  [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
-  [UpdateBefore(typeof(PhysicsSystemGroup))]
-  public partial class PhysicsMiddlewareSystemGroup : ComponentSystemGroup
-  {
-    protected override void OnCreate()
-    {
-      base.OnCreate();
-
-      // Physics middleware needs deterministic execution for multiplayer
       EnableSystemSorting = true;
     }
   }
