@@ -18,8 +18,10 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(Order = 20)]
   public struct AttackEnrichmentMiddleware : IMiddleware<AttackAction>
   {
+    public void OnCreate(ref SystemState state) { }
+
     public bool Process(
-      ref AttackAction action,
+      in AttackAction action,
       ref SystemState systemState,
       EntityCommandBuffer.ParallelWriter ecb,
       int sortKey)

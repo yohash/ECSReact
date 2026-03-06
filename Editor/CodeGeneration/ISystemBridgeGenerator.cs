@@ -605,11 +605,9 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine($"    private {middleware.structName} logic;");
       sb.AppendLine("    private EntityQuery actionQuery;");
 
-      // Sequential middleware with filtering capability
       sb.AppendLine();
       sb.AppendLine("    // ECB writer for Burst-compatible action dispatching");
       sb.AppendLine("    private EntityCommandBuffer.ParallelWriter ecbWriter;");
-      sb.AppendLine($"    private ComponentLookup<{middleware.actionNamespaceName}.{middleware.actionType}> actionLookup;");
       sb.AppendLine();
 
       // OnCreate
@@ -618,6 +616,7 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("    public void OnCreate(ref SystemState state)");
       sb.AppendLine("    {");
       sb.AppendLine($"      logic = new {middleware.structName}();");
+      sb.AppendLine("      logic.OnCreate(ref state);");
       sb.AppendLine();
       sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
       sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
@@ -625,23 +624,19 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
       sb.AppendLine("      queryBuilder.Dispose();");
       sb.AppendLine();
-      sb.AppendLine($"      actionLookup = state.GetComponentLookup<{middleware.actionNamespaceName}.{middleware.actionType}>(isReadOnly: false);");
       sb.AppendLine($"      state.RequireForUpdate(actionQuery);");
       sb.AppendLine($"      state.RequireForUpdate<{middleware.actionNamespaceName}.{middleware.actionType}>();");
       sb.AppendLine("    }");
       sb.AppendLine();
 
-      // OnUpdate - Create lookup on main thread, call Burst helper
+      // OnUpdate
       sb.AppendLine("    public void OnUpdate(ref SystemState state)");
       sb.AppendLine("    {");
       sb.AppendLine("      // Pre-fetch ECB writer on main thread");
       sb.AppendLine("      ecbWriter = ECSActionDispatcher.GetJobCommandBuffer(state.World);");
       sb.AppendLine();
-      sb.AppendLine("      // Update ComponentLookup to latest data");
-      sb.AppendLine("      actionLookup.Update(ref state);");
-      sb.AppendLine();
-      sb.AppendLine("      // Call Burst-compiled middleware processing");
-      sb.AppendLine("      ProcessMiddleware(ref state, actionLookup);");
+      sb.AppendLine("      // Call middleware processing");
+      sb.AppendLine("      ProcessMiddleware(ref state);");
       sb.AppendLine();
       sb.AppendLine("      // Register job handle for proper synchronization");
       sb.AppendLine("      ECSActionDispatcher.RegisterJobHandle(state.Dependency, state.World);");
@@ -651,57 +646,52 @@ namespace ECSReact.Editor.CodeGeneration
       // ProcessMiddleware - Burst compiled helper
       if (!middleware.disableBurst)
         sb.AppendLine("    [BurstCompile]");
-      sb.AppendLine("    private void ProcessMiddleware(");
-      sb.AppendLine("      ref SystemState state,");
-      sb.AppendLine($"      ComponentLookup<{middleware.actionNamespaceName}.{middleware.actionType}> actionLookup)");
+      sb.AppendLine("    private void ProcessMiddleware(ref SystemState state)");
       sb.AppendLine("    {");
       sb.AppendLine("      // ECB for filtering actions (destroy entity if filtered)");
       sb.AppendLine("      var ecb = new EntityCommandBuffer(Allocator.TempJob);");
       sb.AppendLine();
-      sb.AppendLine("      // Process all actions sequentially - uses cached query");
+      sb.AppendLine("      // Bulk-read all action data and entities before the loop.");
+      sb.AppendLine("      // This prevents structural changes inside Process() from");
+      sb.AppendLine("      // invalidating a ComponentLookup mid-iteration.");
       sb.AppendLine("      var entities = actionQuery.ToEntityArray(Allocator.Temp);");
       sb.AppendLine("      int sortKey = 0;");
-      sb.AppendLine("      ");
+      sb.AppendLine();
       sb.AppendLine("      // Check if action is zero-sized (no fields)");
       sb.AppendLine($"      var type = new ComponentType(typeof({middleware.actionNamespaceName}.{middleware.actionType}));");
       sb.AppendLine($"      bool isZeroSized = type.IsZeroSized;");
-      sb.AppendLine("      ");
-      sb.AppendLine("      foreach (var entity in entities)");
+      sb.AppendLine();
+      sb.AppendLine("      if (isZeroSized)");
       sb.AppendLine("      {");
-      sb.AppendLine("        bool shouldContinue;");
-      sb.AppendLine("        ");
-      sb.AppendLine("        if (isZeroSized)");
+      sb.AppendLine("        // Zero-sized: no data to read, use default");
+      sb.AppendLine($"        var action = default({middleware.actionNamespaceName}.{middleware.actionType});");
+      sb.AppendLine("        foreach (var entity in entities)");
       sb.AppendLine("        {");
-      sb.AppendLine("          // Zero-sized components: use default value");
-      sb.AppendLine($"          var action = default({middleware.actionNamespaceName}.{middleware.actionType});");
-      sb.AppendLine("          shouldContinue = logic.Process(");
-      sb.AppendLine("            ref action,");
-      sb.AppendLine("            ref state,");
-      sb.AppendLine("            ecbWriter,");
-      sb.AppendLine("            sortKey");
-      sb.AppendLine("          );");
+      sb.AppendLine("          if (!logic.Process(in action, ref state, ecbWriter, sortKey))");
+      sb.AppendLine("          {");
+      sb.AppendLine("            ecb.DestroyEntity(entity);");
+      sb.AppendLine("          }");
+      sb.AppendLine("          sortKey++;");
       sb.AppendLine("        }");
-      sb.AppendLine("        else");
-      sb.AppendLine("        {");
-      sb.AppendLine("          // Normal components: use ComponentLookup");
-      sb.AppendLine("          var action =  actionLookup.GetRefRW(entity);");
-      sb.AppendLine("          shouldContinue = logic.Process(");
-      sb.AppendLine("            ref action.ValueRW,");
-      sb.AppendLine("            ref state,");
-      sb.AppendLine("            ecbWriter,");
-      sb.AppendLine("            sortKey");
-      sb.AppendLine("          );");
-      sb.AppendLine("        }");
-      sb.AppendLine();
-      sb.AppendLine("        if (!shouldContinue)");
-      sb.AppendLine("        {");
-      sb.AppendLine("          // Middleware filtered this action - destroy it");
-      sb.AppendLine("          ecb.DestroyEntity(entity);");
-      sb.AppendLine("        }");
-      sb.AppendLine();
-      sb.AppendLine("        sortKey++;");
       sb.AppendLine("      }");
-      sb.AppendLine("      ");
+      sb.AppendLine("      else");
+      sb.AppendLine("      {");
+      sb.AppendLine("        // Bulk-read action data into a NativeArray before iteration");
+      sb.AppendLine($"        var actions = actionQuery.ToComponentDataArray<{middleware.actionNamespaceName}.{middleware.actionType}>(Allocator.Temp);");
+      sb.AppendLine();
+      sb.AppendLine("        for (int i = 0; i < entities.Length; i++)");
+      sb.AppendLine("        {");
+      sb.AppendLine("          var action = actions[i];");
+      sb.AppendLine("          if (!logic.Process(in action, ref state, ecbWriter, sortKey))");
+      sb.AppendLine("          {");
+      sb.AppendLine("            ecb.DestroyEntity(entities[i]);");
+      sb.AppendLine("          }");
+      sb.AppendLine("          sortKey++;");
+      sb.AppendLine("        }");
+      sb.AppendLine();
+      sb.AppendLine("        actions.Dispose();");
+      sb.AppendLine("      }");
+      sb.AppendLine();
       sb.AppendLine("      entities.Dispose();");
       sb.AppendLine("      ecb.Playback(state.EntityManager);");
       sb.AppendLine("      ecb.Dispose();");

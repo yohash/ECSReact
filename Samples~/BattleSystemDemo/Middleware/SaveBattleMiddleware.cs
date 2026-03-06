@@ -19,8 +19,10 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct SaveBattleMiddleware : IMiddleware<SaveBattleAction>
   {
+    public void OnCreate(ref SystemState state) { }
+
     public bool Process(
-      ref SaveBattleAction action,
+      in SaveBattleAction action,
       ref SystemState systemState,
       EntityCommandBuffer.ParallelWriter ecb,
       int sortKey

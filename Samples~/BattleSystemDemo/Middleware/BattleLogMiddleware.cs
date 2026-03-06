@@ -11,8 +11,10 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct AttackLoggingMiddleware : IMiddleware<AttackAction>
   {
+    public void OnCreate(ref SystemState state) { }
+
     public bool Process(
-      ref AttackAction action,
+      in AttackAction action,
       ref SystemState systemState,
       EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
@@ -26,13 +28,13 @@ namespace ECSReact.Samples.BattleSystem
       FixedString128Bytes message;
       if (action.isCritical) {
         message = $"{attackerName} lands a CRITICAL hit on {targetName}!";
-      } else {
+      }
+      else {
         message = $"{attackerName} attacks {targetName}";
       }
 
       // Dispatch log action
-      ECSActionDispatcher.Dispatch(new BattleLogAction
-      {
+      ECSActionDispatcher.Dispatch(new BattleLogAction {
         logType = LogType.Action,
         message = message,
         sourceEntity = action.attackerEntity,
@@ -43,8 +45,7 @@ namespace ECSReact.Samples.BattleSystem
 
 
       // Also log the damage separately
-      ECSActionDispatcher.Dispatch(new BattleLogAction
-      {
+      ECSActionDispatcher.Dispatch(new BattleLogAction {
         logType = LogType.Damage,
         message = $"{targetName} takes {action.baseDamage} damage!",
         sourceEntity = action.attackerEntity,
@@ -75,8 +76,10 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct TurnChangeLoggingMiddleware : IMiddleware<NextTurnAction>
   {
+    public void OnCreate(ref SystemState state) { }
+
     public bool Process(
-      ref NextTurnAction action,
+      in NextTurnAction action,
       ref SystemState systemState,
       EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
@@ -84,10 +87,9 @@ namespace ECSReact.Samples.BattleSystem
     {
       // Get current battle state to determine whose turn it is
       if (systemState.TryGetSingleton<BattleState>(out var battleState)) {
-        var nextCharacter = GetNextCharacterName(ref action, battleState, ref systemState);
+        var nextCharacter = GetNextCharacterName(in action, battleState, ref systemState);
 
-        ECSActionDispatcher.Dispatch(new BattleLogAction
-        {
+        ECSActionDispatcher.Dispatch(new BattleLogAction {
           logType = LogType.TurnChange,
           message = $"=== {nextCharacter}'s turn ===",
           sourceEntity = Entity.Null,
@@ -100,7 +102,7 @@ namespace ECSReact.Samples.BattleSystem
       return true;
     }
 
-    private FixedString32Bytes GetNextCharacterName(ref NextTurnAction action, BattleState battleState, ref SystemState systemState)
+    private FixedString32Bytes GetNextCharacterName(in NextTurnAction action, BattleState battleState, ref SystemState systemState)
     {
       // Get next character in turn order
       int nextIndex = action.nextCharacterIndex;
@@ -127,8 +129,10 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct ActionSelectionLoggingMiddleware : IMiddleware<SelectActionTypeAction>
   {
+    public void OnCreate(ref SystemState state) { }
+
     public bool Process(
-      ref SelectActionTypeAction action,
+      in SelectActionTypeAction action,
       ref SystemState systemState,
       EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
@@ -138,8 +142,7 @@ namespace ECSReact.Samples.BattleSystem
         return true;
 
       var characterName = GetCharacterName(action.actingCharacter, ref systemState);
-      FixedString128Bytes message = action.actionType switch
-      {
+      FixedString128Bytes message = action.actionType switch {
         ActionType.Attack => $"{characterName} prepares to attack!",
         ActionType.Skill => $"{characterName} opens the skill menu...",
         ActionType.Item => $"{characterName} reaches for an item...",
@@ -148,8 +151,7 @@ namespace ECSReact.Samples.BattleSystem
         _ => $"{characterName} selects {action.actionType}"
       };
 
-      ECSActionDispatcher.Dispatch(new BattleLogAction
-      {
+      ECSActionDispatcher.Dispatch(new BattleLogAction {
         logType = LogType.Action,
         message = message,
         sourceEntity = action.actingCharacter,
