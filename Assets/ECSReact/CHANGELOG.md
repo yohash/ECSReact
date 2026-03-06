@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[0.1.3] - 2026-02-11
 
+### Added
+
+###### Added a new method `IMiddleware.OnCreate()` for initialization
+
+### Removed
+
+###### Actions in middleware are no longer mutable using `in Action action`
+
+## \[0.1.3] - 2026-02-11
+
 ### Changed
 
 ###### Moved the `Store.Start()` method contents into `Awake()`

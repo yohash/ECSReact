@@ -105,14 +105,15 @@ IParallelReducer<TState, TAction, TData>
                                                      // Implement: Burst-compiled mutate state logic using prepared data
 
 IMiddleware<TAction>
-└── bool Process(ref TAction action, ref SystemState systemState)
-                                                     // Implement: Sequential processing, validate, transform, or filter actions
+├── OnCreate(ref SystemState state)                   // Implement: cache queries, lookups, or other one-time setup
+└── bool Process(in TAction action, ref SystemState systemState)
+                                                     // Implement: Sequential processing, inspect or filter actions (read-only)
                                                      // Return false to prevent action from reaching reducers
 
 IParallelMiddleware<TAction, TData>
 ├── PrepareData(ref SystemState systemState)         // Main thread: prepare lookup data
 │   └── Returns TData struct
-└── Process(ref TAction action, in TData data)       // Implement: Parallel processing, transform action data only
+└── Process(in TAction action, in TData data)        // Implement: Parallel processing, inspect action data only
    
 StateChangeNotificationSystem<T>
 └── CreateStateChangeEvent(T new, T old, bool hasOld) // Override: create UI events

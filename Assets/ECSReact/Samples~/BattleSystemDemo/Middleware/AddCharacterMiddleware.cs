@@ -15,8 +15,10 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true, Order = 10)]
   public struct AddCharacterMiddleware : IMiddleware<AddCharacterAction>
   {
+    public void OnCreate(ref SystemState state) { }
+
     public bool Process(
-      ref AddCharacterAction action,
+      in AddCharacterAction action,
       ref SystemState systemState,
       EntityCommandBuffer.ParallelWriter ecb,
       int sortKey)

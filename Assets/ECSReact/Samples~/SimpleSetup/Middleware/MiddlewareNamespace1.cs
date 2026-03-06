@@ -9,7 +9,9 @@ namespace ECSReact.Samples.SimpleSetup.Namespace1.Middleware
   [Middleware(DisableBurst = true)]
   public struct MiddlewareNamespace1 : IMiddleware<ActionResetNamespace1>
   {
-    public bool Process(ref ActionResetNamespace1 action, ref SystemState systemState, EntityCommandBuffer.ParallelWriter ecb, int sortKey)
+    public void OnCreate(ref SystemState state) { }
+
+    public bool Process(in ActionResetNamespace1 action, ref SystemState systemState, EntityCommandBuffer.ParallelWriter ecb, int sortKey)
     {
       if (!systemState.TryGetSingleton<StateNamespace1>(out var state)) {
         Debug.LogError("StateNamespace1 singleton not found!");
@@ -19,7 +21,8 @@ namespace ECSReact.Samples.SimpleSetup.Namespace1.Middleware
       if (state.WasReset) {
         // Perform logging. Alternately, we can return false to block the action.
         Debug.Log("MiddlewareNamespace1: State was already reset.");
-      } else {
+      }
+      else {
         Debug.Log("MiddlewareNamespace1: ActionResetNamespace1 proceeding.");
       }
 

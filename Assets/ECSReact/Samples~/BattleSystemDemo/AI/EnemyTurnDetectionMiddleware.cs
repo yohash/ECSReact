@@ -39,8 +39,10 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware]
   public struct EnemyTurnDetectionMiddleware : IMiddleware<NextTurnAction>
   {
+    public void OnCreate(ref SystemState state) { }
+
     public bool Process(
-      ref NextTurnAction action,
+      in NextTurnAction action,
       ref SystemState systemState,
       EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
@@ -65,7 +67,7 @@ namespace ECSReact.Samples.BattleSystem
       }
 
       // Find the active enemy entity
-      Entity activeEnemy = GetActiveEnemy(ref action, battleState, identityState, healthState, ref systemState);
+      Entity activeEnemy = GetActiveEnemy(in action, battleState, identityState, healthState, ref systemState);
       if (activeEnemy == Entity.Null) {
         return true;
       }
@@ -85,8 +87,7 @@ namespace ECSReact.Samples.BattleSystem
       // SIDE EFFECT: Dispatch enriched EnemyTurnStartedAction
       // ====================================================================
 
-      ecb.DispatchAction(sortKey, new EnemyTurnStartedAction
-      {
+      ecb.DispatchAction(sortKey, new EnemyTurnStartedAction {
         enemyEntity = activeEnemy,
         turnIndex = battleState.activeCharacterIndex,
         turnCount = battleState.turnCount,
@@ -97,8 +98,7 @@ namespace ECSReact.Samples.BattleSystem
       // SIDE EFFECT: Dispatch UI feedback action
       // ====================================================================
 
-      ecb.DispatchAction(sortKey + 1, new AIThinkingAction
-      {
+      ecb.DispatchAction(sortKey + 1, new AIThinkingAction {
         enemyEntity = activeEnemy,
         thinkDuration = behavior.thinkingDuration
       });
@@ -115,7 +115,7 @@ namespace ECSReact.Samples.BattleSystem
     /// OLD: O(n) loop through PartyState.characters array.
     /// </summary>
     private Entity GetActiveEnemy(
-        ref NextTurnAction action,
+        in NextTurnAction action,
         BattleState battleState,
         CharacterIdentityState identityState,
         CharacterHealthState healthState,

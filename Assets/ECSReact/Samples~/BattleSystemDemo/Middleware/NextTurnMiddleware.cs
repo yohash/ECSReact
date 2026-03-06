@@ -12,8 +12,10 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware]
   public struct NextTurnMiddleware : IMiddleware<ReadyForNextTurn>
   {
+    public void OnCreate(ref SystemState state) { }
+
     public bool Process(
-      ref ReadyForNextTurn action,
+      in ReadyForNextTurn action,
       ref SystemState systemState,
       EntityCommandBuffer.ParallelWriter ecb,
       int sortKey
@@ -83,7 +85,9 @@ namespace ECSReact.Samples.BattleSystem
   [Middleware(DisableBurst = true)]
   public struct EndBattleMiddleware : IMiddleware<EndBattleAction>
   {
-    public bool Process(ref EndBattleAction action, ref SystemState systemState, EntityCommandBuffer.ParallelWriter dispatcher, int sortKey)
+    public void OnCreate(ref SystemState state) { }
+
+    public bool Process(in EndBattleAction action, ref SystemState systemState, EntityCommandBuffer.ParallelWriter dispatcher, int sortKey)
     {
       Debug.LogWarning("*** BATTLE ENDED ***");
       return true;
