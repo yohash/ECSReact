@@ -42,7 +42,7 @@ https://github.com/yohash/ECSReact.git#upm
 
 The `upm` branch is maintained us a current subtree via:
 ```
-git subtree split --prefix=Assets/ECSReact --branch upm --rejoin
+git subtree split --prefix=Assets/ECSReact --branch upm
 ```
 
 ## About
