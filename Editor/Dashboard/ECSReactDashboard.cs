@@ -411,7 +411,7 @@ namespace ECSReact.Editor
           .Where(s => string.IsNullOrEmpty(searchFilter) ||
                      s.stateType.Name.ToLower().Contains(searchFilter.ToLower()))
           .Where(s => !showOnlyChangedStates || s.changeCount > 0)
-          .OrderByDescending(s => s.changeFrequency)
+          .OrderBy(s => s.stateType.Name)
           .ToList();
 
       EditorGUILayout.LabelField($"Tracking {filteredStates.Count} states", EditorStyles.boldLabel);
