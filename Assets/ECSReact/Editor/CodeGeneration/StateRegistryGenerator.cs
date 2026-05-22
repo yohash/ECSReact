@@ -168,50 +168,66 @@ namespace ECSReact.Editor.CodeGeneration
 
     private void discoverStateTypes()
     {
+      var previousGroups = namespaceGroups.ToDictionary(g => g.Key, g => g.Value);
       namespaceGroups.Clear();
 
-      var gameStateInterface = typeof(ECSReact.Core.IGameState);
-      var componentDataInterface = typeof(Unity.Entities.IComponentData);
+      var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
-      var stateTypes = AppDomain.CurrentDomain.GetAssemblies()
-          .Where(a => !a.FullName.StartsWith("Unity") && !a.FullName.StartsWith("System"))
-          .SelectMany(a =>
-          {
-            try { return a.GetTypes(); } catch { return new Type[0]; }
-          })
-          .Where(t => t.IsValueType &&
-                     !t.IsAbstract &&
-                     !t.IsGenericType &&
-                     t.IsUnmanaged() &&
-                     gameStateInterface.IsAssignableFrom(t) &&
-                     componentDataInterface.IsAssignableFrom(t))
-          .OrderBy(t => t.Namespace ?? "")
-          .ThenBy(t => t.Name)
-          .ToList();
+      foreach (var assembly in assemblies) {
+        try {
+          var types = assembly.GetTypes()
+              .Where(t => t.IsValueType && !t.IsEnum && !t.IsGenericType)
+              .Where(t => typeof(Unity.Entities.IComponentData).IsAssignableFrom(t))
+              .Where(t => t.GetInterfaces().Any(i => i.Name == "IGameState"))
+              .ToList();
 
-      // Group by namespace
-      foreach (var stateType in stateTypes) {
-        string ns = stateType.Namespace ?? "Global";
+          foreach (var type in types) {
+            string ns = type.Namespace ?? "Global";
 
-        if (!namespaceGroups.ContainsKey(ns)) {
-          namespaceGroups[ns] = new NamespaceGroup
-          {
-            namespaceName = ns,
-            states = new List<StateTypeInfo>(),
-            isExpanded = true,
-            includeInGeneration = true
-          };
+            var stateInfo = new StateTypeInfo
+            {
+              stateType = type,
+              typeName = type.Name,
+              fullTypeName = type.FullName,
+              namespaceName = ns,
+              assemblyName = assembly.GetName().Name,
+              includeInGeneration = true
+            };
+
+            if (!namespaceGroups.ContainsKey(ns)) {
+              namespaceGroups[ns] = new NamespaceGroup
+              {
+                namespaceName = ns,
+                states = new List<StateTypeInfo>(),
+                isExpanded = true,
+                includeInGeneration = true
+              };
+            }
+
+            // Preserve previous checkbox state on re-discovery
+            if (previousGroups.TryGetValue(ns, out var previousGroup)) {
+              var previousState = previousGroup.states.FirstOrDefault(s => s.typeName == type.Name);
+              if (previousState != null) {
+                stateInfo.includeInGeneration = previousState.includeInGeneration;
+              }
+              namespaceGroups[ns].includeInGeneration = previousGroup.includeInGeneration;
+              namespaceGroups[ns].isExpanded = previousGroup.isExpanded;
+            }
+
+            namespaceGroups[ns].states.Add(stateInfo);
+          }
+        } catch (System.Reflection.ReflectionTypeLoadException ex) {
+          Debug.LogWarning($"[StateRegistryGenerator] Could not load types from assembly {assembly.GetName().Name}: {ex.Message}");
+        } catch (Exception ex) {
+          Debug.LogWarning($"[StateRegistryGenerator] Error processing assembly {assembly.GetName().Name}: {ex.Message}");
         }
-
-        namespaceGroups[ns].states.Add(new StateTypeInfo
-        {
-          stateType = stateType,
-          typeName = stateType.Name,
-          includeInGeneration = true
-        });
       }
 
-      Debug.Log($"[StateRegistryGenerator] Discovered {stateTypes.Count} state types across {namespaceGroups.Count} namespaces");
+      foreach (var group in namespaceGroups.Values) {
+        group.states = group.states.OrderBy(s => s.typeName).ToList();
+      }
+
+      Debug.Log($"[StateRegistryGenerator] Discovered {namespaceGroups.Values.Sum(g => g.states.Count)} state types across {namespaceGroups.Count} namespaces");
     }
 
     private void generateStateRegistry()
@@ -489,63 +505,4 @@ namespace ECSReact.Editor.CodeGeneration
     }
   }
 
-
-  // Extension to check if a type is unmanaged
-  public static class TypeExtensions
-  {
-    public static bool IsUnmanaged(this Type type)
-    {
-      if (!type.IsValueType)
-        return false;
-
-      // Check all fields recursively
-      foreach (var field in type.GetFields(System.Reflection.BindingFlags.Instance |
-                                          System.Reflection.BindingFlags.Public |
-                                          System.Reflection.BindingFlags.NonPublic)) {
-        var fieldType = field.FieldType;
-
-        // Skip if it's a primitive or enum
-        if (fieldType.IsPrimitive || fieldType.IsEnum)
-          continue;
-
-        // Check for common Unity unmanaged types
-        if (isKnownUnmanagedType(fieldType))
-          continue;
-
-        // For other value types, check recursively
-        if (fieldType.IsValueType) {
-          if (!IsUnmanaged(fieldType))
-            return false;
-        } else {
-          // Reference type found
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    private static bool isKnownUnmanagedType(Type type)
-    {
-      var typeName = type.FullName;
-
-      // Unity.Mathematics types
-      if (typeName.StartsWith("Unity.Mathematics."))
-        return true;
-
-      // Unity.Collections types
-      if (typeName.StartsWith("Unity.Collections.FixedString"))
-        return true;
-      if (typeName.StartsWith("Unity.Collections.FixedList"))
-        return true;
-
-      // Unity Entity type
-      if (typeName == "Unity.Entities.Entity")
-        return true;
-
-      // Add other known unmanaged types as needed
-
-      return false;
-    }
-  }
 }
