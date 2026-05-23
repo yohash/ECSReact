@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## \[0.1.6] - 2026-05-23
+
+### Fixed
+
+###### `StateRegistryGenerator` now discovers all `IGameState` types across all assemblies
+
+The editor tool was silently missing state types that `UIStateNotifierGenerator` found correctly. Two bugs in `discoverStateTypes()`: an assembly name filter that could exclude valid user assemblies, and a broken reflection-based `IsUnmanaged()` check that incorrectly rejected states containing Unity structs with internal pointer fields (e.g. `BlobAssetReference<T>`). Discovery logic is now fully aligned with `UIStateNotifierGenerator`.
+
 ## \[0.1.5] - 2026-03-18
 
 ### Changed
