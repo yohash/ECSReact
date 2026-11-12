@@ -8,8 +8,10 @@ using System.Linq;
 namespace ECSReact.Editor
 {
   /// <summary>
-  /// ECS System that monitors action entities to feed data to the debug dashboard.
-  /// This runs in the editor and captures action data before cleanup.
+  /// ECS System that monitors frame-lane action entities (ActionTag) to feed data to the
+  /// debug dashboard. This runs in the editor and captures action data before cleanup.
+  /// Fixed-lane actions are captured by FixedLaneDebugActionInterceptorSystem, which feeds
+  /// the same history and event.
   /// </summary>
   [UpdateInGroup(typeof(InitializationSystemGroup))]
   [UpdateAfter(typeof(BeginInitializationEntityCommandBufferSystem))]
@@ -21,10 +23,11 @@ namespace ECSReact.Editor
       public object actionData;
       public float timestamp;
       public int frame;
+      public bool isFixedLane; // true when captured in the fixed-step action phase
     }
 
     private static Queue<ActionDebugData> actionQueue = new Queue<ActionDebugData>();
-    private static Dictionary<Type, EntityQuery> actionQueries = new Dictionary<Type, EntityQuery>();
+    private readonly Dictionary<Type, EntityQuery> actionQueries = new Dictionary<Type, EntityQuery>();
     private static List<Type> cachedActionTypes;
     public static event Action<ActionDebugData> OnActionDetected;
 
@@ -36,12 +39,16 @@ namespace ECSReact.Editor
       Enabled = Application.isEditor;
 
       if (Enabled) {
-        DiscoverActionTypes();
-        CreateActionQueries();
+        foreach (var actionType in GetActionTypes()) {
+          var query = CreateLaneQuery(actionType, ComponentType.ReadOnly<ActionTag>(), GetEntityQuery);
+          if (query.HasValue)
+            actionQueries[actionType] = query.Value;
+        }
       }
     }
 
-    private void DiscoverActionTypes()
+    /// <summary>All IGameAction component types, discovered once and shared by both lanes' interceptors.</summary>
+    internal static List<Type> GetActionTypes()
     {
       if (cachedActionTypes == null) {
         cachedActionTypes = new List<Type>();
@@ -65,29 +72,37 @@ namespace ECSReact.Editor
 
         Debug.Log($"[DebugActionInterceptor] Discovered {cachedActionTypes.Count} action types");
       }
+      return cachedActionTypes;
     }
 
-    private void CreateActionQueries()
+    /// <summary>Builds the query for one action type in one lane, via the calling system's GetEntityQuery.</summary>
+    internal static EntityQuery? CreateLaneQuery(
+      Type actionType, ComponentType laneTag, Func<EntityQueryDesc[], EntityQuery> getEntityQuery)
     {
-      foreach (var actionType in cachedActionTypes) {
-        try {
-          var queryDesc = new EntityQueryDesc
+      try {
+        var queryDesc = new EntityQueryDesc
+        {
+          All = new[]
           {
-            All = new[]
-            {
-              ComponentType.ReadOnly(actionType),
-              ComponentType.ReadOnly<ActionTag>()
-            }
-          };
-
-          actionQueries[actionType] = GetEntityQuery(queryDesc);
-        } catch (Exception e) {
-          Debug.LogError($"Failed to create query for action type {actionType.Name}: {e.Message}");
-        }
+            ComponentType.ReadOnly(actionType),
+            laneTag
+          }
+        };
+        return getEntityQuery(new[] { queryDesc });
+      } catch (Exception e) {
+        Debug.LogError($"Failed to create query for action type {actionType.Name}: {e.Message}");
+        return null;
       }
     }
 
     protected override void OnUpdate()
+    {
+      Capture(EntityManager, World, actionQueries, isFixedLane: false);
+    }
+
+    /// <summary>Records every action matched by the given queries into the shared history.</summary>
+    internal static void Capture(
+      EntityManager entityManager, World world, Dictionary<Type, EntityQuery> actionQueries, bool isFixedLane)
     {
       var nonEmpty = actionQueries.Where(q => !q.Value.IsEmpty);
 
@@ -101,14 +116,15 @@ namespace ECSReact.Editor
         foreach (var entity in entities) {
           try {
             // Get action data using GetComponentObject for runtime type handling
-            var actionData = ComponentDataGetter.GetComponentData(EntityManager, entity, actionType);
+            var actionData = ComponentDataGetter.GetComponentData(entityManager, entity, actionType);
 
             var debugData = new ActionDebugData
             {
               actionType = actionType,
               actionData = actionData,
-              timestamp = (float)World.Time.ElapsedTime,
-              frame = (int)(World.Time.ElapsedTime / World.Time.fixedDeltaTime)
+              timestamp = (float)world.Time.ElapsedTime,
+              frame = (int)(world.Time.ElapsedTime / world.Time.fixedDeltaTime),
+              isFixedLane = isFixedLane
             };
 
             actionQueue.Enqueue(debugData);
@@ -148,6 +164,42 @@ namespace ECSReact.Editor
   }
 
   /// <summary>
+  /// Captures fixed-lane ([FixedStepAction]) actions for the debug dashboard.
+  /// Fixed-lane action entities only exist inside FixedActionSystemGroup, so this runs there,
+  /// right after FixedActionCommandBufferSystem plays them back and before any fixed-lane
+  /// middleware can filter them. Feeds the same history and event as DebugActionInterceptorSystem.
+  /// </summary>
+  [UpdateInGroup(typeof(FixedActionSystemGroup))]
+  [UpdateAfter(typeof(FixedActionCommandBufferSystem))]
+  [UpdateBefore(typeof(FixedMiddlewareSystemGroup))]
+  public partial class FixedLaneDebugActionInterceptorSystem : SystemBase
+  {
+    private readonly Dictionary<Type, EntityQuery> actionQueries = new Dictionary<Type, EntityQuery>();
+
+    protected override void OnCreate()
+    {
+      base.OnCreate();
+
+      // Only run in editor
+      Enabled = Application.isEditor;
+
+      if (Enabled) {
+        foreach (var actionType in DebugActionInterceptorSystem.GetActionTypes()) {
+          var query = DebugActionInterceptorSystem.CreateLaneQuery(
+            actionType, ComponentType.ReadOnly<FixedActionTag>(), GetEntityQuery);
+          if (query.HasValue)
+            actionQueries[actionType] = query.Value;
+        }
+      }
+    }
+
+    protected override void OnUpdate()
+    {
+      DebugActionInterceptorSystem.Capture(EntityManager, World, actionQueries, isFixedLane: true);
+    }
+  }
+
+  /// <summary>
   /// MonoBehaviour helper to ensure the debug system is active in editor
   /// </summary>
   [ExecuteInEditMode]
@@ -171,8 +223,9 @@ namespace ECSReact.Editor
         // Ensure our debug system is registered with the world
         var world = World.DefaultGameObjectInjectionWorld;
         if (world != null && world.IsCreated) {
-          var system = world.GetOrCreateSystem<DebugActionInterceptorSystem>();
-          Debug.Log("[DebugSystemBootstrapper] Debug action interceptor system activated");
+          world.GetOrCreateSystem<DebugActionInterceptorSystem>();
+          world.GetOrCreateSystem<FixedLaneDebugActionInterceptorSystem>();
+          Debug.Log("[DebugSystemBootstrapper] Debug action interceptor systems activated");
         }
       }
     }
