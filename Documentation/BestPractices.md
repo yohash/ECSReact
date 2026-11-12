@@ -19,7 +19,7 @@
 - **One lane per type** - Never try to process one action type in both lanes. If gameplay and presentation both need an event, use two action types (e.g. `TakeDamageAction` and `DamageNumberAction`)
 - **Dispatch from the fixed step** - A `[FixedStepAction]` dispatched from a system in `FixedStepSimulationSystemGroup` is processed in the same step, after physics. Dispatching it from frame-rate code delays it to the next step
 - **Mind chain depth** - Each fixed-lane middleware hop costs one step. Prefer enriching one action over long dispatch chains
-- **Hand-written systems** - Use `[FixedReducerUpdateGroup]` / `[FixedMiddlewareUpdateGroup]` and query `FixedActionTag` for fixed-lane action types
+- **Hand-written systems** - Use `[UpdateInGroup(typeof(FixedReducerSystemGroup))]` / `[UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]` and query `FixedActionTag` for fixed-lane action types
 
 ### Reducer Design
 

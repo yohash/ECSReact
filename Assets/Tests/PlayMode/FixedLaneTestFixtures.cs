@@ -5,7 +5,9 @@ using ECSReact.Core;
 
 // Test-only actions and systems for FixedLaneTimingTests.
 // Every system is [DisableAutoCreation] so it only runs in the test world, never in the
-// default world that play mode creates.
+// default world that play mode creates. Systems are placed with plain
+// [UpdateInGroup(typeof(...))]: Entities matches that attribute by exact type, so
+// UpdateInGroupAttribute subclasses are ignored.
 namespace ECSReact.Tests
 {
   // ─────────────────────────────── Actions ───────────────────────────────
@@ -105,7 +107,7 @@ namespace ECSReact.Tests
   /// ActionWriter obtained for the fixed lane.
   /// </summary>
   [DisableAutoCreation]
-  [FixedMiddlewareUpdateGroup]
+  [UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]
   public partial class ChainingFixedMiddlewareSystem : SystemBase
   {
     private EntityQuery query;
@@ -137,7 +139,7 @@ namespace ECSReact.Tests
   /// frame lane.
   /// </summary>
   [DisableAutoCreation]
-  [MiddlewareUpdateGroup]
+  [UpdateInGroup(typeof(MiddlewareSystemGroup))]
   public partial class FrameMiddlewareDispatchingFixedSystem : SystemBase
   {
     private EntityQuery query;
@@ -163,7 +165,7 @@ namespace ECSReact.Tests
 
   /// <summary>Fixed-lane "reducer": records the step each fixed-lane action is processed in.</summary>
   [DisableAutoCreation]
-  [FixedReducerUpdateGroup]
+  [UpdateInGroup(typeof(FixedReducerSystemGroup))]
   public partial class FixedLaneRecorderSystem : SystemBase
   {
     private EntityQuery fixedQuery;
@@ -190,7 +192,7 @@ namespace ECSReact.Tests
 
   /// <summary>Frame-lane "reducer": records the frame each frame-lane action is processed in.</summary>
   [DisableAutoCreation]
-  [ReducerUpdateGroup]
+  [UpdateInGroup(typeof(ReducerSystemGroup))]
   public partial class FrameLaneRecorderSystem : SystemBase
   {
     private EntityQuery frameQuery;

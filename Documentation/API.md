@@ -43,7 +43,7 @@ Timing is counted in steps for the fixed lane, never in frames:
 | Frame-rate code (UI, input, frame-lane middleware) | fixed | the next fixed step; kept across frames that run no step |
 | Frame-rate code | frame | next frame |
 
-Fixed-lane action entities carry `FixedActionTag` instead of `ActionTag`, and only exist inside `FixedActionSystemGroup`. Hand-written systems that handle them should use `[FixedReducerUpdateGroup]` / `[FixedMiddlewareUpdateGroup]` and query `FixedActionTag`.
+Fixed-lane action entities carry `FixedActionTag` instead of `ActionTag`, and only exist inside `FixedActionSystemGroup`. Hand-written systems that handle them should use `[UpdateInGroup(typeof(FixedReducerSystemGroup))]` / `[UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]` and query `FixedActionTag`. Use the plain `UpdateInGroup` attribute: Entities matches it by exact type, so subclasses of it are ignored.
 
 `ActionLane<T>.IsFixed` reports the lane of `T` and can be read from Burst code.
 

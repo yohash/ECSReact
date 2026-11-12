@@ -13,8 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Action types marked `[FixedStepAction]` are processed at the end of every fixed step instead of once per rendered frame, so gameplay actions resolve a fixed number of steps after dispatch whatever the render rate. A new `FixedActionSystemGroup` runs `OrderLast` in `FixedStepSimulationSystemGroup` and contains `FixedActionCommandBufferSystem`, `FixedMiddlewareSystemGroup`, `FixedReducerSystemGroup` and `FixedActionCleanupSystem`. Fixed-lane entities carry `FixedActionTag` instead of `ActionTag`. `ECSActionDispatcher.Dispatch` and `Store.Dispatch` route by lane automatically; jobs use the new `ECSActionDispatcher.GetFixedJobCommandBuffer()`. `ActionLane<T>.IsFixed` exposes the lane to Burst code. See *API: Action Lanes* for the timing rules.
 
-###### `[FixedReducerUpdateGroup]` / `[FixedMiddlewareUpdateGroup]` for hand-written fixed-lane systems
-
 ###### The debug dashboard now captures fixed-lane actions (`FixedLaneDebugActionInterceptorSystem`)
 
 ###### `BattleSystemDemo` sample: a fixed-step turn clock (`TurnClockSystem`, `TurnClockTickAction`, `TurnClockReducer`)
