@@ -10,7 +10,7 @@ namespace ECSReact.Core
   /// <summary>
   /// Group for middleware systems that process actions before reducers.
   /// Middleware handles cross-cutting concerns like validation, logging, and async operations.
-  /// Runs in InitializationSystemGroup to process actions as early as possible.
+  /// Runs in SimulationSystemGroup, once per frame, before ReducerSystemGroup.
   /// </summary>
   [UpdateInGroup(typeof(SimulationSystemGroup))]
   [UpdateBefore(typeof(ReducerSystemGroup))]
@@ -77,6 +77,63 @@ namespace ECSReact.Core
     }
   }
 
+  // ───────────────────────────── Fixed-step action lane ─────────────────────────────
+
+  /// <summary>
+  /// The fixed action phase: processes actions marked [FixedStepAction] at the end of
+  /// every fixed step. OrderLast places it after every other system in the step,
+  /// including physics, so "processed this step" means after this step's physics.
+  ///
+  /// Order inside the phase:
+  ///   FixedActionCommandBufferSystem  → plays back fixed-lane dispatches (OrderFirst)
+  ///   FixedMiddlewareSystemGroup
+  ///   FixedReducerSystemGroup
+  ///   FixedActionCleanupSystem        → destroys FixedActionTag entities (OrderLast)
+  ///
+  /// Fixed-lane action entities therefore only exist inside this phase. On frames that
+  /// run zero fixed steps, pending dispatches simply wait in the command buffer.
+  /// </summary>
+  [UpdateInGroup(typeof(FixedStepSimulationSystemGroup), OrderLast = true)]
+  public partial class FixedActionSystemGroup : ComponentSystemGroup
+  {
+    protected override void OnCreate()
+    {
+      base.OnCreate();
+      EnableSystemSorting = true;
+    }
+  }
+
+  /// <summary>
+  /// Group for middleware systems whose action type is marked [FixedStepAction].
+  /// Runs inside FixedActionSystemGroup, once per fixed step, before FixedReducerSystemGroup.
+  /// </summary>
+  [UpdateInGroup(typeof(FixedActionSystemGroup))]
+  [UpdateAfter(typeof(FixedActionCommandBufferSystem))]
+  [UpdateBefore(typeof(FixedReducerSystemGroup))]
+  public partial class FixedMiddlewareSystemGroup : ComponentSystemGroup
+  {
+    protected override void OnCreate()
+    {
+      base.OnCreate();
+      EnableSystemSorting = true;
+    }
+  }
+
+  /// <summary>
+  /// Group for reducer systems whose action type is marked [FixedStepAction].
+  /// Runs inside FixedActionSystemGroup, once per fixed step, after FixedMiddlewareSystemGroup.
+  /// </summary>
+  [UpdateInGroup(typeof(FixedActionSystemGroup))]
+  [UpdateAfter(typeof(FixedActionCommandBufferSystem))]
+  public partial class FixedReducerSystemGroup : ComponentSystemGroup
+  {
+    protected override void OnCreate()
+    {
+      base.OnCreate();
+      EnableSystemSorting = true;
+    }
+  }
+
   /// <summary>
   /// Update group attributes that can be applied to user systems for proper ordering.
   /// These provide convenient, semantic attributes for common system types.
@@ -116,6 +173,24 @@ namespace ECSReact.Core
   public class AsyncMiddlewareAttribute : UpdateInGroupAttribute
   {
     public AsyncMiddlewareAttribute() : base(typeof(MiddlewareSystemGroup)) { }
+  }
+
+  /// <summary>
+  /// Attribute for hand-written reducer systems that handle [FixedStepAction] actions.
+  /// Query FixedActionTag (not ActionTag) in these systems.
+  /// </summary>
+  public class FixedReducerUpdateGroupAttribute : UpdateInGroupAttribute
+  {
+    public FixedReducerUpdateGroupAttribute() : base(typeof(FixedReducerSystemGroup)) { }
+  }
+
+  /// <summary>
+  /// Attribute for hand-written middleware systems that handle [FixedStepAction] actions.
+  /// Query FixedActionTag (not ActionTag) in these systems.
+  /// </summary>
+  public class FixedMiddlewareUpdateGroupAttribute : UpdateInGroupAttribute
+  {
+    public FixedMiddlewareUpdateGroupAttribute() : base(typeof(FixedMiddlewareSystemGroup)) { }
   }
 
   /// <summary>
