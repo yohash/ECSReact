@@ -49,12 +49,14 @@ namespace ECSReact.Tests
     public static bool DispatchFrameFromFixedStep;
     public static bool ChainFromFixedMiddleware;
     public static bool CrossLaneFromFixedMiddleware;
+    public static bool FixedFromFrameMiddleware;
 
     // Records
     public static readonly List<Processed> FixedActions = new List<Processed>();
     public static readonly List<Processed> ChainedActions = new List<Processed>();
     public static readonly List<Processed> FrameActions = new List<Processed>();
     public static int FixedActionsSeenByFrameLane;
+    public static int FixedDispatchedByFrameMiddleware;
 
     public static void Reset()
     {
@@ -64,10 +66,12 @@ namespace ECSReact.Tests
       DispatchFrameFromFixedStep = false;
       ChainFromFixedMiddleware = false;
       CrossLaneFromFixedMiddleware = false;
+      FixedFromFrameMiddleware = false;
       FixedActions.Clear();
       ChainedActions.Clear();
       FrameActions.Clear();
       FixedActionsSeenByFrameLane = 0;
+      FixedDispatchedByFrameMiddleware = 0;
     }
   }
 
@@ -123,6 +127,36 @@ namespace ECSReact.Tests
           dispatch.Dispatch(new TestChainedAction { dispatchedStep = TestLog.Step });
         if (TestLog.CrossLaneFromFixedMiddleware)
           dispatch.Dispatch(new TestFrameAction { dispatchedFrame = TestLog.Frame, fromFixedMiddleware = true });
+      }
+    }
+  }
+
+  /// <summary>
+  /// Hand-written frame-lane middleware, equivalent to a generated one: for every frame-lane
+  /// action it sees, dispatches a fixed-lane action through an ActionWriter obtained for the
+  /// frame lane.
+  /// </summary>
+  [DisableAutoCreation]
+  [MiddlewareUpdateGroup]
+  public partial class FrameMiddlewareDispatchingFixedSystem : SystemBase
+  {
+    private EntityQuery query;
+
+    protected override void OnCreate()
+    {
+      query = GetEntityQuery(ComponentType.ReadOnly<TestFrameAction>(), ComponentType.ReadOnly<ActionTag>());
+    }
+
+    protected override void OnUpdate()
+    {
+      if (!TestLog.FixedFromFrameMiddleware || query.IsEmpty)
+        return;
+
+      var dispatch = ECSActionDispatcher.GetActionWriter(World, isFixedLane: false);
+      int count = query.CalculateEntityCount();
+      for (int i = 0; i < count; i++) {
+        dispatch.Dispatch(new TestFixedAction { dispatchedStep = TestLog.Step });
+        TestLog.FixedDispatchedByFrameMiddleware++;
       }
     }
   }

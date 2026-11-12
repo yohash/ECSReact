@@ -45,6 +45,7 @@ namespace ECSReact.Tests
       typeof(StepCounterSystem),
       typeof(FixedStepDispatchSystem),
       typeof(ChainingFixedMiddlewareSystem),
+      typeof(FrameMiddlewareDispatchingFixedSystem),
       typeof(FixedLaneRecorderSystem),
       typeof(FrameLaneRecorderSystem),
     };
@@ -193,6 +194,40 @@ namespace ECSReact.Tests
       Assert.That(fromMiddleware.Count, Is.GreaterThan(0));
       foreach (var p in fromMiddleware)
         Assert.AreEqual(p.dispatched + 1, p.processed, $"dispatched in frame {p.dispatched}");
+      AssertLanesIsolated();
+    }
+
+    [TestCase(30)]
+    [TestCase(170)]
+    public void FixedAction_FromFrameMiddleware_IsProcessedAtNextStep(int fps)
+    {
+      TestLog.FixedFromFrameMiddleware = true;
+      int framesWithoutStep = 0;
+      int stepBeforeFrame = 0;
+
+      RunSeconds(fps, 2.0, afterFrame: () => {
+        if (TestLog.Step == stepBeforeFrame)
+          framesWithoutStep++;
+        stepBeforeFrame = TestLog.Step;
+
+        // Frame-lane action from frame code; the frame middleware turns it into a fixed-lane one
+        ECSActionDispatcher.Dispatch(new TestFrameAction { dispatchedFrame = TestLog.Frame }, world);
+      });
+
+      if (fps > 50)
+        Assert.That(framesWithoutStep, Is.GreaterThan(0), "test must cover frames that run no fixed step");
+
+      Assert.That(TestLog.FixedDispatchedByFrameMiddleware, Is.GreaterThan(0));
+      Assert.That(TestLog.FixedActions.Count, Is.GreaterThan(0));
+
+      // Frame middleware runs after this frame's fixed steps, so its dispatches wait for the next step.
+      // Those made after the final step are still pending; nothing may be dropped.
+      int pending = TestLog.FixedDispatchedByFrameMiddleware - TestLog.FixedActions.Count;
+      Assert.That(pending, Is.GreaterThanOrEqualTo(1));
+      Assert.That(pending, Is.LessThanOrEqualTo((int)Math.Ceiling(fps * FixedTimestep) + 1), "nothing may be dropped");
+
+      foreach (var p in TestLog.FixedActions)
+        Assert.AreEqual(p.dispatched + 1, p.processed, $"dispatched by frame middleware after step {p.dispatched}");
       AssertLanesIsolated();
     }
 
