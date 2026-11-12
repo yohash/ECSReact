@@ -20,15 +20,15 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       in AddCharacterAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter ecb,
-      int sortKey)
+      ref ActionWriter dispatch)
     {
       // Create the character entity
-      var newEntity = ecb.CreateEntity(sortKey);
+      // Raw ECB work goes through dispatch.Ecb (this middleware's own lane, the frame lane here),
+      // the same buffer CharacterCreatedAction is dispatched into, so the deferred entity resolves.
+      var newEntity = dispatch.Ecb.CreateEntity(dispatch.NextSortKey());
 
       // Dispatch enriched internal action with the created entity
-      ecb.DispatchAction(sortKey + 1,
-        new CharacterCreatedAction
+      dispatch.Dispatch(new CharacterCreatedAction
         {
           entity = newEntity,
           name = action.name,
