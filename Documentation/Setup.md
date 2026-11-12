@@ -248,33 +248,72 @@ public class InventoryItemDisplay : ReactiveUIComponent<InventoryState>, IElemen
 [Middleware(DisableBurst = true)]  // Allows managed operations
 public struct DamageValidation : IMiddleware<TakeDamageAction>
 {
-    public bool Process(ref TakeDamageAction action, ref SystemState systemState)
+    public void OnCreate(ref SystemState state) { }
+
+    public bool Process(in TakeDamageAction action, ref SystemState systemState, ref ActionWriter dispatch)
     {
         // Validate action
         if (action.damage < 0)
         {
-            // Dispatch error feedback
-            ECSActionDispatcher.Dispatch(new ShowErrorAction 
-            { 
-                message = "Invalid damage value" 
+            // Dispatch error feedback, routed to ShowErrorAction's lane
+            dispatch.Dispatch(new ShowErrorAction
+            {
+                message = "Invalid damage value"
             });
-            
+
             return false;  // Filter out this action - reducers won't see it
         }
 
         // Fetch other state using SystemState extensions
-        if (!systemState.TryGetSingleton<ConfigState>(out var config))
+        if (systemState.TryGetSingleton<ConfigState>(out var config) && action.damage > config.maxDamage)
         {
-          // We cannot find the ConfigState, optionally, perform error
-          // alerting or other actions here
-          return true; 
+            // Actions are read-only: filter it, or dispatch a corrected action instead
+            dispatch.Dispatch(new TakeDamageAction { target = action.target, damage = config.maxDamage });
+            return false;
         }
 
-        action.damage = math.min(action.damage, config.maxDamage);        
         return true;  // Action continues to reducers
     }
 }
 ```
+
+### 6. Optional: Process Gameplay Actions on the Fixed Step
+
+Mark an action type with `[FixedStepAction]` to process it at the end of every fixed step instead of once per frame. Its middleware and reducers are generated into the fixed-lane groups, so regenerate after adding or removing the attribute. See [API: Action Lanes](API.md#action-lanes) for the timing rules.
+
+```csharp
+[FixedStepAction]
+public struct TakeDamageAction : IGameAction { public Entity target; public int damage; }
+```
+
+## Upgrading to 0.2.0
+
+0.2.0 changes the middleware signature and the generated code.
+
+1. **Update every `IMiddleware` implementation.** `Process` now takes a lane-routing `ActionWriter` instead of a `ParallelWriter` and sort key:
+
+   ```csharp
+   // 0.1.x
+   public bool Process(in MyAction action, ref SystemState systemState,
+                       EntityCommandBuffer.ParallelWriter ecb, int sortKey)
+   {
+       ecb.DispatchAction(sortKey, new OtherAction { ... });
+       ...
+   }
+
+   // 0.2.0
+   public bool Process(in MyAction action, ref SystemState systemState, ref ActionWriter dispatch)
+   {
+       dispatch.Dispatch(new OtherAction { ... });   // no sort key; routed by OtherAction's lane
+       ...
+   }
+   ```
+
+   For non-action command buffer work, use `dispatch.Ecb` with `dispatch.NextSortKey()` (for example `var e = dispatch.Ecb.CreateEntity(dispatch.NextSortKey());`). Drop `sortKey + 1` patterns; the writer gives each dispatch its own key.
+
+2. **Regenerate.** Run *ECS React → Auto Generate All* (or the ISystem Bridge Generator). Generated middleware now passes an `ActionWriter`, and systems for `[FixedStepAction]` types go into the fixed-lane groups.
+
+3. **Optional: move gameplay actions to the fixed step.** Add `[FixedStepAction]` to an action type and regenerate. Existing actions keep their frame-lane behavior until you mark them.
 
 ## Next
 

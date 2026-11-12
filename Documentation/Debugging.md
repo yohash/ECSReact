@@ -10,6 +10,8 @@
 | **SystemUpdateGroupDebugger** | MonoBehaviour | Monitor ECS system execution order & timing<br>*Access: Add to GameObject, enable logging* |
 | **Scene State Manager** | MonoBehaviour | Inspect/configure state singletons per scene<br>*Access: Inspector on SceneStateManager component* |
 
+The State Viewer's action history captures both lanes. Frame-lane actions are recorded after `BeginInitializationEntityCommandBufferSystem` plays them back; `[FixedStepAction]` actions are recorded inside `FixedActionSystemGroup`, right after playback and before any fixed-lane middleware can filter them. Each entry's `ActionDebugData.isFixedLane` tells them apart.
+
 ## Element Debugging
 
 ### **Element Lifecycle Tracking**

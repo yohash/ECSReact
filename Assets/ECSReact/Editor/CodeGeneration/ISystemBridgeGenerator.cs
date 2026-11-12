@@ -11,11 +11,11 @@ using ECSReact.Core;
 namespace ECSReact.Editor.CodeGeneration
 {
   /// <summary>
-  /// Corrected version of ISystemBridgeGenerator that properly implements all four interface types:
+  /// Generates ISystem bridges for:
   /// - IReducer: Sequential with SystemState access
-  /// - IParallelReducer: Two-phase with PrepareData and TData
-  /// - IMiddleware: Sequential with filtering capability
-  /// - IParallelMiddleware: Two-phase with PrepareData, transform-only
+  /// - IMiddleware: Sequential with filtering capability, dispatching through ActionWriter
+  /// Systems whose action type is marked [FixedStepAction] are emitted into the
+  /// fixed-lane groups (FixedReducerSystemGroup / FixedMiddlewareSystemGroup).
   /// </summary>
   public class ISystemBridgeGenerator : EditorWindow
   {
