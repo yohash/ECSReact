@@ -48,6 +48,8 @@ namespace ECSReact.Core
     /// <summary>
     /// Dispatches an action through a parallel command buffer with proper tagging.
     /// Reduces boilerplate from 3 lines to 1.
+    /// The tag follows the action type: FixedActionTag for [FixedStepAction] types,
+    /// ActionTag otherwise. The lane's timing is decided by which buffer you write to.
     /// </summary>
     /// <param name="ecb">The parallel command buffer writer</param>
     /// <param name="sortKey">Unique sort key for deterministic ordering (e.g., entityInQueryIndex)</param>
@@ -61,7 +63,10 @@ namespace ECSReact.Core
     {
       var entity = ecb.CreateEntity(sortKey);
       ecb.AddComponent(sortKey, entity, action);
-      ecb.AddComponent(sortKey, entity, new ActionTag());
+      if (ActionLane<T>.IsFixed)
+        ecb.AddComponent(sortKey, entity, new FixedActionTag());
+      else
+        ecb.AddComponent(sortKey, entity, new ActionTag());
     }
 
     /// <summary>
@@ -78,7 +83,10 @@ namespace ECSReact.Core
     {
       var entity = ecb.CreateEntity();
       ecb.AddComponent(entity, action);
-      ecb.AddComponent(entity, new ActionTag());
+      if (ActionLane<T>.IsFixed)
+        ecb.AddComponent(entity, new FixedActionTag());
+      else
+        ecb.AddComponent(entity, new ActionTag());
     }
 
     /// <summary>
