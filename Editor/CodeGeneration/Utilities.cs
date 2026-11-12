@@ -102,6 +102,7 @@ namespace ECSReact.Editor.CodeGeneration
     public int order;
     public string systemName;
     public bool shouldGenerate;
+    public bool isFixedLane; // action type is marked [FixedStepAction]
   }
 
   // NEW: Info classes for IMiddleware/IParallelMiddleware types
@@ -117,6 +118,7 @@ namespace ECSReact.Editor.CodeGeneration
     public int order;
     public string systemName;
     public bool shouldGenerate;
+    public bool isFixedLane; // action type is marked [FixedStepAction]
   }
 
   public static class CodeGenUtils

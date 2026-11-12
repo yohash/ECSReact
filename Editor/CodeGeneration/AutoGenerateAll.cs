@@ -295,6 +295,7 @@ namespace ECSReact.Editor.CodeGeneration
                         actionNamespaceName = genericArgs[1].Namespace ?? "Global",
                         disableBurst = reducerAttr.DisableBurst,
                         order = reducerAttr.Order,
+                        isFixedLane = genericArgs[1].GetCustomAttribute<FixedStepActionAttribute>(false) != null,
                         systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
                         shouldGenerate = true
                       };
@@ -342,6 +343,7 @@ namespace ECSReact.Editor.CodeGeneration
                         actionNamespaceName = genericArgs[0].Namespace ?? "Global",
                         disableBurst = middlewareAttr.DisableBurst,
                         order = middlewareAttr.Order,
+                        isFixedLane = genericArgs[0].GetCustomAttribute<FixedStepActionAttribute>(false) != null,
                         systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
                         shouldGenerate = true
                       };
