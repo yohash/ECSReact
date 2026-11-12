@@ -16,9 +16,10 @@ namespace ECSReact.Core
     {
       base.OnUpdate();
 
-      // Job playback occurs automatically in base.OnUpdate(), due to the 
-      // JobCommandBuffer that is generated from this system.
-      // After playing back job actions, create new buffer for next frame's jobs
+      // Job playback occurs automatically in base.OnUpdate(), due to the
+      // JobCommandBuffer that is generated from this system. It waits for jobs registered
+      // via ECSActionDispatcher.RegisterJobHandle. The next job buffer is created lazily.
+      // Afterwards, reset the dispatcher's combined job handle.
       ECSActionDispatcher.RefreshJobBuffers(World);
     }
 
