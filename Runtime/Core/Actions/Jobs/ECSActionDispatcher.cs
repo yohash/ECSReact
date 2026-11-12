@@ -91,8 +91,10 @@ namespace ECSReact.Core
 
       public void RefreshJobBuffer()
       {
-        // Ensure previous jobs complete before creating new buffer
+        // Ensure previous jobs complete before creating new buffer.
+        // Reset afterwards so the combined handle doesn't keep growing every frame.
         LastJobHandle.Complete();
+        LastJobHandle = default;
 
         // Create a fresh parallel writer for jobs to use this frame
         var newECB = JobECBSystem.CreateCommandBuffer();
@@ -109,6 +111,13 @@ namespace ECSReact.Core
       public void RegisterJobHandle(JobHandle handle)
       {
         LastJobHandle = JobHandle.CombineDependencies(LastJobHandle, handle);
+
+        // An EntityCommandBufferSystem only waits for jobs registered as producers before
+        // it plays back. Without this, playback could start while a job is still writing
+        // to the buffer: a safety exception in the Editor, a data race in builds.
+        // The handle is registered with both lanes because a job may write to either writer.
+        JobECBSystem.AddJobHandleForProducer(handle);
+        FixedECBSystem.AddJobHandleForProducer(handle);
       }
 
       public void Dispose()
@@ -245,8 +254,9 @@ namespace ECSReact.Core
 
     /// <summary>
     /// Register a job handle that uses the job command buffer.
-    /// This ensures the buffer won't be refreshed until the job completes.
-    /// Call this after scheduling any job that uses GetJobCommandBuffer().
+    /// This ensures the buffer won't be played back or refreshed until the job completes.
+    /// Call this after scheduling any job that uses GetJobCommandBuffer() or
+    /// GetFixedJobCommandBuffer().
     /// </summary>
     /// <param name="handle">The JobHandle returned from scheduling</param>
     /// <param name="world">The world (uses current if null)</param>
