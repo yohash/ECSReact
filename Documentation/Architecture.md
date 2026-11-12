@@ -180,7 +180,8 @@ InitializationSystemGroup
 SimulationSystemGroup
   FixedStepSimulationSystemGroup                 (runs 0..k times per frame)
     ... gameplay systems, physics ...
-    FixedActionSystemGroup          [OrderLast]  ← fixed-step lane, once per step
+    EndFixedStepSimulationEntityCommandBufferSystem
+    FixedActionSystemGroup          [last]       ← fixed-step lane, once per step
       FixedActionCommandBufferSystem             ← plays back [FixedStepAction] dispatches
       FixedMiddlewareSystemGroup
       FixedReducerSystemGroup
@@ -195,7 +196,7 @@ PresentationSystemGroup
 1. `MiddlewareSystemGroup` - Processes frame-lane actions first for validation, logging, and async operations without consuming them
 2. `ReducerSystemGroup` - Transforms frame-lane actions into state changes with pure, deterministic business logic
 3. `ActionCleanupSystemGroup` - Destroys processed frame-lane action entities at frame end, ensuring clean lifecycle management
-4. `FixedActionSystemGroup` - The fixed-step lane: plays back, runs `FixedMiddlewareSystemGroup` and `FixedReducerSystemGroup`, and cleans up `[FixedStepAction]` actions at the end of every fixed step, after physics
+4. `FixedActionSystemGroup` - The fixed-step lane: plays back, runs `FixedMiddlewareSystemGroup` and `FixedReducerSystemGroup`, and cleans up `[FixedStepAction]` actions at the end of every fixed step, after physics and after `EndFixedStepSimulationEntityCommandBufferSystem`
 5. `UINotificationSystemGroup` - Detects state changes and queues UI events with frame budgeting for responsive presentation. It runs once per frame and sees the combined result of every fixed step that frame
 
 Each component has clear responsibilities and clean interfaces, making the system both powerful and maintainable at scale.

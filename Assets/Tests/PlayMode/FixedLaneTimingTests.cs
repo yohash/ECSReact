@@ -25,6 +25,7 @@ namespace ECSReact.Tests
       // Unity
       typeof(BeginInitializationEntityCommandBufferSystem),
       typeof(FixedStepSimulationSystemGroup),
+      typeof(EndFixedStepSimulationEntityCommandBufferSystem),
 
       // ECSReact frame lane
       typeof(ECSActionDispatcherInitSystem),
@@ -117,6 +118,23 @@ namespace ECSReact.Tests
       Assert.IsTrue(ActionLane<TestFixedAction>.IsFixed);
       Assert.IsTrue(ActionLane<TestChainedAction>.IsFixed);
       Assert.IsFalse(ActionLane<TestFrameAction>.IsFixed);
+    }
+
+    [Test]
+    public void FixedActionSystemGroup_RunsLastInTheFixedStep()
+    {
+      // Sorted on the first update
+      RunFrame(1.0 / 60);
+
+      var order = world.GetExistingSystemManaged<FixedStepSimulationSystemGroup>()
+        .ManagedSystems.Select(s => s.GetType()).ToList();
+      int phase = order.IndexOf(typeof(FixedActionSystemGroup));
+      int endEcb = order.IndexOf(typeof(EndFixedStepSimulationEntityCommandBufferSystem));
+
+      Assert.That(phase, Is.GreaterThanOrEqualTo(0), "FixedActionSystemGroup missing from the fixed step");
+      Assert.That(endEcb, Is.GreaterThanOrEqualTo(0), "EndFixedStepSimulationEntityCommandBufferSystem missing");
+      Assert.That(phase, Is.GreaterThan(endEcb), "the phase must run after the End-fixed-step ECB plays back");
+      Assert.AreEqual(order.Count - 1, phase, $"the phase must be last; order: {string.Join(", ", order.Select(t => t.Name))}");
     }
 
     [TestCase(30)]

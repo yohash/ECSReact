@@ -26,7 +26,7 @@ Every dispatch is deferred. Where it is processed depends on the action type's l
 Each action type belongs to exactly one lane:
 
 * **Frame lane** (default): processed once per rendered frame by `MiddlewareSystemGroup` and `ReducerSystemGroup`.
-* **Fixed-step lane** (`[FixedStepAction]`): processed at the end of every fixed step by `FixedActionSystemGroup`, which runs `OrderLast` in `FixedStepSimulationSystemGroup` (after physics).
+* **Fixed-step lane** (`[FixedStepAction]`): processed at the end of every fixed step by `FixedActionSystemGroup`, which runs last in `FixedStepSimulationSystemGroup`: after physics and after `EndFixedStepSimulationEntityCommandBufferSystem` plays back. Fixed reducers therefore see the structural changes gameplay systems queued into that ECB in the same step. Commands that fixed middleware or reducers queue into it play back in the next step.
 
 ```csharp
 [FixedStepAction]
@@ -46,6 +46,8 @@ Timing is counted in steps for the fixed lane, never in frames:
 Fixed-lane action entities carry `FixedActionTag` instead of `ActionTag`, and only exist inside `FixedActionSystemGroup`. Hand-written systems that handle them should use `[UpdateInGroup(typeof(FixedReducerSystemGroup))]` / `[UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]` and query `FixedActionTag`. Use the plain `UpdateInGroup` attribute: Entities matches it by exact type, so subclasses of it are ignored.
 
 `ActionLane<T>.IsFixed` reports the lane of `T` and can be read from Burst code.
+
+Playback order of dispatched actions is deterministic but is not dispatch order across systems: every middleware's `ActionWriter` starts at sort key 0 in the same lane buffer, so dispatches from systems A and B play back as A0, B0, A1, B1, … Don't rely on the relative order of actions dispatched by different systems.
 
 Note: frame-dispatched fixed-lane actions are deterministic on one machine, but which step they land on depends on frame timing. Cross-machine lockstep input needs step-stamped input, which ECSReact doesn't provide.
 

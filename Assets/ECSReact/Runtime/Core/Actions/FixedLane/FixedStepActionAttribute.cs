@@ -6,7 +6,7 @@ namespace ECSReact.Core
   /// Marks an action type as belonging to the fixed-step lane.
   ///
   /// Fixed-lane actions are processed at the end of every fixed step, inside
-  /// <see cref="FixedActionSystemGroup"/> (OrderLast in FixedStepSimulationSystemGroup),
+  /// <see cref="FixedActionSystemGroup"/> (last in FixedStepSimulationSystemGroup),
   /// instead of once per rendered frame. Use this for gameplay actions that must resolve
   /// a fixed number of steps after they're dispatched, independent of render rate.
   ///
