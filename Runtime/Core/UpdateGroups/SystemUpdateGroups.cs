@@ -176,24 +176,6 @@ namespace ECSReact.Core
   }
 
   /// <summary>
-  /// Attribute for hand-written reducer systems that handle [FixedStepAction] actions.
-  /// Query FixedActionTag (not ActionTag) in these systems.
-  /// </summary>
-  public class FixedReducerUpdateGroupAttribute : UpdateInGroupAttribute
-  {
-    public FixedReducerUpdateGroupAttribute() : base(typeof(FixedReducerSystemGroup)) { }
-  }
-
-  /// <summary>
-  /// Attribute for hand-written middleware systems that handle [FixedStepAction] actions.
-  /// Query FixedActionTag (not ActionTag) in these systems.
-  /// </summary>
-  public class FixedMiddlewareUpdateGroupAttribute : UpdateInGroupAttribute
-  {
-    public FixedMiddlewareUpdateGroupAttribute() : base(typeof(FixedMiddlewareSystemGroup)) { }
-  }
-
-  /// <summary>
   /// Attribute for UI state notification systems.
   /// Ensures these systems run in the presentation layer.
   /// </summary>
