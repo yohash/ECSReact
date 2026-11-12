@@ -81,8 +81,12 @@ namespace ECSReact.Core
 
   /// <summary>
   /// The fixed action phase: processes actions marked [FixedStepAction] at the end of
-  /// every fixed step. OrderLast places it after every other system in the step,
-  /// including physics, so "processed this step" means after this step's physics.
+  /// every fixed step. OrderLast, plus UpdateAfter EndFixedStepSimulationEntityCommandBufferSystem
+  /// (also OrderLast), places it after every other system in the step, including physics and
+  /// that ECB's playback. So "processed this step" means after this step's physics, and fixed
+  /// reducers see the structural changes gameplay systems queued into the End-fixed-step ECB
+  /// in the same step. Commands fixed middleware or reducers queue into that ECB play back in
+  /// the next step; use ActionWriter.Ecb or dispatch actions instead.
   ///
   /// Order inside the phase:
   ///   FixedActionCommandBufferSystem  → plays back fixed-lane dispatches (OrderFirst)
@@ -94,6 +98,7 @@ namespace ECSReact.Core
   /// run zero fixed steps, pending dispatches simply wait in the command buffer.
   /// </summary>
   [UpdateInGroup(typeof(FixedStepSimulationSystemGroup), OrderLast = true)]
+  [UpdateAfter(typeof(EndFixedStepSimulationEntityCommandBufferSystem))]
   public partial class FixedActionSystemGroup : ComponentSystemGroup
   {
     protected override void OnCreate()
