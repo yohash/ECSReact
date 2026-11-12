@@ -69,7 +69,7 @@ namespace ECSReact.Editor.CodeGeneration
       EditorGUILayout.LabelField("Select Namespaces to Generate", EditorStyles.boldLabel);
       EditorGUILayout.HelpBox(
         "Choose which namespaces you want to generate code for. This will run all generators:\n" +
-        "• ISystem Bridges (for new IReducer/IParallelReducer/IMiddleware/IParallelMiddleware)\n" +
+        "• ISystem Bridges (for new IReducer/IMiddleware)\n" +
         "• State Registry\n" +
         "• UIStateNotifier extensions\n" +
         "• StateSubscriptionHelper extensions",
@@ -399,7 +399,7 @@ namespace ECSReact.Editor.CodeGeneration
       if (!EditorUtility.DisplayDialog(
           "Generate All Selected",
           $"This will automatically generate code for {selectedNamespaces.Count} namespace(s):\n\n" +
-          "• ISystem Bridges (for new IReducer/IParallelReducer/IMiddleware/IParallelMiddleware)\n" +
+          "• ISystem Bridges (for new IReducer/IMiddleware)\n" +
           "• State Registry\n" +
           "• UIStateNotifier extensions\n" +
           "• StateSubscriptionHelper extensions\n" +
