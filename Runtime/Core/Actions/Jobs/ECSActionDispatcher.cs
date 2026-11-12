@@ -22,16 +22,48 @@ namespace ECSReact.Core
     private static World currentWorld;
 
     /// <summary>
+    /// A command buffer cached until its EntityCommandBufferSystem next updates.
+    ///
+    /// An ECB system plays back (and disposes) its pending buffers when it updates, and its
+    /// LastSystemVersion changes on every update. So a cached buffer is valid exactly while
+    /// that version hasn't moved. This replaces the old time-based cache, which reused an
+    /// already played-back buffer whenever ElapsedTime didn't advance (Time.timeScale = 0).
+    /// </summary>
+    private struct CachedBuffer
+    {
+      private EntityCommandBuffer buffer;
+      private uint systemVersion;
+      private bool hasBuffer;
+
+      public EntityCommandBuffer GetOrCreate(EntityCommandBufferSystem system)
+      {
+        uint version = system.LastSystemVersion;
+        if (!hasBuffer || version != systemVersion) {
+          buffer = system.CreateCommandBuffer();
+          systemVersion = version;
+          hasBuffer = true;
+        }
+        return buffer;
+      }
+
+      public void Clear() => hasBuffer = false;
+    }
+
+    /// <summary>
     /// Context for a specific world containing ECB management
     /// </summary>
     private class DispatchContext : IDisposable
     {
       public World World { get; }
-      public EntityCommandBufferSystem ECBSystem { get; }
 
-      // Frame-based ECB caching
-      public EntityCommandBuffer? CurrentFrameECB { get; set; }
-      public double LastTimeUpdated { get; set; } = -1;
+      // Frame lane: main-thread dispatches, played back next frame
+      public EntityCommandBufferSystem ECBSystem { get; }
+      private CachedBuffer frameECB;
+
+      // Fixed lane: played back at the start of the next fixed action phase
+      public EntityCommandBufferSystem FixedECBSystem { get; }
+      private CachedBuffer fixedECB;
+      private CachedBuffer fixedJobECB;
 
       // Job dispatch support - persistent ECB for jobs action dispatching
       public EntityCommandBuffer.ParallelWriter JobCommandBuffer { get; private set; }
@@ -49,6 +81,12 @@ namespace ECSReact.Core
 
         // Job dispatches collected by a dedicated system that extends EntityCommandBufferSystem
         JobECBSystem = world.GetOrCreateSystemManaged<JobActionCollectorSystem>();
+
+        // Fixed-lane dispatches, played back at the end of each fixed step
+        FixedECBSystem = world.GetOrCreateSystemManaged<FixedActionCommandBufferSystem>();
+
+        // Lane lookup must be ready before any dispatch, including from Burst jobs
+        ActionLaneRegistry.EnsureInitialized();
       }
 
       public void RefreshJobBuffer()
@@ -61,20 +99,12 @@ namespace ECSReact.Core
         JobCommandBuffer = newECB.AsParallelWriter();
       }
 
-      public EntityCommandBuffer GetOrCreateFrameECB()
-      {
-        double currentTime = World.Time.ElapsedTime;
+      public EntityCommandBuffer GetOrCreateFrameECB() => frameECB.GetOrCreate(ECBSystem);
 
-        // Check if we need a new ECB for this frame
-        if (!CurrentFrameECB.HasValue || currentTime > LastTimeUpdated) {
-          // Create new ECB for this frame
-          var newECB = ECBSystem.CreateCommandBuffer();
-          CurrentFrameECB = newECB;
-          LastTimeUpdated = currentTime;
-        }
+      public EntityCommandBuffer GetOrCreateFixedECB() => fixedECB.GetOrCreate(FixedECBSystem);
 
-        return CurrentFrameECB.Value;
-      }
+      public EntityCommandBuffer.ParallelWriter GetFixedJobCommandBuffer() =>
+        fixedJobECB.GetOrCreate(FixedECBSystem).AsParallelWriter();
 
       public void RegisterJobHandle(JobHandle handle)
       {
@@ -87,7 +117,9 @@ namespace ECSReact.Core
         LastJobHandle.Complete();
 
         // Clear references
-        CurrentFrameECB = null;
+        frameECB.Clear();
+        fixedECB.Clear();
+        fixedJobECB.Clear();
       }
     }
 
@@ -126,18 +158,31 @@ namespace ECSReact.Core
     /// <summary>
     /// Primary dispatch method - automatically manages command buffers.
     /// Thread-safe for main thread only (maintains determinism).
-    /// Automatically batches multiple dispatches in the same frame.
+    /// Automatically batches multiple dispatches until the lane's next playback.
+    ///
+    /// Routes by the action type's lane:
+    /// - frame lane: processed next frame (BeginInitializationEntityCommandBufferSystem);
+    /// - [FixedStepAction]: processed in the next fixed action phase. From a fixed-step
+    ///   system that runs before the phase, that is this step.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Dispatch<T>(T action) where T : unmanaged, IGameAction
     {
-      var context = GetOrCreateContext();
-      var ecb = context.GetOrCreateFrameECB();
+      Dispatch(action, null);
+    }
 
-      // Create action entity
-      var entity = ecb.CreateEntity();
-      ecb.AddComponent(entity, action);
-      ecb.AddComponent(entity, new ActionTag());
+    /// <summary>
+    /// Dispatch into a specific world. Uses the current world when <paramref name="world"/> is null.
+    /// </summary>
+    public static void Dispatch<T>(T action, World world) where T : unmanaged, IGameAction
+    {
+      var context = GetOrCreateContext(world);
+      var ecb = ActionLane<T>.IsFixed
+        ? context.GetOrCreateFixedECB()
+        : context.GetOrCreateFrameECB();
+
+      // Creates the action entity, tagged ActionTag or FixedActionTag by lane
+      ecb.DispatchAction(action);
     }
 
     /// <summary>
@@ -187,6 +232,18 @@ namespace ECSReact.Core
     }
 
     /// <summary>
+    /// Get the parallel writer for jobs that dispatch fixed-lane ([FixedStepAction]) actions.
+    /// Writes are played back at the start of the next fixed action phase, so a job scheduled
+    /// in fixed step N (before the phase) has its actions processed in step N.
+    /// Call RegisterJobHandle after scheduling, as with GetJobCommandBuffer.
+    /// The writer is valid until the next fixed-lane playback; fetch it again each update.
+    /// </summary>
+    public static EntityCommandBuffer.ParallelWriter GetFixedJobCommandBuffer(World world = null)
+    {
+      return GetOrCreateContext(world).GetFixedJobCommandBuffer();
+    }
+
+    /// <summary>
     /// Register a job handle that uses the job command buffer.
     /// This ensures the buffer won't be refreshed until the job completes.
     /// Call this after scheduling any job that uses GetJobCommandBuffer().
@@ -218,9 +275,9 @@ namespace ECSReact.Core
     /// Get or create context for current world.
     /// Thread-safe through ConcurrentDictionary.
     /// </summary>
-    private static DispatchContext GetOrCreateContext()
+    private static DispatchContext GetOrCreateContext(World world = null)
     {
-      var world = currentWorld ?? World.DefaultGameObjectInjectionWorld;
+      world ??= currentWorld ?? World.DefaultGameObjectInjectionWorld;
 
       return contexts.GetOrAdd(world, w =>
       {

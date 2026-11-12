@@ -5,15 +5,14 @@ namespace ECSReact.Core
 {
   /// <summary>
   /// MonoBehaviour that provides the main interface for dispatching actions from UI to ECS.
-  /// Uses command buffers for thread-safe action creation.
+  /// Dispatches go through ECSActionDispatcher, which routes each action type to its lane
+  /// (frame or fixed-step) and manages the command buffers.
   /// </summary>
   public class Store : MonoBehaviour
   {
     public static Store Instance { get; private set; }
 
-    private EntityCommandBufferSystem commandBufferSystem;
-    private EntityCommandBuffer currentFrameBuffer;
-    private int lastFrameCreated = -1;
+    private World world;
 
     void Awake()
     {
@@ -24,26 +23,17 @@ namespace ECSReact.Core
         Destroy(gameObject);
       }
 
-      var world = World.DefaultGameObjectInjectionWorld;
-      commandBufferSystem = world.GetOrCreateSystemManaged<BeginInitializationEntityCommandBufferSystem>();
+      world = World.DefaultGameObjectInjectionWorld;
     }
 
     /// <summary>
     /// Dispatch an action to be processed by ECS systems.
-    /// Actions are created as entities with ActionTag for cleanup.
+    /// Frame-lane actions are processed next frame; [FixedStepAction] actions are
+    /// processed in the next fixed step.
     /// </summary>
     public void Dispatch<T>(T action) where T : unmanaged, IGameAction
     {
-      int currentFrame = Time.frameCount;
-      if (lastFrameCreated != currentFrame) {
-        currentFrameBuffer = commandBufferSystem.CreateCommandBuffer();
-        lastFrameCreated = currentFrame;
-      }
-
-      // Store dispatches are synced with UI, and use non-parallel writer
-      var entity = currentFrameBuffer.CreateEntity();
-      currentFrameBuffer.AddComponent(entity, action);
-      currentFrameBuffer.AddComponent(entity, new ActionTag());
+      ECSActionDispatcher.Dispatch(action, world);
     }
   }
 }
