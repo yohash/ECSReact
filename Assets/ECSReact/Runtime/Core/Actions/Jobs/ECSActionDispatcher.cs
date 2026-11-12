@@ -253,6 +253,22 @@ namespace ECSReact.Core
     }
 
     /// <summary>
+    /// Get a lane-routing <see cref="ActionWriter"/> for middleware dispatches.
+    /// Main thread only; call once per system update and pass the writer by ref.
+    /// Generated middleware systems call this for you.
+    /// </summary>
+    /// <param name="world">The world (uses current if null)</param>
+    /// <param name="isFixedLane">True when the calling middleware runs in the fixed-step lane</param>
+    public static ActionWriter GetActionWriter(World world, bool isFixedLane)
+    {
+      var context = GetOrCreateContext(world);
+      return new ActionWriter(
+        context.JobCommandBuffer,
+        context.GetFixedJobCommandBuffer(),
+        isFixedLane);
+    }
+
+    /// <summary>
     /// Register a job handle that uses the job command buffer.
     /// This ensures the buffer won't be played back or refreshed until the job completes.
     /// Call this after scheduling any job that uses GetJobCommandBuffer() or
