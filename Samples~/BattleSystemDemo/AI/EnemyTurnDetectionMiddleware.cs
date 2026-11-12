@@ -44,8 +44,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       in NextTurnAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter ecb,
-      int sortKey
+      ref ActionWriter dispatch
     )
     {
       // Only process if this is an enemy turn
@@ -87,7 +86,7 @@ namespace ECSReact.Samples.BattleSystem
       // SIDE EFFECT: Dispatch enriched EnemyTurnStartedAction
       // ====================================================================
 
-      ecb.DispatchAction(sortKey, new EnemyTurnStartedAction {
+      dispatch.Dispatch(new EnemyTurnStartedAction {
         enemyEntity = activeEnemy,
         turnIndex = battleState.activeCharacterIndex,
         turnCount = battleState.turnCount,
@@ -98,7 +97,7 @@ namespace ECSReact.Samples.BattleSystem
       // SIDE EFFECT: Dispatch UI feedback action
       // ====================================================================
 
-      ecb.DispatchAction(sortKey + 1, new AIThinkingAction {
+      dispatch.Dispatch(new AIThinkingAction {
         enemyEntity = activeEnemy,
         thinkDuration = behavior.thinkingDuration
       });
