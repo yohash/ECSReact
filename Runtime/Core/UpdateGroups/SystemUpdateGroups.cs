@@ -139,53 +139,8 @@ namespace ECSReact.Core
     }
   }
 
-  /// <summary>
-  /// Update group attributes that can be applied to user systems for proper ordering.
-  /// These provide convenient, semantic attributes for common system types.
-  /// </summary>
-
-  /// <summary>
-  /// Attribute for reducer systems that process actions and update state.
-  /// Ensures reducers run in SimulationSystemGroup after middleware but before cleanup.
-  /// </summary>
-  public class ReducerUpdateGroupAttribute : UpdateInGroupAttribute
-  {
-    public ReducerUpdateGroupAttribute() : base(typeof(ReducerSystemGroup)) { }
-  }
-
-  /// <summary>
-  /// Attribute for general middleware systems that process actions before reducers.
-  /// Ensures middleware runs early in the pipeline.
-  /// </summary>
-  public class MiddlewareUpdateGroupAttribute : UpdateInGroupAttribute
-  {
-    public MiddlewareUpdateGroupAttribute() : base(typeof(MiddlewareSystemGroup)) { }
-  }
-
-  /// <summary>
-  /// Attribute for validation middleware systems.
-  /// Ensures validation runs early in the middleware pipeline.
-  /// </summary>
-  public class ValidationMiddlewareAttribute : UpdateInGroupAttribute
-  {
-    public ValidationMiddlewareAttribute() : base(typeof(MiddlewareSystemGroup)) { }
-  }
-
-  /// <summary>
-  /// Attribute for async middleware systems (file I/O, network, etc).
-  /// These run after validation but before simulation.
-  /// </summary>
-  public class AsyncMiddlewareAttribute : UpdateInGroupAttribute
-  {
-    public AsyncMiddlewareAttribute() : base(typeof(MiddlewareSystemGroup)) { }
-  }
-
-  /// <summary>
-  /// Attribute for UI state notification systems.
-  /// Ensures these systems run in the presentation layer.
-  /// </summary>
-  public class UINotificationSystemAttribute : UpdateInGroupAttribute
-  {
-    public UINotificationSystemAttribute() : base(typeof(UINotificationSystemGroup)) { }
-  }
+  // Note: place systems in these groups with the plain attribute, e.g.
+  // [UpdateInGroup(typeof(ReducerSystemGroup))]. Entities matches UpdateInGroupAttribute by
+  // exact type and silently ignores subclasses, so convenience attributes deriving from it
+  // don't work (#16).
 }
