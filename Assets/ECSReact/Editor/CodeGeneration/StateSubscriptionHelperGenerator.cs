@@ -465,7 +465,8 @@ namespace ECSReact.Editor.CodeGeneration
           sb.AppendLine("  [BurstCompile]");
         }
 
-        sb.AppendLine("  [UINotificationSystem]");
+        // Plain UpdateInGroup: Entities ignores subclasses of UpdateInGroupAttribute (#16)
+        sb.AppendLine("  [UpdateInGroup(typeof(UINotificationSystemGroup))]");
         sb.AppendLine($"  public partial class {state.typeName}ChangeNotificationSystem : StateChangeNotificationSystem<{state.typeName}>");
         sb.AppendLine("  {");
         sb.AppendLine($"    protected override UIEvent CreateStateChangeEvent({state.typeName} newState, {state.typeName} oldState, bool hasOldState)");

@@ -14,7 +14,7 @@ namespace ECSReact.Tests
 {
   /// <summary>
   /// Review coverage for PR #15 (issue #12), filling gaps left by FixedLaneTimingTests:
-  /// - the Fixed*UpdateGroup / ReducerUpdateGroup attributes really place systems in their groups;
+  /// - the fixtures' [UpdateInGroup] attributes really place systems in their groups;
   /// - the dispatcher can initialise whatever order a world creates its systems in;
   /// - ActionLane&lt;T&gt; reads correctly from Burst-compiled jobs, and DispatchAction tags by lane there;
   /// - frames that run several fixed steps process each step's dispatch exactly once;
@@ -111,9 +111,10 @@ namespace ECSReact.Tests
     // ──────────────────────── Group attribute placement ────────────────────────
 
     /// <summary>
-    /// [FixedReducerUpdateGroup] and [FixedMiddlewareUpdateGroup] subclass UpdateInGroupAttribute.
-    /// Entities' codegen type registry matches system attributes by exact type, so a subclass may be
-    /// ignored and the system lands in SimulationSystemGroup instead. This checks where systems end up.
+    /// Entities' codegen type registry matches system attributes by exact type, so a subclass of
+    /// UpdateInGroupAttribute is ignored and the system lands in SimulationSystemGroup instead (the
+    /// removed [Fixed*UpdateGroup] / [ReducerUpdateGroup] attributes did exactly that). This checks
+    /// where the fixtures' plain [UpdateInGroup] attributes put the systems.
     /// </summary>
     [Test]
     public void GroupAttributes_PlaceSystemsInTheirGroups()
@@ -121,20 +122,20 @@ namespace ECSReact.Tests
       world = new World("ECSReact Group Attribute World");
       var types = PipelineTypes.Concat(new[]
       {
-        typeof(ChainingFixedMiddlewareSystem), // [FixedMiddlewareUpdateGroup]
-        typeof(FixedLaneRecorderSystem),       // [FixedReducerUpdateGroup]
-        typeof(FrameLaneRecorderSystem),       // [ReducerUpdateGroup]
+        typeof(ChainingFixedMiddlewareSystem), // [UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]
+        typeof(FixedLaneRecorderSystem),       // [UpdateInGroup(typeof(FixedReducerSystemGroup))]
+        typeof(FrameLaneRecorderSystem),       // [UpdateInGroup(typeof(ReducerSystemGroup))]
       }).ToArray();
       DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, types);
 
       // Report every misplaced system at once (this NUnit version has no Assert.Multiple)
       var misplaced = new List<string>();
       if (!ManagedSystemsIn<FixedMiddlewareSystemGroup>(world).Contains(typeof(ChainingFixedMiddlewareSystem)))
-        misplaced.Add("[FixedMiddlewareUpdateGroup] system is not in FixedMiddlewareSystemGroup");
+        misplaced.Add("ChainingFixedMiddlewareSystem is not in FixedMiddlewareSystemGroup");
       if (!ManagedSystemsIn<FixedReducerSystemGroup>(world).Contains(typeof(FixedLaneRecorderSystem)))
-        misplaced.Add("[FixedReducerUpdateGroup] system is not in FixedReducerSystemGroup");
+        misplaced.Add("FixedLaneRecorderSystem is not in FixedReducerSystemGroup");
       if (!ManagedSystemsIn<ReducerSystemGroup>(world).Contains(typeof(FrameLaneRecorderSystem)))
-        misplaced.Add("[ReducerUpdateGroup] system is not in ReducerSystemGroup");
+        misplaced.Add("FrameLaneRecorderSystem is not in ReducerSystemGroup");
       CollectionAssert.IsEmpty(misplaced, string.Join("; ", misplaced));
     }
 

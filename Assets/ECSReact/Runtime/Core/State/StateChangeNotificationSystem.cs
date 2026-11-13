@@ -6,8 +6,11 @@ namespace ECSReact.Core
   /// <summary>
   /// ECS system that detects state changes and queues UI events.
   /// This system compares current state with previous frame state and dispatches events.
+  /// Runs in UINotificationSystemGroup (PresentationSystemGroup), after every reducer and
+  /// fixed step of the frame. Subclasses should declare the same plain attribute: Entities
+  /// ignores subclasses of UpdateInGroupAttribute.
   /// </summary>
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public abstract partial class StateChangeNotificationSystem<T> : SystemBase
       where T : unmanaged, IGameState, IEquatable<T>
   {

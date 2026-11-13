@@ -315,6 +315,18 @@ public struct TakeDamageAction : IGameAction { public Entity target; public int 
 
 3. **Optional: move gameplay actions to the fixed step.** Add `[FixedStepAction]` to an action type and regenerate. Existing actions keep their frame-lane behavior until you mark them.
 
+## Upgrading to 0.3.0
+
+0.3.0 removes five convenience attributes that never worked, because Entities ignores subclasses of `UpdateInGroupAttribute`. Replace them with the plain attribute:
+
+| Removed | Use instead |
+| --- | --- |
+| `[ReducerUpdateGroup]` | `[UpdateInGroup(typeof(ReducerSystemGroup))]` |
+| `[MiddlewareUpdateGroup]`, `[ValidationMiddleware]`, `[AsyncMiddleware]` | `[UpdateInGroup(typeof(MiddlewareSystemGroup))]` |
+| `[UINotificationSystem]` | `[UpdateInGroup(typeof(UINotificationSystemGroup))]` |
+
+Then regenerate (*ECS React → Auto Generate All*): generated state change notification systems now use the plain attribute and run in `UINotificationSystemGroup`.
+
 ## Next
 
 1. [Overview](Overview.md)

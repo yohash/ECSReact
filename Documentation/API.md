@@ -172,6 +172,20 @@ StateChangeNotificationSystem<T>
 [FixedStepAction]                                     // On an IGameAction struct: process it on the fixed step
 ```
 
+### Placing hand-written systems
+
+Put hand-written systems into ECSReact's groups with Unity's plain `UpdateInGroup` attribute:
+
+```csharp
+[UpdateInGroup(typeof(MiddlewareSystemGroup))]        // frame-lane middleware
+[UpdateInGroup(typeof(ReducerSystemGroup))]           // frame-lane reducers
+[UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]   // fixed-lane middleware (query FixedActionTag)
+[UpdateInGroup(typeof(FixedReducerSystemGroup))]      // fixed-lane reducers (query FixedActionTag)
+[UpdateInGroup(typeof(UINotificationSystemGroup))]    // state change notification systems
+```
+
+Don't wrap these in your own attribute: Entities matches `UpdateInGroup`, `UpdateBefore` and `UpdateAfter` by exact type and silently ignores subclasses, so a system marked with one lands at the root of `SimulationSystemGroup`. This is why ECSReact no longer ships `[ReducerUpdateGroup]`, `[MiddlewareUpdateGroup]`, `[ValidationMiddleware]`, `[AsyncMiddleware]` or `[UINotificationSystem]`.
+
 ## UI Events
 
 ```csharp

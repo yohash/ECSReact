@@ -197,7 +197,7 @@ PresentationSystemGroup
 2. `ReducerSystemGroup` - Transforms frame-lane actions into state changes with pure, deterministic business logic
 3. `ActionCleanupSystemGroup` - Destroys processed frame-lane action entities at frame end, ensuring clean lifecycle management
 4. `FixedActionSystemGroup` - The fixed-step lane: plays back, runs `FixedMiddlewareSystemGroup` and `FixedReducerSystemGroup`, and cleans up `[FixedStepAction]` actions at the end of every fixed step, after physics and after `EndFixedStepSimulationEntityCommandBufferSystem`
-5. `UINotificationSystemGroup` - Detects state changes and queues UI events with frame budgeting for responsive presentation. It runs once per frame and sees the combined result of every fixed step that frame
+5. `UINotificationSystemGroup` - Detects state changes and queues UI events with frame budgeting for responsive presentation. It runs once per frame in `PresentationSystemGroup`, after every reducer and fixed step, so it sees the combined result of the whole frame. `UIEventQueue` delivers the queued events to UI components in the next frame's `Update`
 
 Each component has clear responsibilities and clean interfaces, making the system both powerful and maintainable at scale.
 

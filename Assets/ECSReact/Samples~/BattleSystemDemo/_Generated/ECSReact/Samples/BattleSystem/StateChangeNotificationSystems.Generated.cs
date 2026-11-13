@@ -16,7 +16,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class AIThinkingStateChangeNotificationSystem : StateChangeNotificationSystem<AIThinkingState>
   {
     protected override UIEvent CreateStateChangeEvent(AIThinkingState newState, AIThinkingState oldState, bool hasOldState)
@@ -30,7 +30,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class BattleLogStateChangeNotificationSystem : StateChangeNotificationSystem<BattleLogState>
   {
     protected override UIEvent CreateStateChangeEvent(BattleLogState newState, BattleLogState oldState, bool hasOldState)
@@ -44,7 +44,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class BattleStateChangeNotificationSystem : StateChangeNotificationSystem<BattleState>
   {
     protected override UIEvent CreateStateChangeEvent(BattleState newState, BattleState oldState, bool hasOldState)
@@ -58,7 +58,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class CharacterHealthStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterHealthState>
   {
     protected override UIEvent CreateStateChangeEvent(CharacterHealthState newState, CharacterHealthState oldState, bool hasOldState)
@@ -72,7 +72,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class CharacterManaStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterManaState>
   {
     protected override UIEvent CreateStateChangeEvent(CharacterManaState newState, CharacterManaState oldState, bool hasOldState)
@@ -86,7 +86,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class CharacterStatusStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterStatusState>
   {
     protected override UIEvent CreateStateChangeEvent(CharacterStatusState newState, CharacterStatusState oldState, bool hasOldState)
@@ -100,7 +100,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class CharacterIdentityStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterIdentityState>
   {
     protected override UIEvent CreateStateChangeEvent(CharacterIdentityState newState, CharacterIdentityState oldState, bool hasOldState)
@@ -114,7 +114,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class CharacterRosterStateChangeNotificationSystem : StateChangeNotificationSystem<CharacterRosterState>
   {
     protected override UIEvent CreateStateChangeEvent(CharacterRosterState newState, CharacterRosterState oldState, bool hasOldState)
@@ -128,7 +128,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class SaveStateChangeNotificationSystem : StateChangeNotificationSystem<SaveState>
   {
     protected override UIEvent CreateStateChangeEvent(SaveState newState, SaveState oldState, bool hasOldState)
@@ -142,7 +142,7 @@ namespace ECSReact.Samples.BattleSystem
   /// Generated for namespace: ECSReact.Samples.BattleSystem
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class UIBattleStateChangeNotificationSystem : StateChangeNotificationSystem<UIBattleState>
   {
     protected override UIEvent CreateStateChangeEvent(UIBattleState newState, UIBattleState oldState, bool hasOldState)
