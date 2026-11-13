@@ -16,7 +16,7 @@ namespace ECSReact.Samples.SimpleSetup.Namespace2.State
   /// Generated for namespace: ECSReact.Samples.SimpleSetup.Namespace2.State
   /// </summary>
   [BurstCompile]
-  [UINotificationSystem]
+  [UpdateInGroup(typeof(UINotificationSystemGroup))]
   public partial class StateNamespace2ChangeNotificationSystem : StateChangeNotificationSystem<StateNamespace2>
   {
     protected override UIEvent CreateStateChangeEvent(StateNamespace2 newState, StateNamespace2 oldState, bool hasOldState)
