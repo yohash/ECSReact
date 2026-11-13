@@ -315,9 +315,9 @@ public struct TakeDamageAction : IGameAction { public Entity target; public int 
 
 3. **Optional: move gameplay actions to the fixed step.** Add `[FixedStepAction]` to an action type and regenerate. Existing actions keep their frame-lane behavior until you mark them.
 
-## Upgrading to 0.2.1
+## Upgrading to 0.3.0
 
-0.2.1 removes five convenience attributes that never worked, because Entities ignores subclasses of `UpdateInGroupAttribute`. Replace them with the plain attribute:
+0.3.0 removes five convenience attributes that never worked, because Entities ignores subclasses of `UpdateInGroupAttribute`. Replace them with the plain attribute:
 
 | Removed | Use instead |
 | --- | --- |
