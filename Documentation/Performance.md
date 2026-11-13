@@ -37,17 +37,15 @@ Group related reducers for better cache usage:
 ```csharp
 // Instead of separate systems for each physics operation
 [Reducer]
-public struct PhysicsReducer : IParallelReducer<PhysicsState, PhysicsAction, PhysicsReducer.PhysicsData>
+public struct PhysicsReducer : IReducer<PhysicsState, PhysicsAction>
 {
-    public struct PhysicsData
+    public void Execute(ref PhysicsState state, in PhysicsAction action, ref SystemState systemState)
     {
-        public float deltaTime;
-        public float3 gravity;
-        public float damping;
-    }
-    
-    public void Execute(ref PhysicsState state, in PhysicsAction action, in PhysicsData data)
-    {
+        var data = (
+            deltaTime: systemState.WorldUnmanaged.Time.DeltaTime,
+            gravity: new float3(0f, -9.81f, 0f),
+            damping: 0.1f);
+
         // Process all physics in one cache-friendly pass
         switch (action.type)
         {

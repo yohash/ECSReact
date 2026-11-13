@@ -12,6 +12,15 @@
 - **Domain Language** - Name actions after business events (`PlayerLeveledUp`) not technical operations (`IncrementLevel`)
 - **Failure Actions** - For every async action, consider corresponding failure/error actions
 
+### Choosing an Action Lane
+
+- **Gameplay on the fixed step** - Mark actions that change simulation state (damage, death, spawning, physics-driven events) with `[FixedStepAction]`. They resolve a fixed number of steps after dispatch, whatever the frame rate
+- **Presentation on the frame** - Keep UI, VFX, audio and menu actions in the frame lane. Fixed-lane middleware can still emit them through `dispatch.Dispatch(...)`; they are processed next frame
+- **One lane per type** - Never try to process one action type in both lanes. If gameplay and presentation both need an event, use two action types (e.g. `TakeDamageAction` and `DamageNumberAction`)
+- **Dispatch from the fixed step** - A `[FixedStepAction]` dispatched from a system in `FixedStepSimulationSystemGroup` is processed in the same step, after physics. Dispatching it from frame-rate code delays it to the next step
+- **Mind chain depth** - Each fixed-lane middleware hop costs one step. Prefer enriching one action over long dispatch chains
+- **Hand-written systems** - Use `[UpdateInGroup(typeof(FixedReducerSystemGroup))]` / `[UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]` and query `FixedActionTag` for fixed-lane action types
+
 ### Reducer Design
 
 - **Pure Functions** - No side effects, no external dependencies

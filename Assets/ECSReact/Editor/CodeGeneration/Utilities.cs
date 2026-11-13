@@ -87,7 +87,7 @@ namespace ECSReact.Editor.CodeGeneration
     public string className;
   }
 
-  // NEW: Info classes for IReducer/IParallelReducer types
+  // Info classes for IReducer types
   [Serializable]
   public class ReducerInfo
   {
@@ -102,9 +102,10 @@ namespace ECSReact.Editor.CodeGeneration
     public int order;
     public string systemName;
     public bool shouldGenerate;
+    public bool isFixedLane; // action type is marked [FixedStepAction]
   }
 
-  // NEW: Info classes for IMiddleware/IParallelMiddleware types
+  // Info classes for IMiddleware types
   [Serializable]
   public class MiddlewareInfo
   {
@@ -117,6 +118,7 @@ namespace ECSReact.Editor.CodeGeneration
     public int order;
     public string systemName;
     public bool shouldGenerate;
+    public bool isFixedLane; // action type is marked [FixedStepAction]
   }
 
   public static class CodeGenUtils

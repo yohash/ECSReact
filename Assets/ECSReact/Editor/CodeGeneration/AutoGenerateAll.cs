@@ -69,7 +69,7 @@ namespace ECSReact.Editor.CodeGeneration
       EditorGUILayout.LabelField("Select Namespaces to Generate", EditorStyles.boldLabel);
       EditorGUILayout.HelpBox(
         "Choose which namespaces you want to generate code for. This will run all generators:\n" +
-        "• ISystem Bridges (for new IReducer/IParallelReducer/IMiddleware/IParallelMiddleware)\n" +
+        "• ISystem Bridges (for new IReducer/IMiddleware)\n" +
         "• State Registry\n" +
         "• UIStateNotifier extensions\n" +
         "• StateSubscriptionHelper extensions",
@@ -295,6 +295,7 @@ namespace ECSReact.Editor.CodeGeneration
                         actionNamespaceName = genericArgs[1].Namespace ?? "Global",
                         disableBurst = reducerAttr.DisableBurst,
                         order = reducerAttr.Order,
+                        isFixedLane = genericArgs[1].GetCustomAttribute<FixedStepActionAttribute>(false) != null,
                         systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
                         shouldGenerate = true
                       };
@@ -342,6 +343,7 @@ namespace ECSReact.Editor.CodeGeneration
                         actionNamespaceName = genericArgs[0].Namespace ?? "Global",
                         disableBurst = middlewareAttr.DisableBurst,
                         order = middlewareAttr.Order,
+                        isFixedLane = genericArgs[0].GetCustomAttribute<FixedStepActionAttribute>(false) != null,
                         systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
                         shouldGenerate = true
                       };
@@ -397,7 +399,7 @@ namespace ECSReact.Editor.CodeGeneration
       if (!EditorUtility.DisplayDialog(
           "Generate All Selected",
           $"This will automatically generate code for {selectedNamespaces.Count} namespace(s):\n\n" +
-          "• ISystem Bridges (for new IReducer/IParallelReducer/IMiddleware/IParallelMiddleware)\n" +
+          "• ISystem Bridges (for new IReducer/IMiddleware)\n" +
           "• State Registry\n" +
           "• UIStateNotifier extensions\n" +
           "• StateSubscriptionHelper extensions\n" +

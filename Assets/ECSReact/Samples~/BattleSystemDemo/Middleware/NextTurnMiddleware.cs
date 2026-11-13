@@ -17,8 +17,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       in ReadyForNextTurn action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter ecb,
-      int sortKey
+      ref ActionWriter dispatch
     )
     {
       if (!systemState.TryGetSingleton<CharacterIdentityState>(out var identityState)) {
@@ -56,7 +55,7 @@ namespace ECSReact.Samples.BattleSystem
 
       // No alive characters found, end battle
       if (nextEntity == Entity.Null) {
-        ecb.DispatchAction(sortKey, new EndBattleAction());
+        dispatch.Dispatch(new EndBattleAction());
         return false; // Prevent NextTurnAction from reaching reducers
       }
 
@@ -67,8 +66,7 @@ namespace ECSReact.Samples.BattleSystem
         isPlayer = !isEnemy;
       }
 
-      ecb.DispatchAction(sortKey + 1,
-        new NextTurnAction
+      dispatch.Dispatch(new NextTurnAction
         {
           nextCharacterIndex = nextIndex,
           isPlayerTurn = isPlayer,
@@ -87,7 +85,7 @@ namespace ECSReact.Samples.BattleSystem
   {
     public void OnCreate(ref SystemState state) { }
 
-    public bool Process(in EndBattleAction action, ref SystemState systemState, EntityCommandBuffer.ParallelWriter dispatcher, int sortKey)
+    public bool Process(in EndBattleAction action, ref SystemState systemState, ref ActionWriter dispatch)
     {
       Debug.LogWarning("*** BATTLE ENDED ***");
       return true;

@@ -25,17 +25,17 @@ namespace ECSReact.Core
   ///     }
   ///
   ///     public bool Process(
-  ///         in DamageAction action, 
-  ///         ref SystemState systemState, 
-  ///         EntityCommandBuffer.ParallelWriter dispatcher, 
-  ///         int sortKey
+  ///         in DamageAction action,
+  ///         ref SystemState systemState,
+  ///         ref ActionWriter dispatch
   ///     )
   ///     {
   ///         var config = configQuery.GetSingleton&lt;GameConfig&gt;();
   ///         // Read-only: inspect action data, cannot mutate
   ///         if (action.damage > 100)
   ///         {
-  ///             dispatcher.DispatchAction(sortKey, new CriticalHitEvent { damage = action.damage });
+  ///             // Routed to the lane of CriticalHitEvent (frame or [FixedStepAction])
+  ///             dispatch.Dispatch(new CriticalHitEvent { damage = action.damage });
   ///         }
   ///         
   ///         return action.damage > 0; // false prevents action from reaching reducers
@@ -60,22 +60,23 @@ namespace ECSReact.Core
 
     /// <summary>
     /// Processes an action before it reaches reducers.
-    /// Receives EntityCommandBuffer.ParallelWriter for Burst-compatible dispatching.
-    /// 
-    /// NOTE: Actions dispatched via 'dispatcher' are deferred and will appear in the next frame.
-    /// For immediate action dispatch, use [Middleware(DisableBurst = true)] and ECSActionDispatcher.Dispatch().
-    /// 
+    /// Receives an <see cref="ActionWriter"/> for Burst-compatible dispatching.
+    ///
+    /// Dispatches are deferred and routed by the dispatched action's lane:
+    /// - frame-lane actions are processed next frame;
+    /// - [FixedStepAction] actions are processed in the next fixed step.
+    /// For raw command buffer work (e.g. creating non-action entities), use dispatch.Ecb with
+    /// dispatch.NextSortKey(); that buffer belongs to this middleware's own lane.
+    ///
     /// Actions are read-only. Middleware cannot mutate action data — it can only
     /// inspect, filter (return false), or dispatch new actions.
     /// </summary>
     /// <param name="action">The action to inspect (read-only)</param>
     /// <param name="systemState">The system state providing access to SystemAPI</param>
-    /// <param name="ecb">ECB ParallelWriter for Burst-compatible action dispatching</param>
-    /// <param name="sortKey">Unique index for deterministic command buffer ordering</param>
+    /// <param name="dispatch">Lane-routing writer for dispatching actions</param>
     bool Process(
       in TAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter ecb,
-      int sortKey);
+      ref ActionWriter dispatch);
   }
 }

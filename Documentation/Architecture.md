@@ -34,7 +34,7 @@ State Changes   →   StateSubscriptionHelper   →   UI Components
 **Components:**
 
 * `IMiddleware<TAction>.cs` - Sequential processing with filtering capability
-* `IParallelMiddleware<TAction, TData>.cs` - High-performance parallel processing with PrepareData pattern
+* `ActionWriter.cs` - Lane-routing writer passed to middleware for dispatching new actions
 
 **Internal Flow:**
 
@@ -44,10 +44,6 @@ Action Created   →   Middleware Pipeline     →   Continue/Filter to Reducers
    Entity             Sequential:                     Can Return false
                     [Validation] [Logging]             to Filter Out
                     [Dispatching] [Side Effects]       Action
-                             ↓
-                       Parallel:               →      Cannot Filter
-                    [High-Speed Validation]            
-                    [Data Transformation]
 ```
 
 **Middleware** intercepts and processes actions for cross-cutting concerns before they reach business logic, without blocking the core state update flow.
@@ -59,7 +55,6 @@ Action Created   →   Middleware Pipeline     →   Continue/Filter to Reducers
 **Components:**
 
 * `IReducer<TState, TAction>.cs` - State transformation logic with no side effects
-* `IParallelReducer<TState, TAction, TData>.cs` - High-performance parallel state updates
 * `StateChangeNotificationSystem<T>.cs` - Detects changes and generates UI events
 
 **Internal Flow:**
@@ -70,9 +65,6 @@ Action Entities    →     Reducer Pipeline     →    Updated Singleton State
 Type-Filtered             Sequential:                  Direct State
  ECS Query               Full SystemAPI Access           Mutation
                          Time, Singletons, etc.
-                              ↓
-                          Parallel:
-                         PrepareData + Execute 
 ```
 
 **Reducers** are the core business logic layer that transforms actions into state changes and triggers the UI update pipeline.
@@ -87,6 +79,9 @@ Type-Filtered             Sequential:                  Direct State
 * `Store.cs` - Main dispatch interface from UI to ECS
 * `ActionTag.cs` - Cleanup identification component
 * `ActionCleanupSystem.cs` - End-of-frame entity destruction
+* `FixedStepActionAttribute.cs` - Marks an action type as belonging to the fixed-step lane
+* `FixedActionTag.cs` - Tag on fixed-lane action entities, in place of `ActionTag`
+* `FixedActionCommandBufferSystem.cs` / `FixedActionCleanupSystem.cs` - Playback and cleanup for the fixed-step lane
 
 **Internal Flow:**
 
@@ -176,13 +171,33 @@ UI Input  →  Actions  →  Middleware  →  Reducers  →  State  →  UI Upda
 
 ### **System Update Groups**
 
-Unity ECS system update groups enforce this flow with deterministic execution order:
+Unity ECS system update groups enforce this flow with deterministic execution order. Actions run in one of two lanes, chosen per action type (see [API: Action Lanes](API.md#action-lanes)):
 
-1. `MiddlewareSystemGroup` - Processes actions first for validation, logging, and async operations without consuming them
-2. `ReducerSystemGroup` - Transforms actions into state changes with pure, deterministic business logic  
-3. `ActionCleanupSystemGroup` - Destroys processed action entities at frame end, ensuring clean lifecycle management
-4. `UINotificationSystemGroup` - Detects state changes and queues UI events with frame budgeting for responsive presentation
-5. `PhysicsMiddlewareSystemGroup` - Handles physics-specific preprocessing for deterministic simulation timing
+```
+InitializationSystemGroup
+  BeginInitializationEntityCommandBufferSystem   ← plays back frame-lane dispatches
+  JobActionCollectorSystem                       ← plays back frame-lane job dispatches
+SimulationSystemGroup
+  FixedStepSimulationSystemGroup                 (runs 0..k times per frame)
+    ... gameplay systems, physics ...
+    EndFixedStepSimulationEntityCommandBufferSystem
+    FixedActionSystemGroup          [last]       ← fixed-step lane, once per step
+      FixedActionCommandBufferSystem             ← plays back [FixedStepAction] dispatches
+      FixedMiddlewareSystemGroup
+      FixedReducerSystemGroup
+      FixedActionCleanupSystem                   ← destroys FixedActionTag entities
+  MiddlewareSystemGroup                          ← frame lane, once per frame
+  ReducerSystemGroup
+  ActionCleanupSystemGroup                       ← destroys ActionTag entities
+PresentationSystemGroup
+  UINotificationSystemGroup                      ← state changes → UI events
+```
+
+1. `MiddlewareSystemGroup` - Processes frame-lane actions first for validation, logging, and async operations without consuming them
+2. `ReducerSystemGroup` - Transforms frame-lane actions into state changes with pure, deterministic business logic
+3. `ActionCleanupSystemGroup` - Destroys processed frame-lane action entities at frame end, ensuring clean lifecycle management
+4. `FixedActionSystemGroup` - The fixed-step lane: plays back, runs `FixedMiddlewareSystemGroup` and `FixedReducerSystemGroup`, and cleans up `[FixedStepAction]` actions at the end of every fixed step, after physics and after `EndFixedStepSimulationEntityCommandBufferSystem`
+5. `UINotificationSystemGroup` - Detects state changes and queues UI events with frame budgeting for responsive presentation. It runs once per frame and sees the combined result of every fixed step that frame
 
 Each component has clear responsibilities and clean interfaces, making the system both powerful and maintainable at scale.
 

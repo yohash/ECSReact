@@ -567,6 +567,8 @@ public partial struct ProjectileSystem : ISystem
 - Use unique sort keys for ParallelWriter (entity index, query index, etc.)
 - Register job handles with `RegisterJobHandle()` for proper synchronization
 - The extension methods in `ECBActionExtensions` provide one-line dispatch
+- For `[FixedStepAction]` actions, use `GetFixedJobCommandBuffer()` instead of `GetJobCommandBuffer()` so they are processed on the fixed step (the tag follows the action type either way)
+- In middleware, dispatch through the `ActionWriter` parameter (`dispatch.Dispatch(...)`); it picks the right lane for you
 </details>
 
 ## Elements and Props

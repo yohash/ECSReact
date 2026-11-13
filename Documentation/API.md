@@ -3,13 +3,53 @@
 ## Store Dispatch
 
 ```csharp
-Store.Dispatch<T>(T action)                          // Dispatch action to ECS
-Store.Instance.Dispatch<T>(T action)                 // Singleton access
+Store.Instance.Dispatch<T>(T action)                 // Dispatch action to ECS (from UI / MonoBehaviours)
 
 ECSActionDispatcher
-├── Dispatch<T>(EntityCommandBuffer commandBuffer, T action)       // Helper: dispatch from ECS world
-└── DispatchImmediate<T>(EntityManager entityManager, T action)    // Helper: dispatch from ECS world
+├── Dispatch<T>(T action)                            // Main thread: dispatch from systems; routed by T's lane
+├── Dispatch<T>(T action, World world)               // Main thread: dispatch into a specific world
+├── GetJobCommandBuffer(World world = null)          // Jobs: ParallelWriter for frame-lane dispatches
+├── GetFixedJobCommandBuffer(World world = null)     // Jobs: ParallelWriter for [FixedStepAction] dispatches
+├── RegisterJobHandle(JobHandle handle, World world = null)
+│                                                    // Jobs: call after scheduling; playback waits for the job
+└── GetActionWriter(World world, bool isFixedLane)   // Middleware: lane-routing writer (generated code calls this)
+
+ECBActionExtensions                                  // Burst-compatible; the tag follows T's lane
+├── ParallelWriter.DispatchAction<T>(int sortKey, T action)
+└── EntityCommandBuffer.DispatchAction<T>(T action)
 ```
+
+Every dispatch is deferred. Where it is processed depends on the action type's lane, see [Action Lanes](#action-lanes).
+
+## Action Lanes
+
+Each action type belongs to exactly one lane:
+
+* **Frame lane** (default): processed once per rendered frame by `MiddlewareSystemGroup` and `ReducerSystemGroup`.
+* **Fixed-step lane** (`[FixedStepAction]`): processed at the end of every fixed step by `FixedActionSystemGroup`, which runs last in `FixedStepSimulationSystemGroup`: after physics and after `EndFixedStepSimulationEntityCommandBufferSystem` plays back. Fixed reducers therefore see the structural changes gameplay systems queued into that ECB in the same step. Commands that fixed middleware or reducers queue into it play back in the next step.
+
+```csharp
+[FixedStepAction]
+public struct TakeDamageAction : IGameAction { public Entity target; public int amount; }
+```
+
+Timing is counted in steps for the fixed lane, never in frames:
+
+| Dispatched by | Action lane | Processed |
+| --- | --- | --- |
+| A fixed-step system, before the phase | fixed | **the same step (N)** |
+| Fixed-lane middleware in step N (a chain) | fixed | step N+1, one step per hop |
+| Fixed-lane middleware | frame | next frame |
+| Frame-rate code (UI, input, frame-lane middleware) | fixed | the next fixed step; kept across frames that run no step |
+| Frame-rate code | frame | next frame |
+
+Fixed-lane action entities carry `FixedActionTag` instead of `ActionTag`, and only exist inside `FixedActionSystemGroup`. Hand-written systems that handle them should use `[UpdateInGroup(typeof(FixedReducerSystemGroup))]` / `[UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]` and query `FixedActionTag`. Use the plain `UpdateInGroup` attribute: Entities matches it by exact type, so subclasses of it are ignored.
+
+`ActionLane<T>.IsFixed` reports the lane of `T` and can be read from Burst code.
+
+Playback order of dispatched actions is deterministic but is not dispatch order across systems: every middleware's `ActionWriter` starts at sort key 0 in the same lane buffer, so dispatches from systems A and B play back as A0, B0, A1, B1, … Don't rely on the relative order of actions dispatched by different systems.
+
+Note: frame-dispatched fixed-lane actions are deterministic on one machine, but which step they land on depends on frame timing. Cross-machine lockstep input needs step-stamped input, which ECSReact doesn't provide.
 
 ## UI Components
 
@@ -98,23 +138,18 @@ IReducer<TState, TAction>
 └── Execute(ref TState state, in TAction action, ref SystemState systemState)
                                                      // Implement: mutate state with SystemAPI access via SystemState
 
-IParallelReducer<TState, TAction, TData>
-├── PrepareData(ref SystemState systemState)         // Main thread: prepare lookup data
-│   └── Returns struct TData
-└── Execute(ref TState state, in TAction action, in TData data)
-                                                     // Implement: Burst-compiled mutate state logic using prepared data
-
 IMiddleware<TAction>
 ├── OnCreate(ref SystemState state)                   // Implement: cache queries, lookups, or other one-time setup
-└── bool Process(in TAction action, ref SystemState systemState)
+└── bool Process(in TAction action, ref SystemState systemState, ref ActionWriter dispatch)
                                                      // Implement: Sequential processing, inspect or filter actions (read-only)
                                                      // Return false to prevent action from reaching reducers
 
-IParallelMiddleware<TAction, TData>
-├── PrepareData(ref SystemState systemState)         // Main thread: prepare lookup data
-│   └── Returns TData struct
-└── Process(in TAction action, in TData data)        // Implement: Parallel processing, inspect action data only
-   
+ActionWriter                                         // Passed to middleware; Burst-compatible
+├── Dispatch<T>(T action)                            // Dispatch into T's own lane (frame or fixed)
+├── Ecb                                              // Raw ParallelWriter for this middleware's own lane
+├── NextSortKey()                                    // Unused sort key for commands written to Ecb
+└── IsFixedLane                                      // True when this middleware runs in the fixed lane
+
 StateChangeNotificationSystem<T>
 └── CreateStateChangeEvent(T new, T old, bool hasOld) // Override: create UI events
 ```
@@ -133,6 +168,8 @@ StateChangeNotificationSystem<T>
     SystemName = "CustomName",                        // Optional: override generated system name  
     DisableBurst = false                              // Optional: disable Burst compilation
 )]
+
+[FixedStepAction]                                     // On an IGameAction struct: process it on the fixed step
 ```
 
 ## UI Events

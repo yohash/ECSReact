@@ -11,7 +11,7 @@ namespace ECSReact.Samples.SimpleSetup.Namespace1.Middleware
   {
     public void OnCreate(ref SystemState state) { }
 
-    public bool Process(in ActionResetNamespace1 action, ref SystemState systemState, EntityCommandBuffer.ParallelWriter ecb, int sortKey)
+    public bool Process(in ActionResetNamespace1 action, ref SystemState systemState, ref ActionWriter dispatch)
     {
       if (!systemState.TryGetSingleton<StateNamespace1>(out var state)) {
         Debug.LogError("StateNamespace1 singleton not found!");

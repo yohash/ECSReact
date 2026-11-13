@@ -11,11 +11,11 @@ using ECSReact.Core;
 namespace ECSReact.Editor.CodeGeneration
 {
   /// <summary>
-  /// Corrected version of ISystemBridgeGenerator that properly implements all four interface types:
+  /// Generates ISystem bridges for:
   /// - IReducer: Sequential with SystemState access
-  /// - IParallelReducer: Two-phase with PrepareData and TData
-  /// - IMiddleware: Sequential with filtering capability
-  /// - IParallelMiddleware: Two-phase with PrepareData, transform-only
+  /// - IMiddleware: Sequential with filtering capability, dispatching through ActionWriter
+  /// Systems whose action type is marked [FixedStepAction] are emitted into the
+  /// fixed-lane groups (FixedReducerSystemGroup / FixedMiddlewareSystemGroup).
   /// </summary>
   public class ISystemBridgeGenerator : EditorWindow
   {
@@ -267,6 +267,7 @@ namespace ECSReact.Editor.CodeGeneration
                       actionNamespaceName = genericArgs[1].Namespace ?? "Global",
                       disableBurst = reducerAttr.DisableBurst,
                       order = reducerAttr.Order,
+                      isFixedLane = genericArgs[1].GetCustomAttribute<FixedStepActionAttribute>(false) != null,
                       systemName = reducerAttr.SystemName ?? $"{type.Name}_System",
                       shouldGenerate = true
                     };
@@ -324,6 +325,7 @@ namespace ECSReact.Editor.CodeGeneration
                       actionNamespaceName = genericArgs[0].Namespace ?? "Global",
                       disableBurst = middlewareAttr.DisableBurst,
                       order = middlewareAttr.Order,
+                      isFixedLane = genericArgs[0].GetCustomAttribute<FixedStepActionAttribute>(false) != null,
                       systemName = middlewareAttr.SystemName ?? $"{type.Name}_System",
                       shouldGenerate = true
                     };
@@ -453,6 +455,9 @@ namespace ECSReact.Editor.CodeGeneration
       }
     }
 
+    /// <summary>Tag component that action entities carry in the given lane.</summary>
+    private static string LaneTag(bool isFixedLane) => isFixedLane ? "FixedActionTag" : "ActionTag";
+
     private void GenerateReducerSystem(ReducerInfo reducer)
     {
       var sb = new StringBuilder();
@@ -478,11 +483,15 @@ namespace ECSReact.Editor.CodeGeneration
         sb.AppendLine($"  /// Generated ISystem implementation for {reducer.structName}.");
         sb.AppendLine($"  /// State: {reducer.stateNamespaceName}.{reducer.stateType}");
         sb.AppendLine($"  /// Action: {reducer.actionNamespaceName}.{reducer.actionType}");
+        if (reducer.isFixedLane)
+          sb.AppendLine("  /// Lane: fixed step ([FixedStepAction])");
         sb.AppendLine("  /// </summary>");
       }
 
       // System declaration
-      sb.AppendLine("  [UpdateInGroup(typeof(ReducerSystemGroup))]");
+      sb.AppendLine(reducer.isFixedLane
+        ? "  [UpdateInGroup(typeof(FixedReducerSystemGroup))]"
+        : "  [UpdateInGroup(typeof(ReducerSystemGroup))]");
       if (!reducer.disableBurst)
         sb.AppendLine("  [BurstCompile]");
       sb.AppendLine($"  public partial struct {reducer.systemName} : ISystem");
@@ -503,7 +512,7 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine();
       sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
       sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
-      sb.AppendLine($"        .WithAll<{reducer.actionNamespaceName}.{reducer.actionType}, ActionTag>();");
+      sb.AppendLine($"        .WithAll<{reducer.actionNamespaceName}.{reducer.actionType}, {LaneTag(reducer.isFixedLane)}>();");
       sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
       sb.AppendLine("      queryBuilder.Dispose();");
       sb.AppendLine();
@@ -593,11 +602,15 @@ namespace ECSReact.Editor.CodeGeneration
         sb.AppendLine("  /// <summary>");
         sb.AppendLine($"  /// Generated ISystem implementation for {middleware.structName}.");
         sb.AppendLine($"  /// Action: {middleware.actionNamespaceName}.{middleware.actionType}");
+        if (middleware.isFixedLane)
+          sb.AppendLine("  /// Lane: fixed step ([FixedStepAction])");
         sb.AppendLine("  /// </summary>");
       }
 
       // System declaration
-      sb.AppendLine("  [UpdateInGroup(typeof(MiddlewareSystemGroup))]");
+      sb.AppendLine(middleware.isFixedLane
+        ? "  [UpdateInGroup(typeof(FixedMiddlewareSystemGroup))]"
+        : "  [UpdateInGroup(typeof(MiddlewareSystemGroup))]");
       if (!middleware.disableBurst)
         sb.AppendLine("  [BurstCompile]");  // System-level Burst (for OnCreate)
       sb.AppendLine($"  public partial struct {middleware.systemName} : ISystem");
@@ -606,8 +619,8 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("    private EntityQuery actionQuery;");
 
       sb.AppendLine();
-      sb.AppendLine("    // ECB writer for Burst-compatible action dispatching");
-      sb.AppendLine("    private EntityCommandBuffer.ParallelWriter ecbWriter;");
+      sb.AppendLine("    // Lane-routing writer for Burst-compatible action dispatching");
+      sb.AppendLine("    private ActionWriter dispatch;");
       sb.AppendLine();
 
       // OnCreate
@@ -620,7 +633,7 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine();
       sb.AppendLine("      // Use EntityQueryBuilder for Burst compatibility");
       sb.AppendLine("      var queryBuilder = new EntityQueryBuilder(Allocator.Temp)");
-      sb.AppendLine($"        .WithAll<{middleware.actionNamespaceName}.{middleware.actionType}, ActionTag>();");
+      sb.AppendLine($"        .WithAll<{middleware.actionNamespaceName}.{middleware.actionType}, {LaneTag(middleware.isFixedLane)}>();");
       sb.AppendLine("      actionQuery = state.GetEntityQuery(queryBuilder);");
       sb.AppendLine("      queryBuilder.Dispose();");
       sb.AppendLine();
@@ -632,8 +645,8 @@ namespace ECSReact.Editor.CodeGeneration
       // OnUpdate
       sb.AppendLine("    public void OnUpdate(ref SystemState state)");
       sb.AppendLine("    {");
-      sb.AppendLine("      // Pre-fetch ECB writer on main thread");
-      sb.AppendLine("      ecbWriter = ECSActionDispatcher.GetJobCommandBuffer(state.World);");
+      sb.AppendLine("      // Pre-fetch the action writer on main thread (fresh sort keys each update)");
+      sb.AppendLine($"      dispatch = ECSActionDispatcher.GetActionWriter(state.World, isFixedLane: {(middleware.isFixedLane ? "true" : "false")});");
       sb.AppendLine();
       sb.AppendLine("      // Call middleware processing");
       sb.AppendLine("      ProcessMiddleware(ref state);");
@@ -655,7 +668,6 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("      // This prevents structural changes inside Process() from");
       sb.AppendLine("      // invalidating a ComponentLookup mid-iteration.");
       sb.AppendLine("      var entities = actionQuery.ToEntityArray(Allocator.Temp);");
-      sb.AppendLine("      int sortKey = 0;");
       sb.AppendLine();
       sb.AppendLine("      // Check if action is zero-sized (no fields)");
       sb.AppendLine($"      var type = new ComponentType(typeof({middleware.actionNamespaceName}.{middleware.actionType}));");
@@ -667,11 +679,10 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine($"        var action = default({middleware.actionNamespaceName}.{middleware.actionType});");
       sb.AppendLine("        foreach (var entity in entities)");
       sb.AppendLine("        {");
-      sb.AppendLine("          if (!logic.Process(in action, ref state, ecbWriter, sortKey))");
+      sb.AppendLine("          if (!logic.Process(in action, ref state, ref dispatch))");
       sb.AppendLine("          {");
       sb.AppendLine("            ecb.DestroyEntity(entity);");
       sb.AppendLine("          }");
-      sb.AppendLine("          sortKey++;");
       sb.AppendLine("        }");
       sb.AppendLine("      }");
       sb.AppendLine("      else");
@@ -682,11 +693,10 @@ namespace ECSReact.Editor.CodeGeneration
       sb.AppendLine("        for (int i = 0; i < entities.Length; i++)");
       sb.AppendLine("        {");
       sb.AppendLine("          var action = actions[i];");
-      sb.AppendLine("          if (!logic.Process(in action, ref state, ecbWriter, sortKey))");
+      sb.AppendLine("          if (!logic.Process(in action, ref state, ref dispatch))");
       sb.AppendLine("          {");
       sb.AppendLine("            ecb.DestroyEntity(entities[i]);");
       sb.AppendLine("          }");
-      sb.AppendLine("          sortKey++;");
       sb.AppendLine("        }");
       sb.AppendLine();
       sb.AppendLine("        actions.Dispose();");

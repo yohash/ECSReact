@@ -16,8 +16,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       in AttackAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter ecb,
-      int sortKey
+      ref ActionWriter dispatch
     )
     {
       // Get character names for the log message
@@ -81,8 +80,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       in NextTurnAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter ecb,
-      int sortKey
+      ref ActionWriter dispatch
     )
     {
       // Get current battle state to determine whose turn it is
@@ -134,8 +132,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       in SelectActionTypeAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter ecb,
-      int sortKey
+      ref ActionWriter dispatch
     )
     {
       if (action.actionType == ActionType.None)

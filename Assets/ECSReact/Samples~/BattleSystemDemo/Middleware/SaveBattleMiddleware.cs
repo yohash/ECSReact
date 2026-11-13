@@ -24,8 +24,7 @@ namespace ECSReact.Samples.BattleSystem
     public bool Process(
       in SaveBattleAction action,
       ref SystemState systemState,
-      EntityCommandBuffer.ParallelWriter ecb,
-      int sortKey
+      ref ActionWriter dispatch
     )
     {
       // Generate filename if not provided
